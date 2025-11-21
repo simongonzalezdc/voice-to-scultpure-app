@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sculptureStore, setGhostSculpture, clearGhostSculpture, setCurrentSculpture } from '$lib/stores/sculptureStore';
+	import { sculptureStore, setGhostSculpture, clearGhostSculpture, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 
 	let height = $state(1);

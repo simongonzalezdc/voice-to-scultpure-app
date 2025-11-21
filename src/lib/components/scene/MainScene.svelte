@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import Sculpture from './Sculpture.svelte';
 	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
-	import { sculptureStore } from '$lib/stores/sculptureStore';
+	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
 	let mounted = $state(false);
 

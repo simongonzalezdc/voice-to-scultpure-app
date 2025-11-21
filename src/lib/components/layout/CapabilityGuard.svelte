@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { analysisStore } from '$lib/stores/analysisStore';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 
 	let hasSharedArrayBuffer = $state(false);
 	let hasWebGPU = $state(false);

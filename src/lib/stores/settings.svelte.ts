@@ -1,4 +1,4 @@
-import { appSettings, updateSettings } from './appSettingsStore';
+import { appSettings, updateSettings } from './appSettingsStore.svelte';
 
 export const graphicsQuality = $derived(appSettings.graphicsQuality);
 

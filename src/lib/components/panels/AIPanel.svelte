@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore';
-	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore';
+	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { createAISculptor, mergeSculpture } from '$lib/ai';
 	import type { AISculptor } from '$lib/ai';
 	import { AISculptorErrorImpl } from '$lib/ai/types';

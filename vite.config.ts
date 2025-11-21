@@ -7,7 +7,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			$lib: path.resolve('./src/lib'),
-			'@threlte/core$': path.resolve('./src/lib/shims/threlte-core.ts'),
+			'@threlte/core': path.resolve('./src/lib/shims/threlte-core.ts'),
 			'@threlte/core-original': path.resolve('./node_modules/@threlte/core')
 		}
 	},
@@ -18,7 +18,7 @@ export default defineConfig({
 		}
 	},
 	optimizeDeps: {
-		exclude: ['@threlte/core', '@threlte/extras', 'three']
+			exclude: ['@threlte/core', 'three']
 	}
 });
 

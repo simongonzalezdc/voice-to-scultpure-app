@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { recordingStore } from '$lib/stores/recordingStore';
-	import { analysisStore } from '$lib/stores/analysisStore';
+	import { recordingStore } from '$lib/stores/recordingStore.svelte';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
@@ -11,8 +11,8 @@
 	} from '$lib/audio/audioContext';
 	import { createAnalysisWorkerClient } from '$lib/audio/analysisWorkerClient';
 	import { addAnalysisFrame } from '$lib/stores/recording.svelte';
-	import { updateAnalysisFrame } from '$lib/stores/analysisStore';
-	import { analysisStore as analysis } from '$lib/stores/analysisStore';
+	import { updateAnalysisFrame } from '$lib/stores/analysisStore.svelte';
+	import { analysisStore as analysis } from '$lib/stores/analysisStore.svelte';
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);

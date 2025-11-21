@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Canvas, T } from '@threlte/core';
-	import { OrbitControls } from '@threlte/extras';
-	import { sculptureStore } from '$lib/stores/sculptureStore';
-	import { appSettings } from '$lib/stores/appSettingsStore';
+	import OrbitControls from './OrbitControls.svelte';
+	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { LatheGeometry, MeshPhysicalMaterial, Vector2 } from 'three';
 	import { useTask } from '@threlte/core';
 	import type { SculptureDefinition } from '$lib/types';

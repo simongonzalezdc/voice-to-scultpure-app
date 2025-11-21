@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { analysisStore } from '$lib/stores/analysisStore';
-	import { recordingStore } from '$lib/stores/recordingStore';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
+	import { recordingStore } from '$lib/stores/recordingStore.svelte';
 	import { BufferGeometry, Float32BufferAttribute, LineBasicMaterial } from 'three';
 	import { useTask } from '@threlte/core';
 

@@ -5,7 +5,12 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		alias: {
+			$lib: 'src/lib',
+			'@threlte/core': 'src/lib/shims/threlte-core.ts',
+			'@threlte/core-original': 'node_modules/@threlte/core'
+		}
 	}
 };
 

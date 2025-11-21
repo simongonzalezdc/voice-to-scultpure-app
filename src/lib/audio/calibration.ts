@@ -1,5 +1,5 @@
 import type { UserProfile, AnalysisFrame } from '$lib/types';
-import { updateSettings } from '$lib/stores/appSettingsStore';
+import { updateSettings } from '$lib/stores/appSettingsStore.svelte';
 
 export interface CalibrationResult {
 	pitchRange: {

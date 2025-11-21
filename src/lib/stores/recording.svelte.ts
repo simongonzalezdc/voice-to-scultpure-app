@@ -6,10 +6,10 @@ import {
 	completeProcessing as completeProcessingState,
 	resetRecording as resetRecordingState
 } from './recordingStore';
-import { sculptureStore, setCurrentSculpture } from './sculptureStore';
-import { analysisStore, resetAnalysis } from './analysisStore';
+import { sculptureStore, setCurrentSculpture } from './sculptureStore.svelte';
+import { analysisStore, resetAnalysis } from './analysisStore.svelte';
 import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
-import { appSettings } from './appSettingsStore';
+import { appSettings } from './appSettingsStore.svelte';
 
 let capturedFrames: Array<import('$lib/types').AnalysisFrame> = [];
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { listProjects, loadProject, deleteProject } from '$lib/storage/opfs';
-	import { setCurrentSculpture } from '$lib/stores/sculptureStore';
+	import { setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import type { ProjectMetadata } from '$lib/types';
 	import { renderHighRes } from '$lib/export/renderHighRes';
 

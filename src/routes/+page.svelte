@@ -11,7 +11,7 @@
 	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
-	import { uiStore, startOnboarding } from '$lib/stores/uiStore';
+	import { uiStore, startOnboarding } from '$lib/stores/uiStore.svelte';
 
 	onMount(() => {
 		if (browser && !uiStore.onboarding.completed.has('welcome')) {
