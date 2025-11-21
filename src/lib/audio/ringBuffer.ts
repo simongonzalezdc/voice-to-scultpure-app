@@ -15,11 +15,10 @@ export function createAudioRingBuffer(
 	// Buffer layout: [writePtr, readPtr, ...samples]
 	const bufferSize = (capacity + DATA_START_INDEX) * 4; // 4 bytes per float32
 	const buffer = new SharedArrayBuffer(bufferSize);
-	const view = new Float32Array(buffer);
 
 	// Initialize pointers
-	Atomics.store(new Int32Array(buffer, 0, 2), WRITE_PTR_INDEX, DATA_START_INDEX);
-	Atomics.store(new Int32Array(buffer, 0, 2), READ_PTR_INDEX, DATA_START_INDEX);
+	Atomics.store(new Int32Array(buffer, 0, 2), WRITE_PTR_INDEX, 0);
+	Atomics.store(new Int32Array(buffer, 0, 2), READ_PTR_INDEX, 0);
 
 	return {
 		buffer,
@@ -37,31 +36,20 @@ export function writeToRingBuffer(
 	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);
 	const readPtr = Atomics.load(intView, READ_PTR_INDEX);
 
-	let written = 0;
-	for (let i = 0; i < samples.length; i++) {
-		const nextWrite = ((writePtr + i - DATA_START_INDEX) % ringBuffer.capacity) + DATA_START_INDEX;
-		const nextRead = readPtr;
+	const occupied = Math.min(ringBuffer.capacity, Math.max(0, writePtr - readPtr));
+	const availableSpace = ringBuffer.capacity - occupied;
+	const toWrite = Math.min(availableSpace, samples.length);
 
-		// Check if buffer is full (write pointer would catch read pointer)
-		if (
-			nextWrite === nextRead &&
-			(writePtr + i - DATA_START_INDEX) % ringBuffer.capacity !==
-				(readPtr - DATA_START_INDEX) % ringBuffer.capacity
-		) {
-			break; // Buffer full
-		}
-
-		view[nextWrite] = samples[i];
-		written++;
+	for (let i = 0; i < toWrite; i++) {
+		const writeIndex = ((writePtr + i) % ringBuffer.capacity) + DATA_START_INDEX;
+		view[writeIndex] = samples[i];
 	}
 
-	if (written > 0) {
-		const newWritePtr =
-			((writePtr - DATA_START_INDEX + written) % ringBuffer.capacity) + DATA_START_INDEX;
-		Atomics.store(intView, WRITE_PTR_INDEX, newWritePtr);
+	if (toWrite > 0) {
+		Atomics.store(intView, WRITE_PTR_INDEX, writePtr + toWrite);
 	}
 
-	return written;
+	return toWrite;
 }
 
 export function readFromRingBuffer(
@@ -73,7 +61,7 @@ export function readFromRingBuffer(
 	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);
 	const readPtr = Atomics.load(intView, READ_PTR_INDEX);
 
-	const available = availableSamples(ringBuffer);
+	const available = Math.min(ringBuffer.capacity, Math.max(0, writePtr - readPtr));
 	const toRead = Math.min(available, output.length);
 
 	if (toRead === 0) {
@@ -81,12 +69,11 @@ export function readFromRingBuffer(
 	}
 
 	for (let i = 0; i < toRead; i++) {
-		const readIndex = ((readPtr - DATA_START_INDEX + i) % ringBuffer.capacity) + DATA_START_INDEX;
+		const readIndex = ((readPtr + i) % ringBuffer.capacity) + DATA_START_INDEX;
 		output[i] = view[readIndex];
 	}
 
-	const newReadPtr = ((readPtr - DATA_START_INDEX + toRead) % ringBuffer.capacity) + DATA_START_INDEX;
-	Atomics.store(intView, READ_PTR_INDEX, newReadPtr);
+	Atomics.store(intView, READ_PTR_INDEX, readPtr + toRead);
 
 	return toRead;
 }
@@ -96,10 +83,6 @@ export function availableSamples(ringBuffer: AudioRingBuffer): number {
 	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);
 	const readPtr = Atomics.load(intView, READ_PTR_INDEX);
 
-	if (writePtr >= readPtr) {
-		return writePtr - readPtr;
-	} else {
-		return ringBuffer.capacity - (readPtr - writePtr);
-	}
+	const available = writePtr - readPtr;
+	return Math.min(ringBuffer.capacity, Math.max(0, available));
 }
-

@@ -1,4 +1,6 @@
 import Meyda from 'meyda';
+import type { AudioRingBuffer } from '$lib/types';
+import { readFromRingBuffer as readSamplesFromRingBuffer } from '$lib/audio/ringBuffer';
 import type { AnalysisFrame } from '../types';
 
 interface WorkerMessage {
@@ -13,7 +15,7 @@ interface ConfigPayload {
 	hopSize?: number;
 }
 
-let ringBuffer: SharedArrayBuffer | null = null;
+let ringBuffer: AudioRingBuffer | null = null;
 let sampleRate = 44100;
 let fftSize = 2048;
 let hopSize = 512;
@@ -77,38 +79,12 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 	return null;
 }
 
-function readFromRingBuffer(buffer: SharedArrayBuffer, output: Float32Array): number {
-	const view = new Float32Array(buffer);
-	const intView = new Int32Array(buffer);
-	const WRITE_PTR_INDEX = 0;
-	const READ_PTR_INDEX = 1;
-	const DATA_START_INDEX = 2;
-	const capacity = (buffer.byteLength / 4) - DATA_START_INDEX;
-
-	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);
-	const readPtr = Atomics.load(intView, READ_PTR_INDEX);
-
-	let available = 0;
-	if (writePtr >= readPtr) {
-		available = writePtr - readPtr;
-	} else {
-		available = capacity - (readPtr - writePtr);
-	}
-
-	const toRead = Math.min(available, output.length);
-	if (toRead === 0) {
+function readIntoBuffer(buffer: AudioRingBuffer | null, output: Float32Array): number {
+	if (!buffer) {
 		return 0;
 	}
 
-	for (let i = 0; i < toRead; i++) {
-		const readIndex = ((readPtr - DATA_START_INDEX + i) % capacity) + DATA_START_INDEX;
-		output[i] = view[readIndex];
-	}
-
-	const newReadPtr = ((readPtr - DATA_START_INDEX + toRead) % capacity) + DATA_START_INDEX;
-	Atomics.store(intView, READ_PTR_INDEX, newReadPtr);
-
-	return toRead;
+	return readSamplesFromRingBuffer(buffer, output);
 }
 
 function processLoop(): void {
@@ -125,7 +101,7 @@ function processLoop(): void {
 	lastAnalysisTime = now;
 
 	const buffer = new Float32Array(hopSize);
-	const read = readFromRingBuffer(ringBuffer, buffer);
+	const read = readIntoBuffer(ringBuffer, buffer);
 
 	if (read > 0 && analyzer) {
 		// Meyda expects an AudioBuffer or AudioNode, but we have Float32Array
@@ -186,7 +162,12 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 
 		case 'config': {
 			const config = payload as ConfigPayload;
-			ringBuffer = config.ringBuffer;
+			const capacity = config.ringBuffer.byteLength / 4 - 2;
+			ringBuffer = {
+				buffer: config.ringBuffer,
+				capacity,
+				sampleRate: config.sampleRate
+			};
 			sampleRate = config.sampleRate;
 			fftSize = config.fftSize || 2048;
 			hopSize = config.hopSize || 512;
@@ -198,4 +179,3 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 			break;
 	}
 };
-

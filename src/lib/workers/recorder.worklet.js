@@ -25,28 +25,17 @@ class RecorderProcessor extends AudioWorkletProcessor {
 		const writePtr = Atomics.load(this.intView, WRITE_PTR_INDEX);
 		const readPtr = Atomics.load(this.intView, READ_PTR_INDEX);
 
-		for (let i = 0; i < samples.length; i++) {
-			const nextWrite =
-				((writePtr - DATA_START_INDEX + i) % this.capacity) + DATA_START_INDEX;
-			const nextRead = readPtr;
+		const occupied = Math.min(this.capacity, Math.max(0, writePtr - readPtr));
+		const availableSpace = this.capacity - occupied;
+		const toWrite = Math.min(samples.length, availableSpace);
 
-			// Check if buffer is full
-			if (
-				nextWrite === nextRead &&
-				(writePtr - DATA_START_INDEX + i) % this.capacity !==
-					(readPtr - DATA_START_INDEX) % this.capacity
-			) {
-				break;
-			}
-
-			this.view[nextWrite] = samples[i];
+		for (let i = 0; i < toWrite; i++) {
+			const writeIndex = ((writePtr + i) % this.capacity) + DATA_START_INDEX;
+			this.view[writeIndex] = samples[i];
 		}
 
-		const written = Math.min(samples.length, this.capacity);
-		if (written > 0) {
-			const newWritePtr =
-				((writePtr - DATA_START_INDEX + written) % this.capacity) + DATA_START_INDEX;
-			Atomics.store(this.intView, WRITE_PTR_INDEX, newWritePtr);
+		if (toWrite > 0) {
+			Atomics.store(this.intView, WRITE_PTR_INDEX, writePtr + toWrite);
 		}
 	}
 
@@ -82,4 +71,3 @@ class RecorderProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('recorder-processor', RecorderProcessor);
-
