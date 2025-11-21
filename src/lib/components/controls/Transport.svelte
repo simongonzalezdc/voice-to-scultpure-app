@@ -1,0 +1,114 @@
+<script lang="ts">
+	import { recordingStore } from '$lib/stores/recordingStore';
+	import { analysisStore } from '$lib/stores/analysisStore';
+	import { startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
+	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
+	import {
+		initializeAudioContext,
+		startMicrophoneCapture,
+		connectMicrophoneToWorklet,
+		stopMicrophoneCapture
+	} from '$lib/audio/audioContext';
+	import { createAnalysisWorkerClient } from '$lib/audio/analysisWorkerClient';
+	import { addAnalysisFrame } from '$lib/stores/recording.svelte';
+	import { updateAnalysisFrame } from '$lib/stores/analysisStore';
+	import { analysisStore as analysis } from '$lib/stores/analysisStore';
+
+	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
+	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
+	let isInitialized = $state(false);
+
+	async function handleRecordClick() {
+		if (recordingStore.state === 'idle') {
+			await startRecordingFlow();
+		} else if (recordingStore.state === 'recording') {
+			await stopRecordingFlow();
+		} else {
+			resetRecording();
+		}
+	}
+
+	async function startRecordingFlow() {
+		try {
+			if (!isInitialized) {
+				// Initialize ring buffer
+				if (typeof SharedArrayBuffer === 'undefined') {
+					alert('SharedArrayBuffer not available. Please ensure COOP/COEP headers are set.');
+					return;
+				}
+
+				ringBuffer = createAudioRingBuffer(44100 * 10, 44100); // 10 seconds capacity
+				if (!ringBuffer) {
+					throw new Error('Failed to create ring buffer');
+				}
+
+				// Initialize audio context and worklet
+				const workletNode = await initializeAudioContext(ringBuffer.buffer, 44100);
+				const stream = await startMicrophoneCapture();
+				connectMicrophoneToWorklet(stream);
+
+				// Create analysis worker
+				workerClient = createAnalysisWorkerClient(ringBuffer, (frame) => {
+					updateAnalysisFrame(frame);
+					addAnalysisFrame(frame);
+				});
+
+				isInitialized = true;
+			}
+
+			workerClient?.start();
+			startRecording();
+		} catch (error) {
+			console.error('Failed to start recording:', error);
+			alert(`Failed to start recording: ${error}`);
+		}
+	}
+
+	async function stopRecordingFlow() {
+		workerClient?.stop();
+		stopMicrophoneCapture();
+		stopRecording();
+	}
+
+	function getButtonText(): string {
+		switch (recordingStore.state) {
+			case 'idle':
+				return 'Record';
+			case 'recording':
+				return 'Stop';
+			case 'processing':
+				return 'Processing...';
+			case 'complete':
+				return 'Reset';
+			default:
+				return 'Record';
+		}
+	}
+
+	function getMicLevel(): number {
+		return analysis.micLevel;
+	}
+</script>
+
+<div class="surface-panel p-4 rounded-lg flex items-center gap-4">
+	<button
+		class="button-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+		type="button"
+		onclick={handleRecordClick}
+		disabled={recordingStore.state === 'processing'}
+	>
+		{getButtonText()}
+	</button>
+	<div class="flex-1">
+		<div class="text-sm text-secondary mb-1">Mic Level</div>
+		<div class="h-2 bg-bg-panel-alt rounded-full overflow-hidden">
+			<div
+				class="h-full bg-brand-primary transition-all duration-100"
+				style="width: {getMicLevel() * 100}%"
+			></div>
+		</div>
+	</div>
+	{#if recordingStore.state === 'recording'}
+		<div class="badge badge-danger">Recording</div>
+	{/if}
+</div>
