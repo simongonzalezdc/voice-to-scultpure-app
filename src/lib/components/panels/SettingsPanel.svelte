@@ -2,10 +2,12 @@
 	import { appSettings, updateSettings, resetSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { resetCalibration } from '$lib/audio/calibration';
 	import { closePanel } from '$lib/stores/uiStore.svelte';
-	import { graphicsQuality, setGraphicsQuality } from '$lib/stores/settings.svelte';
+	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
 
 	let apiKeyInput = $state(appSettings.apiKey || '');
 	let apiEndpointInput = $state(appSettings.apiEndpoint || 'https://api.openai.com/v1/chat/completions');
+
+	const graphicsQuality = $derived(appSettings.graphicsQuality);
 
 	function handleSave() {
 		updateSettings({

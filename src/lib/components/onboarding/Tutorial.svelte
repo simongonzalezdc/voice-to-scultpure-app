@@ -5,7 +5,7 @@
 		nextOnboardingStep,
 		finishOnboarding,
 		completeOnboardingStep
-	} from '$lib/stores/uiStore';
+	} from '$lib/stores/uiStore.svelte';
 	import { startOnboarding } from '$lib/stores/uiStore.svelte';
 
 	let currentStep = $derived(uiStore.onboarding.currentStep);
