@@ -7,7 +7,8 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			$lib: path.resolve('./src/lib'),
-			'@threlte/core$': path.resolve('./src/lib/shims/threlte-core.ts')
+			'@threlte/core$': path.resolve('./src/lib/shims/threlte-core.ts'),
+			'@threlte/core-original': path.resolve('./node_modules/@threlte/core')
 		}
 	},
 	server: {

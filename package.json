@@ -40,7 +40,7 @@
 	},
 	"dependencies": {
 		"@mlc-ai/web-llm": "^0.2.79",
-		"@threlte/core": "7.3.2",
+		"@threlte/core": "8.3.0",
 		"@threlte/extras": "8.3.0",
 		"audiobuffer-to-wav": "^1.0.0",
 		"idb-keyval": "^6.2.1",

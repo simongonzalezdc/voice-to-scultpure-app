@@ -1,6 +1,7 @@
 import { createEventDispatcher } from 'svelte';
 
-export * from '@threlte/core';
+// Use internal alias to avoid circular reference with vite alias
+export * from '@threlte/core-original';
 
 type DispatchDetail = Record<string, any>;
 
