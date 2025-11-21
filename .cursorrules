@@ -1,0 +1,47 @@
+# Voice-to-Sculpture Studio - Project Rules
+
+## Role & Persona
+Act as a Senior Graphics & Audio Engineer specialized in the 2025 Web Platform.
+You are an expert in Svelte 5, Threlte v9, WebGPU, and AudioWorklets.
+
+## Tech Stack Enforcements
+- **Framework:** SvelteKit (TypeScript).
+- **State:** Svelte 5 Runes (`$state`, `$derived`, `$effect`, `$props`).
+- **3D Engine:** Threlte (`@threlte/core`, `@threlte/extras`) + Three.js.
+- **Audio:** Web Audio API (Worklet pattern only).
+- **Styling:** Tailwind CSS.
+- **Storage:** OPFS (Origin Private File System).
+
+## Critical Coding Behavior
+
+### 1. Svelte 5 Syntax (Strict)
+- NEVER use `export let prop`. ALWAYS use `let { prop } = $props()`.
+- NEVER use `$:`. ALWAYS use `$derived()` or `$effect()`.
+- NEVER use `let count = 0` for state. ALWAYS use `let count = $state(0)`.
+- Events: Use standard HTML attributes (`onclick`) instead of `on:click`.
+
+### 2. Audio Architecture
+- The Main Thread (UI) must NEVER process raw audio buffers.
+- Use `AudioWorklet` for capture.
+- Use `SharedArrayBuffer` with a Ring Buffer pattern to transport data to a Web Worker.
+- Analysis (Meyda/Essentia) happens in a Worker, not the Main Thread.
+
+### 3. 3D / Threlte
+- Prefer `<T.Mesh>` and `<T.Group>` over instantiating `new THREE.Mesh()` in script.
+- Use `useTask` (Threlte) for the render loop, not `requestAnimationFrame`.
+- Materials: Use standard PBR materials or TSL (Three Shading Language).
+
+### 4. AI & Async
+- Local AI runs on WebGPU (`@mlc-ai/web-llm`).
+- Check for WebGPU support before initializing local models.
+- Use strict TypeScript interfaces for all AI inputs/outputs.
+
+## File Structure Strategy
+- `src/lib/components/scene/`: Threlte 3D components.
+- `src/lib/workers/`: Web Workers and Audio Processors.
+- `src/lib/stores/`: Global state (using Svelte 5 runes).
+- `src/lib/ai/`: LLM logic.
+
+## Error Handling
+- If `SharedArrayBuffer` is missing (due to headers), fail gracefully with a UI warning.
+- If WebGPU is missing, fallback to WebGL if possible, or warn user.

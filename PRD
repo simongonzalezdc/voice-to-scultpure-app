@@ -1,0 +1,305 @@
+Here is the complete, raw Markdown content for the specification. You can copy this entire block and save it as `voice_to_sculpture_v2_spec.md`.
+
+
+# Voice-to-Sculpture Studio — Technical Specification v2.0
+**Date:** November 20, 2025  
+**Version:** 2.0 (Optimized for High-Performance Web)  
+**Target Stack:** Svelte 5 (Runes), Threlte (WebGPU), Web Audio (Worklets), Hybrid AI (WebLLM/Cloud).
+
+## 0. Core Vision & Architecture
+A browser-based creative instrument that transforms vocal audio into 3D ceramic forms. It prioritizes "game feel" (real-time responsiveness), physical metaphors (pressure/tension over raw data), and privacy-first architecture.
+
+### 0.1 System Boundary
+The application runs entirely in the browser (Client-side).
+- **Render Loop:** Decoupled from Main Thread via Threlte/Three.js.
+- **Audio Processing:** Runs in `AudioWorklet` (Real-time) and Web Worker (Analysis) to prevent UI jank.
+- **Storage:** Uses **OPFS (Origin Private File System)** for high-performance local saving.
+- **AI:** Hybrid strategy allowing **Local** (In-browser WebLLM) or **Cloud** (OpenAI-compatible REST) generation.
+
+---
+
+## 1. Technology Stack (Strict)
+
+- **Framework:** SvelteKit (Static Adapter).
+- **State Management:** Svelte 5 Runes (`$state`, `$derived`, `$effect`).
+- **3D Engine:**
+  - **Three.js** (r170+).
+  - **Renderer:** `WebGPURenderer` (primary), falling back to WebGL2 if unsupported.
+  - **Wrapper:** **Threlte v9+** (Svelte 5 native).
+  - **Shading:** TSL (Three.js Shading Language) for materials.
+- **Audio Pipeline:**
+  - **API:** Web Audio API.
+  - **Pattern:** `AudioWorkletProcessor` for capture.
+  - **Transport:** `SharedArrayBuffer` with `RingBuffer` pattern for zero-copy data transfer.
+  - **Analysis Library:** `Essentia.js` (Wasm) or `Meyda` running inside a Web Worker.
+- **Storage:** Native **OPFS** API (accessed via `opfs-tools` wrapper for simpler DX).
+- **AI Inference:**
+  - Local: `@mlc-ai/web-llm` (WebGPU acceleration).
+  - Cloud: Standard `fetch` to OpenAI-compatible endpoints.
+- **Styling:** Tailwind CSS v4.
+
+---
+
+## 2. Data Architecture & Types
+
+All types must be defined in `src/lib/types.ts`.
+
+### 2.1 Core State Entities
+
+```ts
+// 2.1.1 Calibration
+export type UserProfile = {
+  lowPitchHz: number;     // 5th percentile of pitch
+  highPitchHz: number;    // 95th percentile of pitch
+  noiseFloorRms: number;  // Background noise level
+  timbreBaseline: number[]; // Average MFCC vector of user's speaking voice
+};
+
+// 2.1.2 The "DNA" of the Sculpture
+export type SculptureDefinition = {
+  id: string;
+  timestamp: number;
+  
+  // Physical Metaphors (NOT raw data mapping)
+  baseProfile: {
+    height: number;       // 0..1
+    radiusCurve: number[]; // Array of 0..1 defining the lathe shape
+  };
+  
+  surface: {
+    textureRoughness: number; // 0..1
+    glazeTransmission: number; // 0..1 (Glass/Clay ratio)
+    displacementScale: number; // 0..1 (Ridge depth)
+  };
+  
+  deformation: {
+    twistTorque: number;      // Radians
+    verticalCompression: number; // Squashing effect
+  };
+  
+  metadata: {
+    name: string;
+    aiPromptUsed?: string;
+  };
+};
+
+// 2.1.3 Settings & Preferences
+export type AppSettings = {
+  aiProvider: "local" | "cloud";
+  cloudConfig: {
+    endpoint: string; // e.g. "https://api.openai.com/v1"
+    apiKey: string;   // Stored in memory only or encrypted in LocalStorage
+    model: string;    // e.g. "gpt-4o"
+  };
+  localConfig: {
+    modelId: string;  // e.g. "Llama-3-8B-Quantized"
+  };
+  graphics: {
+    quality: "low" | "high"; // Controls shadow map size, antialias
+  };
+};
+```
+
+### 2.2 Audio Data Structures
+
+```ts
+// Shared Memory Buffer Layout
+// [0]: Write Pointer
+// [1]: Read Pointer
+// [2...N]: Circular Audio Buffer (Float32)
+export type AudioRingBuffer = {
+  sharedBuffer: SharedArrayBuffer;
+  writer: Float32Array; // Viewed in Worklet
+  reader: Float32Array; // Viewed in Analysis Worker
+};
+
+export type AnalysisFrame = {
+  time: number;
+  pitch: number; // Hz
+  confidence: number; // 0..1
+  energy: number; // RMS
+  timbre: number; // Spectral Centroid (Brightness)
+  onsets: boolean;
+};
+```
+
+---
+
+## 3. Audio Pipeline Implementation
+
+**Constraint:** The main thread (UI) must NEVER process raw audio.
+
+### 3.1 Audio Context & Worklet
+1.  **Initialization:** `AudioContext` starts in `suspended` state. Resumes on first user interaction.
+2.  **Worklet (`recorder.worklet.ts`):**
+    -   Receives `input` (microphone).
+    -   Writes raw Float32 samples into the `SharedArrayBuffer` (Ring Buffer).
+    -   Does **zero** analysis. Purely a transport layer.
+
+### 3.2 Analysis Worker (`analysis.worker.ts`)
+1.  **Loop:** Polls the `SharedArrayBuffer` every ~16ms (60fps).
+2.  **Processing:**
+    -   Reads new samples from Ring Buffer.
+    -   Runs Pitch Detection (YIN or CREPE algorithm via Wasm).
+    -   Runs FFT/Features (RMS, Centroid).
+3.  **Messaging:**
+    -   Sends `AnalysisFrame` objects to Main Thread via `postMessage` **only when values change significantly** (optimization).
+
+---
+
+## 4. Sculpture Engine (Threlte & Logic)
+
+### 4.1 Physics-Based Mapping (The "Lathe")
+Instead of `Pitch = Radius`, use a physics metaphor:
+-   **Pitch** = Vertical Position (Low pitch = base, High pitch = rim).
+-   **Loudness (RMS)** = **Outward Pressure** (Pushes the clay out).
+-   **Timbre (Centroid)** = **Surface Tension** (Sharp timbre = sharp ridges, Soft timbre = smooth curves).
+
+**Algorithm:**
+1.  Start with a cylinder (`radius = 0.2`).
+2.  Iterate through the recorded `AnalysisFrame[]`.
+3.  For each frame, apply a "brush" at height `norm(pitch)`.
+4.  `radius[h] += energy * pressure_coefficient`.
+5.  Apply smoothing (moving average) based on `timbre`.
+
+### 4.2 Geometry & Material (Threlte Component)
+File: `src/lib/components/scene/Sculpture.svelte`
+
+-   **Geometry:** `LatheGeometry`. Re-calculated when `SculptureDefinition` updates.
+-   **Material:** `MeshPhysicalMaterial` (PBR).
+    -   **Transmission:** Enabled (for porcelain look).
+    -   **Thickness:** derived from `SculptureDefinition.surface.glazeTransmission`.
+    -   **Roughness:** derived from `SculptureDefinition.surface.textureRoughness`.
+    -   **Color:** A natural unglazed clay color (`#E0C9A6`) or white porcelain (`#FDFDFD`).
+
+### 4.3 Real-Time Visualization
+During recording, do **not** generate the high-res Lathe.
+-   **Visual:** Render a "Spinning Wireframe" or "Point Cloud" representing the Analysis frames in real-time.
+-   **Transition:** On "Stop Recording," morph the point cloud into the solid mesh using Svelte 5 transitions.
+
+---
+
+## 5. Hybrid AI Architecture
+
+**Requirement:** The interface must be identical regardless of the provider.
+
+### 5.1 The Interface
+File: `src/lib/ai/types.ts`
+
+```ts
+export interface AISculptor {
+  initialize(): Promise<void>;
+  
+  // Returns modified sculpture definition based on text instruction
+  generateVariation(
+    current: SculptureDefinition, 
+    instruction: string
+  ): Promise<SculptureDefinition>;
+  
+  getStatus(): "idle" | "loading" | "generating" | "error";
+}
+```
+
+### 5.2 Local Provider (`LocalAISculptor.ts`)
+-   **Library:** `@mlc-ai/web-llm`.
+-   **Model:** `Llama-3-8B-Quantized` (or smaller `Phi-3` if mobile).
+-   **Logic:**
+    1.  Check WebGPU support.
+    2.  Download weights to Cache API (progress bar required in UI).
+    3.  System Prompt: "You are a JSON generator modifying 3D parameters..."
+    4.  Inference runs in browser.
+
+### 5.3 Cloud Provider (`CloudAISculptor.ts`)
+-   **Logic:**
+    1.  `fetch` POST to configured endpoint.
+    2.  Body: `{ model: config.model, messages: [...] }`.
+    3.  User provides API Key via Settings modal (stored in `sessionStorage` for security, or `localStorage` if explicitly requested).
+
+### 5.4 System Prompt (Shared)
+> "You are a ceramic assistant. Input: Current JSON of a vase. User Request: e.g., 'Make it look like it's melting'. Output: ONLY the modified JSON fields. Increase 'verticalCompression', increase 'twistTorque', change 'radiusCurve' to widen at the bottom."
+
+---
+
+## 6. User Interface & Experience
+
+### 6.1 Global Layout
+-   **Header:** Logo, Settings (AI/Audio Config), "New Project".
+-   **Main Viewport:** Fullscreen Threlte Canvas.
+-   **Overlay Controls (Floating):**
+    -   Bottom Center: Transport (Record, Play, Stop).
+    -   Right Panel: AI Chat & Manual Parameter Tweaks (Sliders).
+    -   Left Panel: Project Library (OPFS file list).
+
+### 6.2 Interactions
+-   **View Transitions:** Use Svelte's `in:fly` / `out:fade` for panels.
+-   **Ghosting:** When hovering a manual slider (e.g., "Twist"), overlay a semi-transparent wireframe showing the *target* state before releasing the mouse.
+-   **Feedback:** Visualizer responds to mic input even when not recording (reassurance).
+
+---
+
+## 7. Export Pipeline
+
+### 7.1 Image Export
+-   **Method:** `renderer.domElement.toDataURL()`.
+-   **Resolution:** Trigger a specialized render pass at 4096x4096 off-screen before saving.
+-   **Views:** Front, Top, Side, Isometric (Standard 4-view).
+
+### 7.2 SVG Profile Export (New)
+-   **Purpose:** For physical fabrication (cutting ribs/templates).
+-   **Logic:** Take the `radiusCurve` (Profile). Map it to 2D SVG path data (`M 0,0 L radius,height ...`).
+-   **Output:** `.svg` file with 1:1 millimeter units (based on a user-selected scale, e.g., "Height = 30cm").
+
+### 7.3 Project Saving (OPFS)
+-   **Format:** JSON (SculptureDefinition + Metadata).
+-   **Audio:** Optional. If saved, write raw WAV to OPFS alongside the JSON.
+-   **Library:** Use `idb-keyval` to store an index of projects, but use OPFS for the heavy blobs.
+
+---
+
+## 8. Implementation Roadmap for Agent
+
+**Phase 1: Foundation**
+1.  Scaffold SvelteKit + Tailwind + Threlte.
+2.  Set up `AudioContext` + `AudioWorklet` + `SharedArrayBuffer` scaffolding.
+3.  Implement Threlte scene with a static `LatheGeometry`.
+
+**Phase 2: The Engine**
+1.  Implement `analysis.worker.ts` with Meyda/Essentia.
+2.  Connect Mic -> Worklet -> RingBuffer -> Worker -> Main Thread.
+3.  Build the `PhysicsMapping` logic to convert `AnalysisFrames` to `radiusCurve`.
+4.  Implement Real-time "Point Cloud" visualizer.
+
+**Phase 3: AI & Hybrid Logic**
+1.  Build the `AISculptor` interface.
+2.  Implement `CloudAISculptor` (easier to test).
+3.  Implement `LocalAISculptor` (WebLLM).
+4.  Build the Chat UI to drive the AI.
+
+**Phase 4: Polish & Export**
+1.  Implement OPFS saving/loading.
+2.  Add SVG Profile export logic.
+3.  Add "Ghost" slider previews.
+4.  Finalize Materials (Transmission/PBR).
+
+---
+
+## 9. Developer Notes & Constraints
+
+-   **Strict Typing:** `any` is forbidden. Use defined interfaces.
+-   **Performance:** No `console.log` in the Render Loop or Audio Loop.
+-   **Dependencies:**
+    -   `three`, `@threlte/core`, `@threlte/extras`
+    -   `@mlc-ai/web-llm`
+    -   `meyda` or `essentia.js`
+    -   `opfs-tools`
+    -   `idb-keyval`
+    -   `tailwindcss`
+-   **Browser Compatibility:** Chrome/Edge/Firefox (Recent). Safari (requires specific SharedArrayBuffer headers served by Vite).
+    -   *Note:* `vite.config.ts` must include cross-origin isolation headers:
+        ```ts
+        headers: {
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Embedder-Policy': 'require-corp'
+        }
+        ```
+```
