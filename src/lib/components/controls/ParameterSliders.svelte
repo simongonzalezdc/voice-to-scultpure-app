@@ -86,8 +86,11 @@
 	<h2 class="text-lg font-semibold mb-4">Parameters</h2>
 	<div class="space-y-4">
 		<div>
-			<label class="text-sm text-secondary block mb-1">Height: {height.toFixed(2)}</label>
+			<label for="height-slider" class="text-sm text-secondary block mb-1"
+				>Height: {height.toFixed(2)}</label
+			>
 			<input
+				id="height-slider"
 				type="range"
 				min="0.5"
 				max="2"
@@ -99,8 +102,11 @@
 			/>
 		</div>
 		<div>
-			<label class="text-sm text-secondary block mb-1">Twist: {twist.toFixed(2)}</label>
+			<label for="twist-slider" class="text-sm text-secondary block mb-1"
+				>Twist: {twist.toFixed(2)}</label
+			>
 			<input
+				id="twist-slider"
 				type="range"
 				min="-1"
 				max="1"
@@ -112,8 +118,11 @@
 			/>
 		</div>
 		<div>
-			<label class="text-sm text-secondary block mb-1">Compression: {compression.toFixed(2)}</label>
+			<label for="compression-slider" class="text-sm text-secondary block mb-1"
+				>Compression: {compression.toFixed(2)}</label
+			>
 			<input
+				id="compression-slider"
 				type="range"
 				min="0"
 				max="1"
@@ -125,8 +134,11 @@
 			/>
 		</div>
 		<div>
-			<label class="text-sm text-secondary block mb-1">Roughness: {roughness.toFixed(2)}</label>
+			<label for="roughness-slider" class="text-sm text-secondary block mb-1"
+				>Roughness: {roughness.toFixed(2)}</label
+			>
 			<input
+				id="roughness-slider"
 				type="range"
 				min="0"
 				max="1"
@@ -138,8 +150,11 @@
 			/>
 		</div>
 		<div>
-			<label class="text-sm text-secondary block mb-1">Glaze: {glaze.toFixed(2)}</label>
+			<label for="glaze-slider" class="text-sm text-secondary block mb-1"
+				>Glaze: {glaze.toFixed(2)}</label
+			>
 			<input
+				id="glaze-slider"
 				type="range"
 				min="0"
 				max="1"

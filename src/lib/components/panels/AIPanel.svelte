@@ -93,8 +93,9 @@
 	<h2 class="text-lg font-semibold mb-4">AI Assistant</h2>
 
 	<div class="mb-4">
-		<label class="text-sm text-secondary block mb-1">Provider</label>
+		<label for="ai-provider-select" class="text-sm text-secondary block mb-1">Provider</label>
 		<select
+			id="ai-provider-select"
 			class="surface-panel-alt px-3 py-2 rounded w-full"
 			value={appSettings.aiProvider}
 			onchange={handleProviderChange}

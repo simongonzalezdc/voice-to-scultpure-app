@@ -6,7 +6,8 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		alias: {
-			$lib: path.resolve('./src/lib')
+			$lib: path.resolve('./src/lib'),
+			'@threlte/core$': path.resolve('./src/lib/shims/threlte-core.ts')
 		}
 	},
 	server: {

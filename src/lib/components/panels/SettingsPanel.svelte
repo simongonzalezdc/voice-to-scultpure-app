@@ -27,8 +27,11 @@
 
 	<div class="space-y-4">
 		<div>
-			<label class="text-sm text-secondary block mb-1">Graphics Quality</label>
+			<label for="graphics-quality" class="text-sm text-secondary block mb-1"
+				>Graphics Quality</label
+			>
 			<select
+				id="graphics-quality"
 				class="surface-panel-alt px-3 py-2 rounded w-full"
 				value={graphicsQuality}
 				onchange={(e) => setGraphicsQuality((e.target as HTMLSelectElement).value as 'low' | 'high')}
@@ -39,8 +42,9 @@
 		</div>
 
 		<div>
-			<label class="text-sm text-secondary block mb-1">AI Provider</label>
+			<label for="ai-provider" class="text-sm text-secondary block mb-1">AI Provider</label>
 			<select
+				id="ai-provider"
 				class="surface-panel-alt px-3 py-2 rounded w-full"
 				value={appSettings.aiProvider}
 				onchange={(e) => updateSettings({ aiProvider: (e.target as HTMLSelectElement).value as 'cloud' | 'local' })}
@@ -52,8 +56,9 @@
 
 		{#if appSettings.aiProvider === 'cloud'}
 			<div>
-				<label class="text-sm text-secondary block mb-1">API Key</label>
+				<label for="api-key" class="text-sm text-secondary block mb-1">API Key</label>
 				<input
+					id="api-key"
 					type="password"
 					class="surface-panel-alt px-3 py-2 rounded w-full"
 					bind:value={apiKeyInput}
@@ -61,8 +66,9 @@
 				/>
 			</div>
 			<div>
-				<label class="text-sm text-secondary block mb-1">API Endpoint</label>
+				<label for="api-endpoint" class="text-sm text-secondary block mb-1">API Endpoint</label>
 				<input
+					id="api-endpoint"
 					type="text"
 					class="surface-panel-alt px-3 py-2 rounded w-full"
 					bind:value={apiEndpointInput}
