@@ -1,4 +1,3 @@
-// $effect is available globally in Svelte 5
 import {
 	recordingStore,
 	startRecording as startRecordingState,
@@ -13,16 +12,6 @@ import { appSettings } from './appSettingsStore.svelte';
 
 let capturedFrames: Array<import('$lib/types').AnalysisFrame> = [];
 
-$effect(() => {
-	if (recordingStore.state === 'processing') {
-		// Snapshot frames and generate sculpture
-		const frames = [...capturedFrames];
-		const sculpture = createSculptureFromFrames(frames, appSettings.userProfile);
-		setCurrentSculpture(sculpture);
-		completeProcessingState();
-	}
-});
-
 export function startRecording(): void {
 	capturedFrames = [];
 	startRecordingState();
@@ -30,6 +19,15 @@ export function startRecording(): void {
 
 export function stopRecording(): void {
 	stopRecordingState();
+	// Process frames immediately when stopping
+	if (capturedFrames.length > 0) {
+		const frames = [...capturedFrames];
+		const sculpture = createSculptureFromFrames(frames, appSettings.userProfile);
+		setCurrentSculpture(sculpture);
+		completeProcessingState();
+	} else {
+		completeProcessingState();
+	}
 }
 
 export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): void {

@@ -3,3 +3,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Mobile Viewport Fix - Prevent layout shift when address bar toggles */
+:global(body),
+:global(#app),
+:global(main) {
+	height: 100dvh; /* Dynamic viewport height - accounts for mobile browser UI */
+	height: 100vh; /* Fallback for browsers that don't support dvh */
+	width: 100vw;
+	overflow: hidden; /* Prevent scroll bounce */
+	position: fixed; /* Lock the scroll */
+	touch-action: none; /* Disable pull-to-refresh */
+}
+
+/* Ensure the root app container uses full viewport */
+:global(#app) {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}

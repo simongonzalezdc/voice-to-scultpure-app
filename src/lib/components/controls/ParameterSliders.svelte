@@ -91,10 +91,37 @@
 		previewSculpture = null;
 	}
 
+	// React to slider value changes in real-time when dragging
+	// Track all slider values to create reactive dependencies
 	$effect(() => {
-		if (isDragging) {
-			applyPreview();
-		}
+		if (!isDragging || !previewSculpture) return;
+		
+		// Access slider values to create reactive dependencies
+		const currentTwist = twist;
+		const currentCompression = compression;
+		const currentRoughness = roughness;
+		const currentGlaze = glaze;
+		
+		// Apply preview with current values
+		const deformed = applyDeformation(previewSculpture.radiusCurve, {
+			twist: currentTwist,
+			compression: currentCompression,
+			taper: 0
+		});
+		setGhostSculpture({
+			...previewSculpture,
+			radiusCurve: deformed,
+			surface: {
+				...previewSculpture.surface,
+				textureRoughness: currentRoughness,
+				glazeTransmission: currentGlaze
+			},
+			deformation: {
+				twist: currentTwist,
+				compression: currentCompression,
+				taper: 0
+			}
+		});
 	});
 </script>
 

@@ -1,30 +1,98 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 
+// Geometric design constants (not calibration-dependent)
+const BASE_RADIUS = 0.1;
+const MAX_RADIUS = 0.5;
+const HEIGHT_OFFSET_MULTIPLIER = 0.1;
+
+// Default calibration ranges (used when profile is missing or invalid)
+const DEFAULT_PITCH_MIN = 80;
+const DEFAULT_PITCH_MAX = 400;
+const DEFAULT_ENERGY_MIN = 0;
+const DEFAULT_ENERGY_MAX = 1;
+
+function isValidRange(range: { min: number; max: number }): boolean {
+	return range.min < range.max && range.min >= 0 && range.max > 0;
+}
+
+function getPitchRange(frames: AnalysisFrame[], profile?: UserProfile): {
+	min: number;
+	max: number;
+	p25: number;
+	p50: number;
+	p75: number;
+} {
+	if (profile?.pitchRange && isValidRange(profile.pitchRange)) {
+		return profile.pitchRange;
+	}
+
+	// Compute from frames or use defaults
+	const pitches = frames.map((f) => f.pitch).filter((p) => p > 0);
+	if (pitches.length > 0) {
+		return {
+			min: Math.min(...pitches),
+			max: Math.max(...pitches),
+			p25: 0,
+			p50: 0,
+			p75: 0
+		};
+	}
+
+	return {
+		min: DEFAULT_PITCH_MIN,
+		max: DEFAULT_PITCH_MAX,
+		p25: 0,
+		p50: 0,
+		p75: 0
+	};
+}
+
+function getEnergyRange(frames: AnalysisFrame[], profile?: UserProfile): {
+	min: number;
+	max: number;
+	p25: number;
+	p50: number;
+	p75: number;
+} {
+	if (profile?.energyRange && isValidRange(profile.energyRange)) {
+		return profile.energyRange;
+	}
+
+	// Compute from frames or use defaults
+	const energies = frames.map((f) => f.energy);
+	if (energies.length > 0) {
+		const min = Math.min(...energies);
+		const max = Math.max(...energies);
+		if (min < max) {
+			return {
+				min,
+				max,
+				p25: 0,
+				p50: 0,
+				p75: 0
+			};
+		}
+	}
+
+	return {
+		min: DEFAULT_ENERGY_MIN,
+		max: DEFAULT_ENERGY_MAX,
+		p25: 0,
+		p50: 0,
+		p75: 0
+	};
+}
+
 export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): LathePoint[] {
 	if (frames.length === 0) {
-		return [{ x: 0, y: 0.1 }]; // Default point
+		// Default point: x=0 (radius at axis), y=BASE_RADIUS (height above ground)
+		return [{ x: 0, y: BASE_RADIUS }];
 	}
 
 	const points: LathePoint[] = [];
 	const height = frames.length;
-	const pitchRange = profile?.pitchRange || {
-		min: Math.min(...frames.map((f) => f.pitch).filter((p) => p > 0)) || 80,
-		max: Math.max(...frames.map((f) => f.pitch)) || 400,
-		p25: 0,
-		p50: 0,
-		p75: 0
-	};
-
-	const energyRange = profile?.energyRange || {
-		min: Math.min(...frames.map((f) => f.energy)) || 0,
-		max: Math.max(...frames.map((f) => f.energy)) || 1,
-		p25: 0,
-		p50: 0,
-		p75: 0
-	};
-
-	const baseRadius = 0.1;
-	const maxRadius = 0.5;
+	const pitchRange = getPitchRange(frames, profile);
+	const energyRange = getEnergyRange(frames, profile);
 
 	for (let i = 0; i < frames.length; i++) {
 		const frame = frames[i];
@@ -35,13 +103,13 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 			frame.pitch > 0
 				? (frame.pitch - pitchRange.min) / (pitchRange.max - pitchRange.min || 1)
 				: 0.5;
-		const heightOffset = (pitchNormalized - 0.5) * 0.1;
+		const heightOffset = (pitchNormalized - 0.5) * HEIGHT_OFFSET_MULTIPLIER;
 
-		// Map energy to radius
+		// Map energy to radius using calibration ranges
 		const energyNormalized =
 			(frame.energy - energyRange.min) / (energyRange.max - energyRange.min || 1);
-		const radiusDelta = energyNormalized * (maxRadius - baseRadius);
-		const radius = baseRadius + radiusDelta;
+		const radiusDelta = energyNormalized * (MAX_RADIUS - BASE_RADIUS);
+		const radius = BASE_RADIUS + radiusDelta;
 
 		points.push({
 			x: radius,

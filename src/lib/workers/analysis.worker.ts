@@ -20,23 +20,37 @@ let sampleRate = 44100;
 let fftSize = 2048;
 let hopSize = 512;
 let running = false;
-let analyzer: ReturnType<typeof Meyda.createMeydaAnalyzer> | null = null;
 let lastAnalysisTime = 0;
 const ANALYSIS_INTERVAL_MS = 16; // ~60fps
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
-	if (!analyzer || audioData.length === 0) {
+	if (audioData.length === 0) {
 		return null;
 	}
 
-	const features = analyzer.get(['rms', 'zcr', 'spectralCentroid', 'chroma']);
+	// Use Meyda's stateless extraction API (works in Web Workers)
+	// Create an AudioBuffer-like object for Meyda.extract
+	const audioBuffer = {
+		getChannelData: (channel: number) => {
+			if (channel === 0) return audioData;
+			return new Float32Array(audioData.length);
+		},
+		numberOfChannels: 1,
+		sampleRate: sampleRate,
+		length: audioData.length
+	};
+
+	// Extract features using stateless API
+	const features = Meyda.extract(
+		['rms', 'zcr', 'spectralCentroid'],
+		audioBuffer as unknown as AudioBuffer
+	);
 
 	if (!features) {
 		return null;
 	}
 
-	// Calculate pitch using YIN algorithm approximation
-	// Meyda doesn't have YIN, so we use autocorrelation as approximation
+	// Calculate pitch using autocorrelation
 	const pitch = estimatePitch(audioData, sampleRate);
 
 	return {
@@ -103,21 +117,12 @@ function processLoop(): void {
 	const buffer = new Float32Array(hopSize);
 	const read = readIntoBuffer(ringBuffer, buffer);
 
-	if (read > 0 && analyzer) {
-		// Meyda expects an AudioBuffer or AudioNode, but we have Float32Array
-		// Create a temporary AudioBuffer-like object for Meyda
-		const audioBuffer = {
-			getChannelData: (channel: number) => {
-				if (channel === 0) return buffer;
-				return new Float32Array(buffer.length);
-			},
-			numberOfChannels: 1,
-			sampleRate: sampleRate,
-			length: buffer.length
-		};
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		analyzer.setSource(audioBuffer as any);
-		const frame = analyzeFrame(buffer);
+	if (read > 0) {
+		// Create a properly sized buffer with only the read samples
+		const signal = buffer.subarray(0, read);
+		
+		// Analyze the frame using stateless Meyda extraction
+		const frame = analyzeFrame(signal);
 		if (frame) {
 			self.postMessage({
 				type: 'analysis-frame',
@@ -139,13 +144,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 				return;
 			}
 			running = true;
-			analyzer = Meyda.createMeydaAnalyzer({
-				audioContext: {
-					sampleRate
-				} as AudioContext,
-				bufferSize: fftSize,
-				featureExtractors: ['rms', 'zcr', 'spectralCentroid', 'chroma']
-			});
+			// No analyzer needed - using stateless Meyda.extract() API
 			processLoop();
 			self.postMessage({ type: 'status', payload: 'started' });
 			break;
@@ -153,10 +152,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 
 		case 'stop': {
 			running = false;
-			if (analyzer) {
-				analyzer.stop();
-				analyzer = null;
-			}
+			// No analyzer to clean up
 			self.postMessage({ type: 'status', payload: 'stopped' });
 			break;
 		}

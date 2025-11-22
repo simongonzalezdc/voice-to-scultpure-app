@@ -6,6 +6,7 @@
 	let hasMicrophone = $state(false);
 	let microphoneError = $state<string | null>(null);
 	let mounted = $state(false);
+	let forceEntry = $state(false); // Bypass switch for testing export features
 
 	onMount(() => {
 		mounted = true;
@@ -27,13 +28,26 @@
 			microphoneError = error instanceof Error ? error.message : String(error);
 		}
 	}
+
+	function handleDismiss() {
+		forceEntry = true;
+	}
 </script>
 
-{#if mounted}
+{#if mounted && !forceEntry}
 	{#if !hasSharedArrayBuffer}
-		<div class="badge badge-warning p-4 mb-4">
-			⚠️ SharedArrayBuffer not available. Audio recording may not work. Ensure COOP/COEP headers are
-			set.
+		<div class="badge badge-warning p-4 mb-4 flex items-center justify-between gap-4">
+			<div class="flex-1">
+				⚠️ SharedArrayBuffer not available. Audio recording may not work. Ensure COOP/COEP headers are
+				set.
+			</div>
+			<button
+				class="button-secondary px-3 py-1 text-xs"
+				type="button"
+				onclick={handleDismiss}
+			>
+				Continue Anyway
+			</button>
 		</div>
 	{/if}
 
@@ -44,9 +58,18 @@
 	{/if}
 
 	{#if !hasMicrophone}
-		<div class="badge badge-danger p-4 mb-4">
-			❌ Microphone access denied: {microphoneError || 'Unknown error'}. Please grant microphone
-			permissions.
+		<div class="badge badge-danger p-4 mb-4 flex items-center justify-between gap-4">
+			<div class="flex-1">
+				❌ Microphone access denied: {microphoneError || 'Unknown error'}. Please grant microphone
+				permissions.
+			</div>
+			<button
+				class="button-secondary px-3 py-1 text-xs"
+				type="button"
+				onclick={handleDismiss}
+			>
+				Continue Anyway
+			</button>
 		</div>
 	{/if}
 {/if}

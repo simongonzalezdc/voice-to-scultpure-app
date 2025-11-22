@@ -2,6 +2,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import path from 'path';
 
+const securityHeaders = {
+	'Cross-Origin-Embedder-Policy': 'require-corp',
+	'Cross-Origin-Opener-Policy': 'same-origin'
+};
+
 export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
@@ -12,10 +17,13 @@ export default defineConfig({
 		}
 	},
 	server: {
-		headers: {
-			'Cross-Origin-Opener-Policy': 'same-origin',
-			'Cross-Origin-Embedder-Policy': 'require-corp'
-		}
+		headers: securityHeaders
+	},
+	preview: {
+		headers: securityHeaders
+	},
+	worker: {
+		format: 'es'
 	},
 	optimizeDeps: {
 		exclude: ['@threlte/core', 'three']

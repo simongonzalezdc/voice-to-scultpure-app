@@ -12,12 +12,75 @@
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
 	import { uiStore, startOnboarding, togglePanel } from '$lib/stores/uiStore.svelte';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import type { SculptureDefinition } from '$lib/types';
+	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
+	import { applyDeformation } from '$lib/engine/physicsMapping';
+
+	// Gatekeeper: Check if user has completed calibration
+	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
+	let showStudio = $derived(isCalibrated && !uiStore.onboarding.active);
 
 	onMount(() => {
-		if (browser && !uiStore.onboarding.completed.has('welcome')) {
-			startOnboarding('welcome');
+		if (browser) {
+			// If not calibrated, force tutorial
+			if (!isCalibrated) {
+				startOnboarding('welcome');
+			}
 		}
 	});
+
+	function generateTestMesh() {
+		// Create a test sculpture with hardcoded hourglass shape
+		const testSculpture: SculptureDefinition = {
+			id: crypto.randomUUID(),
+			name: 'Test Mesh (Hourglass)',
+			createdAt: Date.now(),
+			radiusCurve: [
+				{ x: 0.1, y: 0 },
+				{ x: 0.3, y: 1 },
+				{ x: 0.1, y: 2 }
+			],
+			surface: {
+				textureRoughness: 0.5,
+				glazeTransmission: 0.3,
+				displacementStrength: 0
+			},
+			deformation: {
+				twist: 0,
+				compression: 0,
+				taper: 0
+			}
+		};
+		setCurrentSculpture(testSculpture);
+	}
+
+	function handleExportSTL() {
+		const sculpture = sculptureStore.currentSculpture;
+		if (!sculpture) {
+			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			return;
+		}
+
+		try {
+			// Apply current deformation parameters before export
+			const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
+			
+			// Create a temporary sculpture with deformed curve for export
+			const exportSculpture: SculptureDefinition = {
+				...sculpture,
+				radiusCurve: deformedCurve
+			};
+
+			const stlContent = lathePointsToSTL(exportSculpture);
+			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
+			downloadSTL(stlContent, filename);
+		} catch (error) {
+			console.error('Export failed:', error);
+			alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
 
 	function handleKeydown(event: KeyboardEvent) {
 		// Ignore if user is typing in an input
@@ -66,44 +129,75 @@
 		<div class="flex flex-col h-screen">
 			<Header />
 			<CapabilityGuard />
-			<div class="flex-1 relative overflow-hidden">
-				<MainScene />
-				<div class="absolute bottom-4 left-4 right-4 flex gap-4 items-end">
-					<div class="flex-1 max-w-md">
-						<Transport />
+			
+			{#if showStudio}
+				<!-- Studio View (only shown when calibrated) -->
+				<div class="flex-1 relative overflow-hidden">
+					<MainScene />
+					<div class="absolute bottom-4 left-4 right-4 flex gap-4 items-end">
+						<div class="flex-1 max-w-md">
+							<Transport />
+						</div>
+						{#if uiStore.panels.aiPanel}
+							<div class="w-96">
+								<AIPanel />
+							</div>
+						{/if}
 					</div>
-					{#if uiStore.panels.aiPanel}
-						<div class="w-96">
-							<AIPanel />
+					<div class="absolute top-4 right-4 w-64">
+						<ParameterSliders />
+					</div>
+					<!-- Test Mesh & Export Controls -->
+					<div class="absolute top-4 left-4 flex flex-col gap-2">
+						<button
+							class="button-secondary px-4 py-2 text-sm"
+							type="button"
+							onclick={generateTestMesh}
+						>
+							Generate Test Mesh
+						</button>
+						<button
+							class="button-primary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+							type="button"
+							onclick={handleExportSTL}
+							disabled={!sculptureStore.currentSculpture}
+						>
+							Export STL
+						</button>
+					</div>
+					{#if uiStore.panels.projectList}
+						<div class="absolute top-4 left-4 w-80">
+							<ProjectList />
+						</div>
+					{/if}
+					{#if uiStore.panels.settings}
+						<div class="absolute inset-0 flex items-center justify-center z-40">
+							<div class="surface-panel p-6 rounded-lg max-w-md w-full">
+								<SettingsPanel />
+							</div>
 						</div>
 					{/if}
 				</div>
-				<div class="absolute top-4 right-4 w-64">
-					<ParameterSliders />
-				</div>
-				{#if uiStore.panels.projectList}
-					<div class="absolute top-4 left-4 w-80">
-						<ProjectList />
-					</div>
-				{/if}
-				{#if uiStore.panels.settings}
-					<div class="absolute inset-0 flex items-center justify-center z-40">
-						<div class="surface-panel p-6 rounded-lg max-w-md w-full">
-							<SettingsPanel />
-						</div>
-					</div>
-				{/if}
-			</div>
-			<Tutorial />
 
-			<!-- Keyboard shortcuts help -->
-			<div class="fixed bottom-4 left-4 text-xs text-muted bg-bg-panel px-3 py-2 rounded border border-subtle">
-				<div class="font-semibold mb-1">Keyboard Shortcuts:</div>
-				<div>A: Toggle AI Panel</div>
-				<div>P: Toggle Projects</div>
-				<div>S: Toggle Settings</div>
-				<div>Esc: Close Panels</div>
-			</div>
+				<!-- Keyboard shortcuts help -->
+				<div class="fixed bottom-4 left-4 text-xs text-muted bg-bg-panel px-3 py-2 rounded border border-subtle">
+					<div class="font-semibold mb-1">Keyboard Shortcuts:</div>
+					<div>A: Toggle AI Panel</div>
+					<div>P: Toggle Projects</div>
+					<div>S: Toggle Settings</div>
+					<div>Esc: Close Panels</div>
+				</div>
+			{:else}
+				<!-- Tutorial/Gating View (shown when not calibrated) -->
+				<div class="flex-1 relative overflow-hidden bg-app flex items-center justify-center">
+					<div class="text-center text-secondary">
+						<p>Please complete the calibration tutorial to access the studio.</p>
+					</div>
+				</div>
+			{/if}
+			
+			<!-- Tutorial overlay (always rendered, but only visible when active) -->
+			<Tutorial />
 		</div>
 	</ErrorBoundary>
 {:else}
