@@ -3,6 +3,7 @@ import { AISculptorErrorImpl } from './types';
 import type { SculptureDefinition } from '$lib/types';
 import { SYSTEM_PROMPT } from './systemPrompt';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let WebLLM: any = null;
 
 async function loadWebLLM() {
@@ -17,6 +18,7 @@ async function loadWebLLM() {
 
 export class LocalAISculptor implements AISculptor {
 	private status: AISculptorStatus = 'idle';
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private engine: any = null;
 	private model: string;
 	private progressCallback?: (progress: number) => void;
@@ -26,9 +28,7 @@ export class LocalAISculptor implements AISculptor {
 		progressCallback?: (progress: number) => void
 	) {
 		this.model =
-			model === 'desktop'
-				? 'Llama-3-8B-Instruct-q4f16_1'
-				: 'Phi-3-mini-4k-instruct-q4f16_1';
+			model === 'desktop' ? 'Llama-3-8B-Instruct-q4f16_1' : 'Phi-3-mini-4k-instruct-q4f16_1';
 		this.progressCallback = progressCallback;
 	}
 
@@ -142,7 +142,10 @@ function validateMutation(mutation: SculptureMutation): void {
 		}
 		for (const point of mutation.radiusCurve) {
 			if (typeof point.x !== 'number' || typeof point.y !== 'number') {
-				throw new AISculptorErrorImpl('radiusCurve points must have x and y numbers', 'SCHEMA_ERROR');
+				throw new AISculptorErrorImpl(
+					'radiusCurve points must have x and y numbers',
+					'SCHEMA_ERROR'
+				);
 			}
 			if (!isFinite(point.x) || !isFinite(point.y)) {
 				throw new AISculptorErrorImpl('radiusCurve points must be finite numbers', 'SCHEMA_ERROR');
@@ -152,12 +155,18 @@ function validateMutation(mutation: SculptureMutation): void {
 
 	if (mutation.surface) {
 		if (mutation.surface.textureRoughness !== undefined) {
-			if (typeof mutation.surface.textureRoughness !== 'number' || !isFinite(mutation.surface.textureRoughness)) {
+			if (
+				typeof mutation.surface.textureRoughness !== 'number' ||
+				!isFinite(mutation.surface.textureRoughness)
+			) {
 				throw new AISculptorErrorImpl('textureRoughness must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
 		if (mutation.surface.glazeTransmission !== undefined) {
-			if (typeof mutation.surface.glazeTransmission !== 'number' || !isFinite(mutation.surface.glazeTransmission)) {
+			if (
+				typeof mutation.surface.glazeTransmission !== 'number' ||
+				!isFinite(mutation.surface.glazeTransmission)
+			) {
 				throw new AISculptorErrorImpl('glazeTransmission must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
@@ -170,7 +179,10 @@ function validateMutation(mutation: SculptureMutation): void {
 			}
 		}
 		if (mutation.deformation.compression !== undefined) {
-			if (typeof mutation.deformation.compression !== 'number' || !isFinite(mutation.deformation.compression)) {
+			if (
+				typeof mutation.deformation.compression !== 'number' ||
+				!isFinite(mutation.deformation.compression)
+			) {
 				throw new AISculptorErrorImpl('compression must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
@@ -181,4 +193,3 @@ function validateMutation(mutation: SculptureMutation): void {
 		}
 	}
 }
-

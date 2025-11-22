@@ -25,4 +25,3 @@ Rules:
 
 Example instruction: "Make it taller and smoother"
 Example response: {"surface": {"textureRoughness": 0.2}, "deformation": {"compression": 0.1}}`;
-

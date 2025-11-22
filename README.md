@@ -55,4 +55,3 @@ npm run check
 ## License
 
 MIT
-

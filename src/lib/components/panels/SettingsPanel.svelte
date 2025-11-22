@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { appSettings, updateSettings, resetSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { resetCalibration } from '$lib/audio/calibration';
 	import { closePanel } from '$lib/stores/uiStore.svelte';
 	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
 
 	let apiKeyInput = $state(appSettings.apiKey || '');
-	let apiEndpointInput = $state(appSettings.apiEndpoint || 'https://api.openai.com/v1/chat/completions');
+	let apiEndpointInput = $state(
+		appSettings.apiEndpoint || 'https://api.openai.com/v1/chat/completions'
+	);
 
 	const graphicsQuality = $derived(appSettings.graphicsQuality);
 
@@ -36,7 +38,8 @@
 				id="graphics-quality"
 				class="surface-panel-alt px-3 py-2 rounded w-full"
 				value={graphicsQuality}
-				onchange={(e) => setGraphicsQuality((e.target as HTMLSelectElement).value as 'low' | 'high')}
+				onchange={(e) =>
+					setGraphicsQuality((e.target as HTMLSelectElement).value as 'low' | 'high')}
 			>
 				<option value="low">Low</option>
 				<option value="high">High</option>
@@ -49,7 +52,10 @@
 				id="ai-provider"
 				class="surface-panel-alt px-3 py-2 rounded w-full"
 				value={appSettings.aiProvider}
-				onchange={(e) => updateSettings({ aiProvider: (e.target as HTMLSelectElement).value as 'cloud' | 'local' })}
+				onchange={(e) =>
+					updateSettings({
+						aiProvider: (e.target as HTMLSelectElement).value as 'cloud' | 'local'
+					})}
 			>
 				<option value="cloud">Cloud (OpenAI)</option>
 				<option value="local">Local (WebGPU)</option>
@@ -96,4 +102,3 @@
 		</div>
 	</div>
 </div>
-

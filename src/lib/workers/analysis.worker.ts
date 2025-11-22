@@ -115,6 +115,7 @@ function processLoop(): void {
 			sampleRate: sampleRate,
 			length: buffer.length
 		};
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		analyzer.setSource(audioBuffer as any);
 		const frame = analyzeFrame(buffer);
 		if (frame) {

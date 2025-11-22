@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	let { children } = $props<{ children: any }>();
+	let { children } = $props<{ children: unknown }>();
 	let error = $state<Error | null>(null);
 
 	onMount(() => {
@@ -32,4 +32,3 @@
 {:else}
 	{@render children()}
 {/if}
-

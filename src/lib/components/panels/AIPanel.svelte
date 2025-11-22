@@ -20,7 +20,7 @@
 		try {
 			status = 'idle';
 			errorMessage = null;
-			sculptor = createAISculptor(appSettings.aiProvider, {
+			sculptor = await createAISculptor(appSettings.aiProvider, {
 				apiKey: appSettings.apiKey,
 				apiEndpoint: appSettings.apiEndpoint,
 				model: 'desktop',
@@ -113,7 +113,12 @@
 			</div>
 		{/each}
 		{#if status === 'generating'}
-			<div class="text-sm text-secondary">Generating...</div>
+			<div class="text-sm text-secondary">
+				Generating sculpture modification...
+				{#if progress > 0 && progress < 1}
+					<span class="ml-2">({(progress * 100).toFixed(0)}%)</span>
+				{/if}
+			</div>
 		{/if}
 		{#if errorMessage}
 			<div class="text-sm badge badge-danger p-2">{errorMessage}</div>

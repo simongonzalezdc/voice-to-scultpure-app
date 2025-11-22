@@ -2,7 +2,7 @@ module.exports = {
 	root: true,
 	extends: [
 		'eslint:recommended',
-		'@typescript-eslint/recommended',
+		'plugin:@typescript-eslint/recommended',
 		'plugin:svelte/recommended',
 		'prettier'
 	],
@@ -30,11 +30,11 @@ module.exports = {
 				'no-restricted-syntax': [
 					'error',
 					{
-						selector: 'ExportNamedDeclaration[declaration.type="VariableDeclaration"] > VariableDeclaration > VariableDeclarator[id.name]',
+						selector:
+							'ExportNamedDeclaration[declaration.type="VariableDeclaration"] > VariableDeclaration > VariableDeclarator[id.name]',
 						message: 'Use Svelte 5 runes: let { prop } = $props() instead of export let prop'
 					}
 				],
-				'svelte/no-reactive-declarations': 'error',
 				'svelte/valid-compile': [
 					'error',
 					{
@@ -55,4 +55,3 @@ module.exports = {
 		]
 	}
 };
-

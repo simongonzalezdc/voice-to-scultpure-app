@@ -96,4 +96,3 @@ export interface ProjectMetadata {
 	thumbnail?: string;
 	sculptureId: string;
 }
-

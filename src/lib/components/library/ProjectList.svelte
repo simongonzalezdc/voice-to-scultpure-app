@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import { listProjects, loadProject, deleteProject } from '$lib/storage/opfs';
 	import { setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import type { ProjectMetadata } from '$lib/types';
 	import { renderHighRes } from '$lib/export/renderHighRes';
+	import type { ProjectMetadata } from '$lib/types';
 
 	let projects = $state<ProjectMetadata[]>([]);
 	let searchQuery = $state('');
 	let loading = $state(false);
+	let thumbnails = $state<Record<string, string>>({});
 
 	onMount(() => {
 		loadProjects();
@@ -17,6 +18,12 @@
 		loading = true;
 		try {
 			projects = await listProjects();
+			// Generate thumbnails for all projects
+			const thumbnailPromises = projects.map(async (project) => {
+				const thumbnail = await generateThumbnail(project.id);
+				thumbnails[project.id] = thumbnail;
+			});
+			await Promise.all(thumbnailPromises);
 		} catch (error) {
 			console.error('Failed to load projects:', error);
 		} finally {
@@ -48,15 +55,23 @@
 	}
 
 	async function generateThumbnail(sculptureId: string): Promise<string> {
-		// In a real implementation, you'd load the sculpture and render a thumbnail
-		// For now, return a placeholder
-		return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzIxMUYyNiIvPjwvc3ZnPg==';
+		try {
+			const { sculpture } = await loadProject(sculptureId);
+			const blob = await renderHighRes(sculpture, 'low');
+			return new Promise((resolve) => {
+				const reader = new FileReader();
+				reader.onload = () => resolve(reader.result as string);
+				reader.readAsDataURL(blob);
+			});
+		} catch (error) {
+			console.error('Failed to generate thumbnail:', error);
+			// Return placeholder on error
+			return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzIxMUYyNiIvPjwvc3ZnPg==';
+		}
 	}
 
 	const filteredProjects = $derived(
-		projects.filter((p) =>
-			p.name.toLowerCase().includes(searchQuery.toLowerCase())
-		)
+		projects.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
 	);
 </script>
 
@@ -78,6 +93,17 @@
 		{:else}
 			{#each filteredProjects as project}
 				<div class="surface-panel-alt p-3 rounded flex items-center gap-3">
+					{#if thumbnails[project.id]}
+						<img
+							src={thumbnails[project.id]}
+							alt="Project thumbnail"
+							class="w-12 h-12 object-cover rounded border border-subtle"
+						/>
+					{:else}
+						<div class="w-12 h-12 bg-bg-panel-alt rounded border border-subtle flex items-center justify-center">
+							<span class="text-xs text-muted">No preview</span>
+						</div>
+					{/if}
 					<div class="flex-1">
 						<div class="text-sm font-semibold text-primary">{project.name}</div>
 						<div class="text-xs text-muted">

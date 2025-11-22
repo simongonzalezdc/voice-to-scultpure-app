@@ -5,9 +5,9 @@ import {
 	stopRecording as stopRecordingState,
 	completeProcessing as completeProcessingState,
 	resetRecording as resetRecordingState
-} from './recordingStore';
-import { sculptureStore, setCurrentSculpture } from './sculptureStore.svelte';
-import { analysisStore, resetAnalysis } from './analysisStore.svelte';
+} from './recordingStore.svelte';
+import { setCurrentSculpture } from './sculptureStore.svelte';
+import { resetAnalysis } from './analysisStore.svelte';
 import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
 
@@ -44,4 +44,3 @@ export function resetRecording(): void {
 	resetAnalysis();
 	setCurrentSculpture(null);
 }
-

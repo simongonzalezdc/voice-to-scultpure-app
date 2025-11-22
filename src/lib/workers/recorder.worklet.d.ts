@@ -10,4 +10,3 @@ declare class AudioWorkletProcessor {
 }
 
 declare function registerProcessor(name: string, processorCtor: typeof AudioWorkletProcessor): void;
-

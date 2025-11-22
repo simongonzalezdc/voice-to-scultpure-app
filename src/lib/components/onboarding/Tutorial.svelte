@@ -3,10 +3,8 @@
 	import {
 		uiStore,
 		nextOnboardingStep,
-		finishOnboarding,
-		completeOnboardingStep
+		finishOnboarding
 	} from '$lib/stores/uiStore.svelte';
-	import { startOnboarding } from '$lib/stores/uiStore.svelte';
 
 	let currentStep = $derived(uiStore.onboarding.currentStep);
 	let isActive = $derived(uiStore.onboarding.active);
@@ -26,13 +24,16 @@
 
 {#if isActive}
 	<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-		<div class="surface-panel p-6 rounded-lg max-w-md w-full" transition:fly={{ y: 20, duration: 300 }}>
+		<div
+			class="surface-panel p-6 rounded-lg max-w-md w-full"
+			transition:fly={{ y: 20, duration: 300 }}
+		>
 			{#if currentStep === 'welcome'}
 				<div in:fly={{ y: 20, duration: 200 }}>
 					<h2 class="text-2xl font-bold mb-4">Welcome to Voice-to-Sculpture Studio</h2>
 					<p class="text-secondary mb-4">
-						Transform your voice into beautiful 3D sculptures. This tutorial will guide you
-						through the basics.
+						Transform your voice into beautiful 3D sculptures. This tutorial will guide you through
+						the basics.
 					</p>
 					<div class="flex gap-2">
 						<button class="button-primary px-4 py-2" type="button" onclick={handleNext}>
@@ -91,4 +92,3 @@
 		</div>
 	</div>
 {/if}
-

@@ -40,4 +40,3 @@ export function downloadSvg(svg: string, filename: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
-

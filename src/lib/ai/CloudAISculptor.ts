@@ -42,10 +42,7 @@ export class CloudAISculptor implements AISculptor {
 			this.status = 'ready';
 		} catch (error) {
 			this.status = 'error';
-			throw new AISculptorErrorImpl(
-				`Failed to initialize AI: ${error}`,
-				'INIT_FAILED'
-			);
+			throw new AISculptorErrorImpl(`Failed to initialize AI: ${error}`, 'INIT_FAILED');
 		}
 	}
 
@@ -151,7 +148,10 @@ function validateMutation(mutation: SculptureMutation): void {
 		}
 		for (const point of mutation.radiusCurve) {
 			if (typeof point.x !== 'number' || typeof point.y !== 'number') {
-				throw new AISculptorErrorImpl('radiusCurve points must have x and y numbers', 'SCHEMA_ERROR');
+				throw new AISculptorErrorImpl(
+					'radiusCurve points must have x and y numbers',
+					'SCHEMA_ERROR'
+				);
 			}
 			if (!isFinite(point.x) || !isFinite(point.y)) {
 				throw new AISculptorErrorImpl('radiusCurve points must be finite numbers', 'SCHEMA_ERROR');
@@ -161,12 +161,18 @@ function validateMutation(mutation: SculptureMutation): void {
 
 	if (mutation.surface) {
 		if (mutation.surface.textureRoughness !== undefined) {
-			if (typeof mutation.surface.textureRoughness !== 'number' || !isFinite(mutation.surface.textureRoughness)) {
+			if (
+				typeof mutation.surface.textureRoughness !== 'number' ||
+				!isFinite(mutation.surface.textureRoughness)
+			) {
 				throw new AISculptorErrorImpl('textureRoughness must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
 		if (mutation.surface.glazeTransmission !== undefined) {
-			if (typeof mutation.surface.glazeTransmission !== 'number' || !isFinite(mutation.surface.glazeTransmission)) {
+			if (
+				typeof mutation.surface.glazeTransmission !== 'number' ||
+				!isFinite(mutation.surface.glazeTransmission)
+			) {
 				throw new AISculptorErrorImpl('glazeTransmission must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
@@ -179,7 +185,10 @@ function validateMutation(mutation: SculptureMutation): void {
 			}
 		}
 		if (mutation.deformation.compression !== undefined) {
-			if (typeof mutation.deformation.compression !== 'number' || !isFinite(mutation.deformation.compression)) {
+			if (
+				typeof mutation.deformation.compression !== 'number' ||
+				!isFinite(mutation.deformation.compression)
+			) {
 				throw new AISculptorErrorImpl('compression must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
@@ -209,4 +218,3 @@ export function mergeSculpture(
 		instructions: [...(current.instructions || []), JSON.stringify(mutation)]
 	};
 }
-

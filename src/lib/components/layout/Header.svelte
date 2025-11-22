@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { uiStore, openPanel } from '$lib/stores/uiStore.svelte';
+	import { openPanel } from '$lib/stores/uiStore.svelte';
 
 	let { title = 'Voice-to-Sculpture Studio' } = $props<{ title?: string }>();
 </script>
@@ -14,4 +14,3 @@
 		Settings
 	</button>
 </header>
-

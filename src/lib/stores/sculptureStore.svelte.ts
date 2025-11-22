@@ -30,4 +30,3 @@ export function clearGhostSculpture(): void {
 export function markGeometryClean(): void {
 	sculptureStore.geometryDirty = false;
 }
-

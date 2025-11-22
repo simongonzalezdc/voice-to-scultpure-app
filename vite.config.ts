@@ -18,7 +18,6 @@ export default defineConfig({
 		}
 	},
 	optimizeDeps: {
-			exclude: ['@threlte/core', 'three']
+		exclude: ['@threlte/core', 'three']
 	}
 });
-

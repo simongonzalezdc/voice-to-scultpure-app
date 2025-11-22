@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { sculptureStore, setGhostSculpture, clearGhostSculpture, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import {
+		sculptureStore,
+		setGhostSculpture,
+		clearGhostSculpture,
+		setCurrentSculpture
+	} from '$lib/stores/sculptureStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 
 	let height = $state(1);
@@ -10,6 +15,17 @@
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
+
+	// Sync sliders with current sculpture
+	$effect(() => {
+		const sculpture = sculptureStore.currentSculpture;
+		if (sculpture && !isDragging) {
+			twist = sculpture.deformation.twist;
+			compression = sculpture.deformation.compression;
+			roughness = sculpture.surface.textureRoughness;
+			glaze = sculpture.surface.glazeTransmission;
+		}
+	});
 
 	function handlePointerDown() {
 		if (!sculptureStore.currentSculpture) return;

@@ -3,7 +3,7 @@
 	import OrbitControls from './OrbitControls.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, MeshPhysicalMaterial, Vector2 } from 'three';
+	import { LatheGeometry, Vector2 } from 'three';
 	import { useTask } from '@threlte/core';
 	import type { SculptureDefinition } from '$lib/types';
 
@@ -20,7 +20,9 @@
 			return;
 		}
 
-		const points = sculpture.radiusCurve.map((p: { x: number; y: number }) => new Vector2(p.x, p.y));
+		const points = sculpture.radiusCurve.map(
+			(p: { x: number; y: number }) => new Vector2(p.x, p.y)
+		);
 		if (points.length < 2) {
 			return;
 		}
@@ -58,7 +60,9 @@
 		</T.Mesh>
 	{/if}
 	{#if sculptureStore.ghostSculpture}
-		{@const ghostPoints = sculptureStore.ghostSculpture.radiusCurve.map((p: { x: number; y: number }) => new Vector2(p.x, p.y))}
+		{@const ghostPoints = sculptureStore.ghostSculpture.radiusCurve.map(
+			(p: { x: number; y: number }) => new Vector2(p.x, p.y)
+		)}
 		{#if ghostPoints.length >= 2}
 			{@const ghostGeometry = new LatheGeometry(ghostPoints, 32)}
 			<T.Mesh geometry={ghostGeometry}>
@@ -77,4 +81,3 @@
 		{/if}
 	{/if}
 </Canvas>
-

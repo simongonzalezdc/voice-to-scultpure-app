@@ -19,4 +19,3 @@
 		<div class="flex items-center justify-center h-full text-secondary">Loading scene...</div>
 	{/if}
 </div>
-

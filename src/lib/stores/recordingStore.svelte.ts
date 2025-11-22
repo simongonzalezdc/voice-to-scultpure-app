@@ -1,4 +1,3 @@
-
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'complete';
 
 export const recordingStore = $state<{
@@ -33,4 +32,3 @@ export function resetRecording(): void {
 	recordingStore.startTime = null;
 	recordingStore.duration = 0;
 }
-

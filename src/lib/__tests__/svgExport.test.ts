@@ -16,4 +16,3 @@ describe('SVG Export', () => {
 		expect(svg).toContain('d=');
 	});
 });
-

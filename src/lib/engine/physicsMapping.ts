@@ -1,9 +1,6 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 
-export function generateLathe(
-	frames: AnalysisFrame[],
-	profile?: UserProfile
-): LathePoint[] {
+export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): LathePoint[] {
 	if (frames.length === 0) {
 		return [{ x: 0, y: 0.1 }]; // Default point
 	}
@@ -41,7 +38,8 @@ export function generateLathe(
 		const heightOffset = (pitchNormalized - 0.5) * 0.1;
 
 		// Map energy to radius
-		const energyNormalized = (frame.energy - energyRange.min) / (energyRange.max - energyRange.min || 1);
+		const energyNormalized =
+			(frame.energy - energyRange.min) / (energyRange.max - energyRange.min || 1);
 		const radiusDelta = energyNormalized * (maxRadius - baseRadius);
 		const radius = baseRadius + radiusDelta;
 
@@ -73,8 +71,7 @@ function smoothCurve(points: LathePoint[], frames: AnalysisFrame[]): LathePoint[
 			const idx = i + j;
 			if (idx >= 0 && idx < points.length) {
 				// Weight by timbre (spectral centroid) - higher timbre = more influence
-				const timbreWeight =
-					frames[idx]?.timbre?.spectralCentroid || 0.5;
+				const timbreWeight = frames[idx]?.timbre?.spectralCentroid || 0.5;
 				const weight = Math.exp(-(j * j) / (2 * (halfKernel / 2) ** 2)) * (1 + timbreWeight);
 
 				sumX += points[idx].x * weight;
@@ -128,8 +125,7 @@ export function deriveSurfaceParameters(frames: AnalysisFrame[]): {
 	// Energy variance influences glaze
 	const energies = frames.map((f) => f.energy);
 	const avgEnergy = energies.reduce((a, b) => a + b, 0) / energies.length;
-	const variance =
-		energies.reduce((sum, e) => sum + (e - avgEnergy) ** 2, 0) / energies.length;
+	const variance = energies.reduce((sum, e) => sum + (e - avgEnergy) ** 2, 0) / energies.length;
 	const normalizedVariance = Math.min(1, variance * 10);
 
 	return {
@@ -162,4 +158,3 @@ export function createSculptureFromFrames(
 		}
 	};
 }
-

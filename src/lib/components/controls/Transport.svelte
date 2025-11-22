@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { recordingStore } from '$lib/stores/recordingStore.svelte';
-	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
@@ -29,39 +28,57 @@
 	}
 
 	async function startRecordingFlow() {
-		try {
-			if (!isInitialized) {
-				// Initialize ring buffer
-				if (typeof SharedArrayBuffer === 'undefined') {
-					alert('SharedArrayBuffer not available. Please ensure COOP/COEP headers are set.');
-					return;
+		const maxRetries = 3;
+		let lastError: Error | null = null;
+
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				if (!isInitialized) {
+					// Initialize ring buffer
+					if (typeof SharedArrayBuffer === 'undefined') {
+						alert('SharedArrayBuffer not available. Please ensure COOP/COEP headers are set.');
+						return;
+					}
+
+					ringBuffer = createAudioRingBuffer(44100 * 10, 44100); // 10 seconds capacity
+					if (!ringBuffer) {
+						throw new Error('Failed to create ring buffer');
+					}
+
+					// Initialize audio context and worklet
+					await initializeAudioContext(ringBuffer.buffer, 44100);
+					const stream = await startMicrophoneCapture();
+					connectMicrophoneToWorklet(stream);
+
+					// Create analysis worker
+					workerClient = createAnalysisWorkerClient(ringBuffer, (frame) => {
+						updateAnalysisFrame(frame);
+						addAnalysisFrame(frame);
+					});
+
+					isInitialized = true;
 				}
 
-				ringBuffer = createAudioRingBuffer(44100 * 10, 44100); // 10 seconds capacity
-				if (!ringBuffer) {
-					throw new Error('Failed to create ring buffer');
+				workerClient?.start();
+				startRecording();
+				return; // Success, exit retry loop
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error));
+				console.error(`Recording initialization attempt ${attempt} failed:`, error);
+
+				// Reset state for retry
+				resetRecording();
+				isInitialized = false;
+
+				if (attempt < maxRetries) {
+					// Wait before retry
+					await new Promise(resolve => setTimeout(resolve, 1000));
 				}
-
-				// Initialize audio context and worklet
-				const workletNode = await initializeAudioContext(ringBuffer.buffer, 44100);
-				const stream = await startMicrophoneCapture();
-				connectMicrophoneToWorklet(stream);
-
-				// Create analysis worker
-				workerClient = createAnalysisWorkerClient(ringBuffer, (frame) => {
-					updateAnalysisFrame(frame);
-					addAnalysisFrame(frame);
-				});
-
-				isInitialized = true;
 			}
-
-			workerClient?.start();
-			startRecording();
-		} catch (error) {
-			console.error('Failed to start recording:', error);
-			alert(`Failed to start recording: ${error}`);
 		}
+
+		// All retries failed
+		alert(`Failed to start recording after ${maxRetries} attempts: ${lastError?.message}`);
 	}
 
 	async function stopRecordingFlow() {

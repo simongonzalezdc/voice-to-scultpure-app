@@ -1,5 +1,9 @@
-
-export type OnboardingStep = 'welcome' | 'mic-permission' | 'calibration' | 'first-recording' | 'ai-tutorial';
+export type OnboardingStep =
+	| 'welcome'
+	| 'mic-permission'
+	| 'calibration'
+	| 'first-recording'
+	| 'ai-tutorial';
 
 export const uiStore = $state<{
 	panels: {
@@ -81,4 +85,3 @@ export function finishOnboarding(): void {
 	uiStore.onboarding.currentStep = null;
 	steps.forEach((step) => completeOnboardingStep(step));
 }
-

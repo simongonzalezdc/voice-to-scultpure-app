@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	createAudioRingBuffer,
 	writeToRingBuffer,
-	readFromRingBuffer,
-	availableSamples
+	readFromRingBuffer
 } from '../audio/ringBuffer';
 
 describe('Ring Buffer', () => {
@@ -42,4 +41,3 @@ describe('Ring Buffer', () => {
 		expect(written).toBeLessThanOrEqual(10);
 	});
 });
-

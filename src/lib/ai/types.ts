@@ -38,4 +38,3 @@ export class AISculptorErrorImpl extends Error implements AISculptorError {
 		this.code = code;
 	}
 }
-

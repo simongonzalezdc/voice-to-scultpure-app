@@ -89,8 +89,8 @@ export async function loadProject(id: string): Promise<{
 
 export async function listProjects(): Promise<ProjectMetadata[]> {
 	const allKeys = await keys();
-	const metadataKeys = allKeys.filter((k) =>
-		typeof k === 'string' && k.startsWith(METADATA_KEY_PREFIX)
+	const metadataKeys = allKeys.filter(
+		(k) => typeof k === 'string' && k.startsWith(METADATA_KEY_PREFIX)
 	) as string[];
 
 	const metadataList: ProjectMetadata[] = [];
@@ -114,4 +114,3 @@ export async function deleteProject(id: string): Promise<void> {
 
 	await del(`${METADATA_KEY_PREFIX}${id}`);
 }
-

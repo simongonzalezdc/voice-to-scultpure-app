@@ -1,5 +1,4 @@
 import { WebGLRenderer } from 'three';
-import type { AppSettings } from '$lib/types';
 
 export type RendererType = 'webgpu' | 'webgl';
 
@@ -23,12 +22,12 @@ export function createRenderer(config: RendererConfig): WebGLRenderer {
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = quality === 'high' ? 1 : 2; // PCF vs Basic
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1));
+	renderer.shadowMapSize = shadowMapSize;
 
 	return renderer;
 }
 
-export function getRendererType(renderer: WebGLRenderer): RendererType {
+export function getRendererType(_renderer: WebGLRenderer): RendererType {
 	// For now, always return webgl since WebGPU renderer isn't implemented
 	return 'webgl';
 }
-

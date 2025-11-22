@@ -58,4 +58,3 @@ describe('Physics Mapping', () => {
 		expect(surface.glazeTransmission).toBeLessThanOrEqual(1);
 	});
 });
-

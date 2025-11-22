@@ -1,6 +1,7 @@
-import type { AppSettings, UserProfile } from '$lib/types';
+import type { AppSettings } from '$lib/types';
 
 const STORAGE_KEY = 'voice-to-sculpture-settings';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ENCRYPTION_KEY = 'vts-api-key'; // In production, use proper encryption
 
 function encryptApiKey(key: string): string {
@@ -82,4 +83,3 @@ export function resetSettings(): void {
 	appSettings.userProfile = defaults.userProfile;
 	saveSettings(appSettings);
 }
-

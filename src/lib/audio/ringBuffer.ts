@@ -27,10 +27,7 @@ export function createAudioRingBuffer(
 	};
 }
 
-export function writeToRingBuffer(
-	ringBuffer: AudioRingBuffer,
-	samples: Float32Array
-): number {
+export function writeToRingBuffer(ringBuffer: AudioRingBuffer, samples: Float32Array): number {
 	const view = new Float32Array(ringBuffer.buffer);
 	const intView = new Int32Array(ringBuffer.buffer);
 	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);
@@ -52,10 +49,7 @@ export function writeToRingBuffer(
 	return toWrite;
 }
 
-export function readFromRingBuffer(
-	ringBuffer: AudioRingBuffer,
-	output: Float32Array
-): number {
+export function readFromRingBuffer(ringBuffer: AudioRingBuffer, output: Float32Array): number {
 	const view = new Float32Array(ringBuffer.buffer);
 	const intView = new Int32Array(ringBuffer.buffer);
 	const writePtr = Atomics.load(intView, WRITE_PTR_INDEX);

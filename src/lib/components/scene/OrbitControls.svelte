@@ -65,17 +65,20 @@
 		applyConfig();
 	});
 
-	useTask(() => {
-		if (!controls) {
-			return;
+	useTask(
+		() => {
+			if (!controls) {
+				return;
+			}
+			const needsUpdate = controls.update();
+			if (needsUpdate) {
+				invalidate();
+			}
+		},
+		{
+			autoInvalidate: false
 		}
-		const needsUpdate = controls.update();
-		if (needsUpdate) {
-			invalidate();
-		}
-	}, {
-		autoInvalidate: false
-	});
+	);
 
 	onDestroy(() => {
 		if (!controls) {
@@ -86,5 +89,3 @@
 		controls = null;
 	});
 </script>
-
-

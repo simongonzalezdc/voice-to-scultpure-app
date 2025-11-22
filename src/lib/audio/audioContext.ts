@@ -24,7 +24,7 @@ export async function initializeAudioContext(
 	}
 
 	// Create worklet node with ring buffer
-	const capacity = (ringBuffer.byteLength / 4) - 2; // Subtract write/read pointers
+	const capacity = ringBuffer.byteLength / 4 - 2; // Subtract write/read pointers
 	workletNode = new AudioWorkletNode(audioContext, 'recorder-processor', {
 		processorOptions: {
 			ringBuffer,
@@ -37,9 +37,7 @@ export async function initializeAudioContext(
 	return workletNode;
 }
 
-export async function startMicrophoneCapture(
-	deviceId?: string
-): Promise<MediaStream> {
+export async function startMicrophoneCapture(deviceId?: string): Promise<MediaStream> {
 	if (mediaStream) {
 		return mediaStream;
 	}
@@ -103,4 +101,3 @@ export function resetAudioContext(): void {
 	}
 	initialized = false;
 }
-

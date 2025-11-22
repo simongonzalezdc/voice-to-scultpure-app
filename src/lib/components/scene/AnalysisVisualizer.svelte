@@ -2,7 +2,7 @@
 	import { T } from '@threlte/core';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore } from '$lib/stores/recordingStore.svelte';
-	import { BufferGeometry, Float32BufferAttribute, LineBasicMaterial } from 'three';
+	import { BufferGeometry, Float32BufferAttribute } from 'three';
 	import { useTask } from '@threlte/core';
 
 	let visible = $derived(recordingStore.state === 'recording');
@@ -51,8 +51,7 @@
 </script>
 
 {#if visible && geometry}
-	<T.LineSegments geometry={geometry}>
+	<T.LineSegments {geometry}>
 		<T.LineBasicMaterial color="#8F3E48" linewidth={2} />
 	</T.LineSegments>
 {/if}
-

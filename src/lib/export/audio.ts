@@ -1,5 +1,5 @@
-// @ts-ignore - no types available
-import audioBufferToWav from 'audiobuffer-to-wav';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const audioBufferToWav = require('audiobuffer-to-wav') as (buffer: AudioBuffer) => ArrayBuffer;
 
 export function convertFloat32ArrayToWav(
 	audioData: Float32Array,
@@ -30,4 +30,3 @@ export function downloadWav(blob: Blob, filename: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
-

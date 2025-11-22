@@ -24,4 +24,3 @@ export function resetAnalysis(): void {
 	analysisStore.micLevel = 0;
 	analysisStore.latestFrame = null;
 }
-

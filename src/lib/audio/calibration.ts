@@ -92,4 +92,3 @@ export function resetCalibration(): void {
 		}
 	});
 }
-

@@ -5,4 +5,3 @@
 <div class="min-h-screen bg-app text-primary">
 	<slot />
 </div>
-
