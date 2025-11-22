@@ -10,6 +10,7 @@ export const uiStore = $state<{
 		aiPanel: boolean;
 		projectList: boolean;
 		settings: boolean;
+		fabricationPanel: boolean;
 	};
 	onboarding: {
 		active: boolean;
@@ -20,7 +21,8 @@ export const uiStore = $state<{
 	panels: {
 		aiPanel: false,
 		projectList: false,
-		settings: false
+		settings: false,
+		fabricationPanel: false
 	},
 	onboarding: {
 		active: false,

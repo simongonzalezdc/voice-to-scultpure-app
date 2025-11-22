@@ -52,6 +52,11 @@
 				twist: 0,
 				compression: 0,
 				taper: 0
+			},
+			physical: {
+				height: 150,
+				units: 'mm',
+				wallThickness: undefined
 			}
 		};
 		setCurrentSculpture(testSculpture);
@@ -113,11 +118,17 @@
 				event.preventDefault();
 				togglePanel('settings');
 				break;
+			case 'f':
+			case 'F':
+				event.preventDefault();
+				togglePanel('fabricationPanel');
+				break;
 			case 'Escape':
 				// Close all panels
 				uiStore.panels.aiPanel = false;
 				uiStore.panels.projectList = false;
 				uiStore.panels.settings = false;
+				uiStore.panels.fabricationPanel = false;
 				break;
 		}
 	}
@@ -137,21 +148,22 @@
 					<Canvas>
 						<MainScene />
 					</Canvas>
-					<div class="absolute bottom-4 left-4 right-4 flex gap-4 items-end">
-						<div class="flex-1 max-w-md">
-							<Transport />
-						</div>
-						{#if uiStore.panels.aiPanel}
-							<div class="w-96">
-								<AIPanel />
-							</div>
-						{/if}
+					<!-- Transport Controls - Bottom Center -->
+					<div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+						<Transport />
 					</div>
-					<div class="absolute top-4 right-4 w-64">
+
+					<!-- AI Panel - Bottom Right -->
+					{#if uiStore.panels.aiPanel}
+						<div class="absolute bottom-4 right-4 w-96 z-10">
+							<AIPanel />
+						</div>
+					{/if}
+					<div class="absolute top-4 right-4 w-64 z-10">
 						<ParameterSliders />
 					</div>
 					<!-- Test Mesh & Export Controls -->
-					<div class="absolute top-4 left-4 flex flex-col gap-2">
+					<div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
 						<button
 							class="button-secondary px-4 py-2 text-sm"
 							type="button"
@@ -168,8 +180,10 @@
 							Export STL
 						</button>
 					</div>
+
+					<!-- Project List - Only show when panel is open -->
 					{#if uiStore.panels.projectList}
-						<div class="absolute top-4 left-4 w-80">
+						<div class="absolute top-4 left-24 w-80 z-20">
 							<ProjectList />
 						</div>
 					{/if}
@@ -180,6 +194,11 @@
 							</div>
 						</div>
 					{/if}
+					{#if uiStore.panels.fabricationPanel}
+						<div class="absolute inset-0 flex items-center justify-center z-40">
+							<FabricationPanel />
+						</div>
+					{/if}
 				</div>
 
 				<!-- Keyboard shortcuts help -->
@@ -188,6 +207,7 @@
 					<div>A: Toggle AI Panel</div>
 					<div>P: Toggle Projects</div>
 					<div>S: Toggle Settings</div>
+					<div>F: Toggle Fabrication</div>
 					<div>Esc: Close Panels</div>
 				</div>
 			{:else}

@@ -17,6 +17,7 @@ interface ConfigPayload {
 
 let ringBuffer: AudioRingBuffer | null = null;
 let sampleRate = 44100;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let fftSize = 2048;
 let hopSize = 512;
 let running = false;

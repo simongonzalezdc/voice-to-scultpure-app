@@ -48,24 +48,30 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 		timbres.push(frame.timbre.spectralCentroid);
 	}
 
+	// Human voice defaults when no audio detected
+	const DEFAULT_PITCH_MIN = 80;
+	const DEFAULT_PITCH_MAX = 400;
+	const DEFAULT_ENERGY_MIN = 0.05;
+	const DEFAULT_ENERGY_MAX = 0.8;
+
 	const pitchPercentiles = calculatePercentiles(pitches);
 	const energyPercentiles = calculatePercentiles(energies);
 	const timbrePercentiles = calculatePercentiles(timbres);
 
 	return {
 		pitchRange: {
-			min: Math.min(...pitches) || 0,
-			max: Math.max(...pitches) || 0,
+			min: pitches.length > 0 ? Math.min(...pitches) : DEFAULT_PITCH_MIN,
+			max: pitches.length > 0 ? Math.max(...pitches) : DEFAULT_PITCH_MAX,
 			...pitchPercentiles
 		},
 		energyRange: {
-			min: Math.min(...energies) || 0,
-			max: Math.max(...energies) || 0,
+			min: energies.length > 0 ? Math.min(...energies) : DEFAULT_ENERGY_MIN,
+			max: energies.length > 0 ? Math.max(...energies) : DEFAULT_ENERGY_MAX,
 			...energyPercentiles
 		},
 		timbreRange: {
-			min: Math.min(...timbres) || 0,
-			max: Math.max(...timbres) || 0,
+			min: timbres.length > 0 ? Math.min(...timbres) : 1000, // Default spectral centroid
+			max: timbres.length > 0 ? Math.max(...timbres) : 5000, // Default spectral centroid
 			...timbrePercentiles
 		}
 	};

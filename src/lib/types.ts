@@ -17,6 +17,12 @@ export interface SculptureDeformation {
 	taper: number; // 0-1
 }
 
+export interface SculpturePhysical {
+	height: number; // Physical height in millimeters (default 150mm for mug/small vase)
+	units: 'mm' | 'inch'; // Measurement units (default 'mm')
+	wallThickness?: number; // Wall thickness in mm (for 3D printing vs solid ceramic)
+}
+
 export interface SculptureDefinition {
 	id: string;
 	name: string;
@@ -24,6 +30,7 @@ export interface SculptureDefinition {
 	radiusCurve: LathePoint[];
 	surface: SculptureSurface;
 	deformation: SculptureDeformation;
+	physical: SculpturePhysical;
 	audioBlobId?: string;
 	instructions?: string[];
 }

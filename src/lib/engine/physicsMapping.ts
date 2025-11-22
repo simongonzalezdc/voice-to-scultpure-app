@@ -1,15 +1,12 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 
 // Geometric design constants (not calibration-dependent)
-const BASE_RADIUS = 0.1;
-const MAX_RADIUS = 0.5;
+const BASE_RADIUS = 0.5; // Increased from 0.1 for thicker cylinders
 const HEIGHT_OFFSET_MULTIPLIER = 0.1;
 
 // Default calibration ranges (used when profile is missing or invalid)
 const DEFAULT_PITCH_MIN = 80;
 const DEFAULT_PITCH_MAX = 400;
-const DEFAULT_ENERGY_MIN = 0;
-const DEFAULT_ENERGY_MAX = 1;
 
 function isValidRange(range: { min: number; max: number }): boolean {
 	return range.min < range.max && range.min >= 0 && range.max > 0;
@@ -22,7 +19,12 @@ function getPitchRange(frames: AnalysisFrame[], profile?: UserProfile): {
 	p50: number;
 	p75: number;
 } {
-	if (profile?.pitchRange && isValidRange(profile.pitchRange)) {
+	// Sanity Guard: Force safe defaults if profile is invalid or empty
+	if (!profile?.pitchRange || profile.pitchRange.min === profile.pitchRange.max) {
+		return { min: 80, max: 400, p25: 100, p50: 200, p75: 300 };
+	}
+
+	if (isValidRange(profile.pitchRange)) {
 		return profile.pitchRange;
 	}
 
@@ -47,42 +49,6 @@ function getPitchRange(frames: AnalysisFrame[], profile?: UserProfile): {
 	};
 }
 
-function getEnergyRange(frames: AnalysisFrame[], profile?: UserProfile): {
-	min: number;
-	max: number;
-	p25: number;
-	p50: number;
-	p75: number;
-} {
-	if (profile?.energyRange && isValidRange(profile.energyRange)) {
-		return profile.energyRange;
-	}
-
-	// Compute from frames or use defaults
-	const energies = frames.map((f) => f.energy);
-	if (energies.length > 0) {
-		const min = Math.min(...energies);
-		const max = Math.max(...energies);
-		if (min < max) {
-			return {
-				min,
-				max,
-				p25: 0,
-				p50: 0,
-				p75: 0
-			};
-		}
-	}
-
-	return {
-		min: DEFAULT_ENERGY_MIN,
-		max: DEFAULT_ENERGY_MAX,
-		p25: 0,
-		p50: 0,
-		p75: 0
-	};
-}
-
 export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): LathePoint[] {
 	if (frames.length === 0) {
 		// Default point: x=0 (radius at axis), y=BASE_RADIUS (height above ground)
@@ -92,8 +58,6 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 	const points: LathePoint[] = [];
 	const height = frames.length;
 	const pitchRange = getPitchRange(frames, profile);
-	const energyRange = getEnergyRange(frames, profile);
-
 	for (let i = 0; i < frames.length; i++) {
 		const frame = frames[i];
 		const normalizedHeight = i / height;
@@ -105,11 +69,9 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 				: 0.5;
 		const heightOffset = (pitchNormalized - 0.5) * HEIGHT_OFFSET_MULTIPLIER;
 
-		// Map energy to radius using calibration ranges
-		const energyNormalized =
-			(frame.energy - energyRange.min) / (energyRange.max - energyRange.min || 1);
-		const radiusDelta = energyNormalized * (MAX_RADIUS - BASE_RADIUS);
-		const radius = BASE_RADIUS + radiusDelta;
+		// Map energy to radius with boosted sensitivity (safe fallback)
+		const energy = frame.energy || 0;
+		const radius = BASE_RADIUS + (energy * 2.0); // Doubled energy impact for stronger volume response
 
 		points.push({
 			x: radius,
@@ -223,6 +185,11 @@ export function createSculptureFromFrames(
 			twist: 0,
 			compression: 0,
 			taper: 0
+		},
+		physical: {
+			height: 150, // Default 150mm for mug/small vase
+			units: 'mm',
+			wallThickness: undefined // Optional, for 3D printing
 		}
 	};
 }

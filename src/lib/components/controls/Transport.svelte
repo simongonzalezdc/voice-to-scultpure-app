@@ -47,6 +47,13 @@
 
 					// Initialize audio context and worklet
 					await initializeAudioContext(ringBuffer.buffer, 44100);
+
+					// Resume audio context (required for browser autoplay policy)
+					const audioContext = await import('$lib/audio/audioContext').then(m => m.getAudioContext());
+					if (audioContext && audioContext.state === 'suspended') {
+						await audioContext.resume();
+					}
+
 					const stream = await startMicrophoneCapture();
 					connectMicrophoneToWorklet(stream);
 

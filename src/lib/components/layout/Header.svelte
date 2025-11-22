@@ -6,11 +6,20 @@
 
 <header class="surface-panel border-b border-subtle px-4 py-3 flex items-center justify-between">
 	<h1 class="text-xl font-semibold text-primary">{title}</h1>
-	<button
-		class="button-primary px-4 py-2 text-sm"
-		onclick={() => openPanel('settings')}
-		type="button"
-	>
-		Settings
-	</button>
+	<div class="flex gap-2">
+		<button
+			class="button-secondary px-4 py-2 text-sm"
+			onclick={() => openPanel('fabricationPanel')}
+			type="button"
+		>
+			Fabrication
+		</button>
+		<button
+			class="button-primary px-4 py-2 text-sm"
+			onclick={() => openPanel('settings')}
+			type="button"
+		>
+			Settings
+		</button>
+	</div>
 </header>
