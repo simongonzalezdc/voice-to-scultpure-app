@@ -106,8 +106,11 @@
 			// Live Visualization: Update Live Mesh
 			const frames = getCapturedFrames();
 			if (frames.length > 0 && liveMeshRef) {
-				// Generate geometry on the fly from current frames
-				const profile = generateLathe(frames, appSettings.userProfile);
+				// Get sculpt mode from current sculpture or default to 'additive'
+				const mode = sculpture?.physical.sculptMode ?? 'additive';
+				
+				// Generate geometry on the fly from current frames with sculpt mode
+				const profile = generateLathe(frames, appSettings.userProfile, mode);
 				
 				// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
 				if (!profile || profile.length === 0) return;
@@ -212,7 +215,9 @@
 		if (!sculpture) return PORCELAIN_COLOR;
 		
 		if (isPlastic) {
-			return sculpture.surface.baseColor || '#3080ff'; // Default plastic blue
+			const baseColor = sculpture.surface.baseColor || '#3080ff'; // Default plastic blue
+			// Dim pure white to #EEEEEE so highlights are visible
+			return baseColor === '#FFFFFF' || baseColor === '#ffffff' ? '#EEEEEE' : baseColor;
 		}
 		
 		// Ceramic Logic
@@ -255,14 +260,16 @@
 		{#if sculpture && recordingStore.state !== 'recording'}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 				<!-- Material Switching -->
-				{#if isPlastic}
-					<!-- Plastic: Standard Material (shiny, plastic look) -->
-					<T.MeshStandardMaterial
-						color={materialColor}
-						roughness={sculpture.surface.textureRoughness}
-						metalness={0.1}
-						flatShading={false}
-					/>
+			{#if isPlastic}
+				<!-- Plastic: Physical Material (tuned for visibility - semi-matte, less glare) -->
+				<T.MeshPhysicalMaterial
+					color={materialColor}
+					roughness={Math.max(0.3, sculpture.surface.textureRoughness)}
+					clearcoat={0.5}
+					clearcoatRoughness={0.3}
+					metalness={0.1}
+					flatShading={false}
+				/>
 				{:else}
 					<!-- Ceramic: Physical Material (transmission, clearcoat) -->
 					<T.MeshPhysicalMaterial

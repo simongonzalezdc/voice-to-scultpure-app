@@ -5,10 +5,11 @@ import {
 	completeProcessing as completeProcessingState,
 	resetRecording as resetRecordingState
 } from './recordingStore.svelte';
-import { setCurrentSculpture } from './sculptureStore.svelte';
+import { setCurrentSculpture, sculptureStore } from './sculptureStore.svelte';
 import { resetAnalysis } from './analysisStore.svelte';
 import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
+import { uiStore } from './uiStore.svelte';
 
 // Re-export recordingStore so it can be imported from here
 export { recordingStore };
@@ -36,9 +37,11 @@ export function stopRecording(): void {
 		console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
 		// Create a deep copy to avoid reactivity issues during processing
 		const frames = JSON.parse(JSON.stringify(capturedFrames));
-		const sculpture = createSculptureFromFrames(frames, appSettings.userProfile);
+		// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
+		const mode = sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
+		const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
 		setCurrentSculpture(sculpture);
-		console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points`);
+		console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
 		completeProcessingState();
 	} else {
 		console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');

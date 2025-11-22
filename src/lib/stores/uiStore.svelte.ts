@@ -18,6 +18,7 @@ export const uiStore = $state<{
 		completed: Set<OnboardingStep>;
 	};
 	orientation: 'vertical' | 'horizontal';
+	sculptMode: 'additive' | 'subtractive';
 	view: {
 		lightingAngle: number;
 		zoom: number;
@@ -35,6 +36,7 @@ export const uiStore = $state<{
 		completed: new Set()
 	},
 	orientation: 'vertical',
+	sculptMode: 'additive',
 	view: {
 		lightingAngle: 0,
 		zoom: 1.0
@@ -112,5 +114,9 @@ export function setLightingAngle(angle: number): void {
 
 export function setZoom(zoom: number): void {
 	uiStore.view.zoom = Math.max(0.5, Math.min(3.0, zoom));
+}
+
+export function setSculptMode(mode: 'additive' | 'subtractive'): void {
+	uiStore.sculptMode = mode;
 }
 

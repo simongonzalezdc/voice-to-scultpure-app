@@ -5,6 +5,7 @@
 		clearGhostSculpture,
 		setCurrentSculpture
 	} from '$lib/stores/sculptureStore.svelte';
+	import { uiStore, setSculptMode } from '$lib/stores/uiStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition } from '$lib/types';
 
@@ -15,11 +16,12 @@
 	let glaze = $state(0.3);
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
 	let baseColor = $state('#E0C9A6');
+	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
 
-	// Sync sliders with current sculpture
+	// Sync sliders with current sculpture or uiStore
 	$effect(() => {
 		const sculpture = sculptureStore.currentSculpture;
 		if (sculpture && !isDragging) {
@@ -30,6 +32,10 @@
 			glaze = sculpture.surface.glazeTransmission;
 			materialType = sculpture.surface.materialType ?? 'ceramic';
 			baseColor = sculpture.surface.baseColor ?? '#E0C9A6';
+			sculptMode = sculpture.physical.sculptMode ?? uiStore.sculptMode;
+		} else if (!sculpture && !isDragging) {
+			// When no sculpture exists, sync from uiStore
+			sculptMode = uiStore.sculptMode;
 		}
 	});
 
@@ -71,7 +77,8 @@
 			},
 			physical: {
 				...previewSculpture.physical,
-				height: height // DIRECTIVE 4: Update height from slider
+				height: height, // DIRECTIVE 4: Update height from slider
+				sculptMode: sculptMode
 			}
 		});
 	}
@@ -98,7 +105,8 @@
 				},
 				physical: {
 					...previewSculpture.physical,
-					height: height // DIRECTIVE 4: Include height in committed changes
+					height: height, // DIRECTIVE 4: Include height in committed changes
+					sculptMode: sculptMode
 				}
 			});
 		}
@@ -147,7 +155,8 @@
 			},
 			physical: {
 				...previewSculpture.physical,
-				height: currentHeight
+				height: currentHeight,
+				sculptMode: sculptMode
 			}
 		});
 	});
@@ -277,6 +286,43 @@
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
+		</div>
+
+		<!-- Sculpt Mode Selection -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold mb-2 text-secondary">Sculpt Mode</h3>
+			<div class="flex gap-2 mb-4">
+				<button 
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {sculptMode === 'additive' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => { 
+						sculptMode = 'additive';
+						setSculptMode('additive'); // Always update uiStore to persist selection
+						if (sculptureStore.currentSculpture) {
+							setCurrentSculpture({
+								...sculptureStore.currentSculpture,
+								physical: { ...sculptureStore.currentSculpture.physical, sculptMode: 'additive' }
+							});
+						}
+					}}
+				>
+					Add (+)
+				</button>
+				<button 
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {sculptMode === 'subtractive' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => { 
+						sculptMode = 'subtractive';
+						setSculptMode('subtractive'); // Always update uiStore to persist selection
+						if (sculptureStore.currentSculpture) {
+							setCurrentSculpture({
+								...sculptureStore.currentSculpture,
+								physical: { ...sculptureStore.currentSculpture.physical, sculptMode: 'subtractive' }
+							});
+						}
+					}}
+				>
+					Subtract (-)
+				</button>
+			</div>
 		</div>
 
 		<!-- Material Type Selection -->

@@ -16,7 +16,11 @@ function createHourglass(): LathePoint[] {
 	return points;
 }
 
-export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): LathePoint[] {
+export function generateLathe(
+	frames: AnalysisFrame[], 
+	profile?: UserProfile,
+	mode: 'additive' | 'subtractive' = 'additive'
+): LathePoint[] {
 	// 1. Safety: If empty, return hourglass (so we know it failed)
 	if (!frames.length) return createHourglass(); 
 
@@ -30,6 +34,12 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 	const maxPoints = 200;
 	const samplingRate = Math.ceil(frames.length / maxPoints);
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
+
+	// Constants for radius calculation
+	const BASE_RADIUS = 0.2;
+	const MAX_RADIUS = 1.5; // Standard block size for subtractive mode
+	const SENSITIVITY = 2.0;
+	const MIN_RADIUS = 0.1; // Constraint: never go below this
 
 	// 3. Map Frames to Points
 	return sampledFrames.map((frame, index) => {
@@ -47,7 +57,19 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 
 		if (energy > 0.1) console.log("I HEAR YOU:", energy);
 
-		const radius = 0.2 + (energy * 2.0); 
+		// Calculate radius based on mode
+		let radius: number;
+		if (mode === 'subtractive') {
+			// Subtractive: Carve into the block
+			// High energy = more carving = smaller radius
+			radius = MAX_RADIUS - (energy * SENSITIVITY);
+			// Ensure radius never goes below minimum
+			radius = Math.max(MIN_RADIUS, radius);
+		} else {
+			// Additive: Build up from base
+			// High energy = more material = larger radius
+			radius = BASE_RADIUS + (energy * SENSITIVITY);
+		}
 		
 		// Spikiness (Frequency)
 		// If Pitch > 400Hz, add random jaggedness
@@ -56,7 +78,7 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 		// Calculate Y based on index
 		const normalizedHeight = index / (sampledFrames.length - 1 || 1);
 
-		return { x: radius + jitter, y: normalizedHeight };
+		return { x: Math.max(MIN_RADIUS, radius + jitter), y: normalizedHeight };
 	});
 }
 
@@ -116,9 +138,10 @@ export function deriveSurfaceParameters(frames: AnalysisFrame[]): {
 export function createSculptureFromFrames(
 	frames: AnalysisFrame[],
 	profile?: UserProfile,
-	name?: string
+	name?: string,
+	mode: 'additive' | 'subtractive' = 'additive'
 ): SculptureDefinition {
-	const radiusCurve = generateLathe(frames, profile);
+	const radiusCurve = generateLathe(frames, profile, mode);
 	const surface = deriveSurfaceParameters(frames);
 
 	return {
@@ -142,7 +165,8 @@ export function createSculptureFromFrames(
 		height: 150, // Default 150mm for mug/small vase
 		units: 'mm',
 		wallThickness: undefined, // Optional, for 3D printing
-		orientation: 'vertical' // Default: vertical (pottery wheel)
+		orientation: 'vertical', // Default: vertical (pottery wheel)
+		sculptMode: mode // Default: 'additive'
 	}
 	};
 }

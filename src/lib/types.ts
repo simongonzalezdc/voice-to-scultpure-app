@@ -24,6 +24,7 @@ export interface SculpturePhysical {
 	units: 'mm' | 'inch'; // Measurement units (default 'mm')
 	wallThickness?: number; // Wall thickness in mm (for 3D printing vs solid ceramic)
 	orientation: 'vertical' | 'horizontal'; // Axis orientation: vertical (pottery wheel) or horizontal (lathe)
+	sculptMode?: 'additive' | 'subtractive'; // Sculpting mode: additive (build up) or subtractive (carve in), default 'additive'
 }
 
 export interface SculptureDefinition {
