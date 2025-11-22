@@ -18,9 +18,10 @@
 <!-- Ghost Machines: Contextual Rigs (Dark UI Geometry) -->
 {#if uiStore.orientation === 'vertical'}
 	<!-- Pottery Mode: Cylinder Base -->
-	<T.Group position={[0, 0, 0]}>
-		<T.Mesh rotation={[-Math.PI / 2, 0, 0]}>
-			<T.CylinderGeometry args={[1.5, 1.5, 0.1, 32]} />
+	<!-- Position: Sit just below the zero line -->
+	<T.Group position={[0, -0.05, 0]}>
+		<T.Mesh rotation={[0, 0, 0]}>
+			<T.CylinderGeometry args={[2, 2, 0.1, 64]} />
 			<T.MeshStandardMaterial
 				color={DARK_UI_COLOR}
 				flatShading={true}
@@ -32,23 +33,12 @@
 {:else if uiStore.orientation === 'horizontal'}
 	<!-- Lathe Mode: Two-Ended Rotisserie Design -->
 	<T.Group position={[0, 0, 0]}>
-		{@const halfHeight = sculptureHeight / 2}
+		{@const targetX = sculptureHeight} <!-- Dynamic binding: tailstock slides with height -->
 		
-		<!-- Left End: Headstock (Cylinder + Cone) -->
-		<T.Group position={[-halfHeight, 0, 0]}>
-			<!-- Base Cylinder -->
-			<T.Mesh>
-				<T.CylinderGeometry args={[0.15, 0.15, 0.3, 16]} />
-				<T.MeshStandardMaterial
-					color={DARK_UI_COLOR}
-					flatShading={true}
-					transparent={true}
-					opacity={DARK_UI_OPACITY}
-				/>
-			</T.Mesh>
-			<!-- Cone Top -->
-			<T.Mesh position={[0, 0.2, 0]}>
-				<T.ConeGeometry args={[0.1, 0.2, 16]} />
+		<!-- Headstock (Chuck): Cylinder at origin, rotated horizontally -->
+		<T.Group position={[0, 0, 0]}>
+			<T.Mesh rotation={[0, 0, Math.PI / 2]}>
+				<T.CylinderGeometry args={[0.2, 0.2, 0.4, 16]} />
 				<T.MeshStandardMaterial
 					color={DARK_UI_COLOR}
 					flatShading={true}
@@ -58,9 +48,9 @@
 			</T.Mesh>
 		</T.Group>
 
-		<!-- Right End: Tailstock (Cone Point) -->
-		<T.Group position={[halfHeight, 0, 0]}>
-			<T.Mesh>
+		<!-- Tailstock (Point): Cone at targetX, rotated to point inward -->
+		<T.Group position={[targetX, 0, 0]}>
+			<T.Mesh rotation={[0, 0, -Math.PI / 2]}>
 				<T.ConeGeometry args={[0.1, 0.3, 16]} />
 				<T.MeshStandardMaterial
 					color={DARK_UI_COLOR}
@@ -72,8 +62,8 @@
 		</T.Group>
 
 		<!-- Horizontal Axis Rod (Spinning Axis) -->
-		<T.Mesh rotation={[0, 0, Math.PI / 2]}>
-			<T.CylinderGeometry args={[0.02, 0.02, sculptureHeight, 8]} />
+		<T.Mesh rotation={[0, 0, Math.PI / 2]} position={[targetX / 2, 0, 0]}>
+			<T.CylinderGeometry args={[0.02, 0.02, targetX, 8]} />
 			<T.MeshStandardMaterial
 				color={DARK_UI_COLOR}
 				flatShading={true}

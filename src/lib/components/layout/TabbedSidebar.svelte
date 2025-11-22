@@ -1,13 +1,32 @@
 <script lang="ts">
-	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setToolMode } from '$lib/stores/uiStore.svelte';
 	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
+	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
 
 	let activeTab = $state<'design' | 'fabrication' | 'settings'>('design');
 </script>
 
 <div class="h-full flex flex-col">
+	<!-- Sculpt/Glaze Switch (Above Tabs) -->
+	<div class="p-3 border-b border-[#4a4a4a]">
+		<div class="flex gap-1 bg-[#2a2a2a] rounded p-1">
+			<button
+				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode === 'sculpt' ? 'bg-[#8f3e48] text-white' : 'text-[#888] hover:text-white'}"
+				onclick={() => setToolMode('sculpt')}
+			>
+				🗿 SCULPT
+			</button>
+			<button
+				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint' ? 'bg-[#8f3e48] text-white' : 'text-[#888] hover:text-white'}"
+				onclick={() => setToolMode('glaze-mix')}
+			>
+				🎨 GLAZE
+			</button>
+		</div>
+	</div>
+
 	<!-- Tab Header -->
 	<div class="flex border-b border-[#4a4a4a]">
 		<button 
@@ -33,7 +52,11 @@
 	<!-- Tab Content -->
 	<div class="flex-1 overflow-y-auto custom-scrollbar p-4">
 		{#if activeTab === 'design'}
-			<ParameterSliders />
+			{#if uiStore.toolMode === 'sculpt'}
+				<ParameterSliders />
+			{:else if uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint'}
+				<GlazeMixer />
+			{/if}
 		{:else if activeTab === 'fabrication'}
 			<FabricationPanel />
 		{:else if activeTab === 'settings'}

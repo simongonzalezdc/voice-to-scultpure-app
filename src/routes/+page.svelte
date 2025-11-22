@@ -13,8 +13,7 @@
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
-	import LegendOverlay from '$lib/components/overlay/LegendOverlay.svelte';
-	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
+	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation, setToolMode } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { recordingStore } from '$lib/stores/recording.svelte';
@@ -307,9 +306,15 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 						</div>
 					</div>
 					
-					<!-- Info Placeholder (Right) - Reserved for future metrics -->
-					<div class="text-xs text-[#666] whitespace-nowrap">
-						FPS: 60 | GPU: Ready
+					<!-- Status Bar (Right) - Context-Aware Legend -->
+					<div class="text-xs text-[#888] whitespace-nowrap">
+						{#if uiStore.toolMode === 'sculpt'}
+							🔨 Pitch: Twist | Vol: Thickness | Attack: Cut
+						{:else if uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint'}
+							🎨 Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss
+						{:else}
+							FPS: 60 | GPU: Ready
+						{/if}
 					</div>
 				</div>
 			</footer>
@@ -360,11 +365,6 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 		
 		<!-- Tutorial overlay (always rendered, but only visible when active) -->
 		<Tutorial />
-		
-		<!-- Visual Legend Overlay (context-aware guidance) -->
-		{#if showStudio}
-			<LegendOverlay />
-		{/if}
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">
