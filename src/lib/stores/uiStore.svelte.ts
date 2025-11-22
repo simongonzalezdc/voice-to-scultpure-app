@@ -102,6 +102,10 @@ export function toggleOrientation(): void {
 	uiStore.orientation = uiStore.orientation === 'vertical' ? 'horizontal' : 'vertical';
 }
 
+export function setOrientation(orientation: 'vertical' | 'horizontal'): void {
+	uiStore.orientation = orientation;
+}
+
 export function setLightingAngle(angle: number): void {
 	uiStore.view.lightingAngle = angle;
 }
