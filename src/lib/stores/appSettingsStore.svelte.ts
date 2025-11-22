@@ -88,3 +88,10 @@ export function resetSettings(): void {
 	appSettings.viewMode = defaults.viewMode;
 	saveSettings(appSettings);
 }
+
+export function resetCalibration(): void {
+	if (appSettings.userProfile) {
+		appSettings.userProfile.calibrated = false;
+		saveSettings(appSettings);
+	}
+}

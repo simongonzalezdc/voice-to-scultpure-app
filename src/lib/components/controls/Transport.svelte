@@ -119,9 +119,10 @@
 	}
 </script>
 
-<div class="surface-panel p-4 rounded-lg flex items-center gap-4">
+<div class="flex items-center gap-4">
 	<button
-		class="button-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+		data-record-button
+		class="px-6 py-3 bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
 		type="button"
 		onclick={handleRecordClick}
 		disabled={recordingStore.state === 'processing'}
@@ -129,15 +130,15 @@
 		{getButtonText()}
 	</button>
 	<div class="flex-1">
-		<div class="text-sm text-secondary mb-1">Mic Level</div>
-		<div class="h-2 bg-bg-panel-alt rounded-full overflow-hidden">
+		<div class="text-xs text-[#888] mb-1">Mic Level</div>
+		<div class="h-2 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]">
 			<div
-				class="h-full bg-brand-primary transition-all duration-100"
+				class="h-full bg-[#4a9eff] transition-all duration-100"
 				style="width: {getMicLevel() * 100}%"
 			></div>
 		</div>
 	</div>
 	{#if recordingStore.state === 'recording'}
-		<div class="badge badge-danger">Recording</div>
+		<div class="px-2 py-1 text-xs bg-[#ff4444] text-white rounded">Recording</div>
 	{/if}
 </div>

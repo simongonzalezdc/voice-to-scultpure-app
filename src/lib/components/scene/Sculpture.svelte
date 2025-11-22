@@ -224,6 +224,13 @@
 		? lerpColor(CLAY_COLOR_DEFAULT, PORCELAIN_COLOR, sculptureStore.ghostSculpture.surface.glazeTransmission)
 		: '#8F3E48'
 	);
+
+	// Parent Rig Transform Values
+	// Height scaling: Normalize to 150mm reference height
+	let heightScale = $derived(sculpture?.physical.height ? sculpture.physical.height / 150 : 1);
+	
+	// Orientation rotation: Horizontal mode rotates around Z-axis to lay flat along X-axis
+	let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0);
 </script>
 
 <!-- DIRECTIVE 1: Parent Rig - Unified Hierarchy for Main + Ghost
@@ -235,73 +242,73 @@
      Rotating around Z-axis by -Math.PI/2 pivots at origin, laying geometry flat along X-axis.
      Pottery (Vertical): rotation [0, 0, 0] - base sits at y=0
      Lathe (Horizontal): rotation [0, 0, -Math.PI/2] - base sits at x=0, extends along X-axis
+     
+     Note: T.Group renders if sculpture exists OR recording is active (for Live mesh visualization)
 -->
-<svelte:fragment>
-	{@const heightScale = sculpture?.physical.height ? sculpture.physical.height / 150 : 1}
-	{@const orientationRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0}
+{#if sculpture || recordingStore.state === 'recording'}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
-	<!-- Main Sculpture (Only visible if not recording) -->
-	{#if sculpture && recordingStore.state !== 'recording'}
-		<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
-			<!-- Material Switching -->
-			{#if isPlastic}
-				<!-- Plastic: Standard Material (shiny, plastic look) -->
-				<T.MeshStandardMaterial
-					color={materialColor}
-					roughness={sculpture.surface.textureRoughness}
-					metalness={0.1}
-					flatShading={false}
-				/>
-			{:else}
-				<!-- Ceramic: Physical Material (transmission, clearcoat) -->
+		<!-- Main Sculpture (Only visible if not recording AND sculpture exists) -->
+		{#if sculpture && recordingStore.state !== 'recording'}
+			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
+				<!-- Material Switching -->
+				{#if isPlastic}
+					<!-- Plastic: Standard Material (shiny, plastic look) -->
+					<T.MeshStandardMaterial
+						color={materialColor}
+						roughness={sculpture.surface.textureRoughness}
+						metalness={0.1}
+						flatShading={false}
+					/>
+				{:else}
+					<!-- Ceramic: Physical Material (transmission, clearcoat) -->
+					<T.MeshPhysicalMaterial
+						transmission={sculpture.surface.glazeTransmission * 0.8} 
+						thickness={0.5}
+						roughness={sculpture.surface.textureRoughness}
+						clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
+						clearcoatRoughness={0.1}
+						color={materialColor}
+						metalness={0.1}
+						ior={1.5}
+						envMapIntensity={1.0}
+					/>
+				{/if}
+			</T.Mesh>
+		{/if}
+
+		<!-- Live Sculpture (Visible ONLY during recording) -->
+		{#if recordingStore.state === 'recording'}
+			<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
+				<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
 				<T.MeshPhysicalMaterial
-					transmission={sculpture.surface.glazeTransmission * 0.8} 
-					thickness={0.5}
-					roughness={sculpture.surface.textureRoughness}
-					clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
-					clearcoatRoughness={0.1}
-					color={materialColor}
-					metalness={0.1}
-					ior={1.5}
-					envMapIntensity={1.0}
+					color="#ff4081"
+					emissive="#ff4081"
+					emissiveIntensity={0.2}
+					transmission={0.6}
+					thickness={0.2}
+					roughness={0.4}
+					clearcoat={0.5}
+					wireframe={false}
 				/>
-			{/if}
-		</T.Mesh>
-	{/if}
+			</T.Mesh>
+		{/if}
 
-	<!-- Live Sculpture (Visible ONLY during recording) -->
-	{#if recordingStore.state === 'recording'}
-		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
-			<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
-			<T.MeshPhysicalMaterial
-				color="#ff4081"
-				emissive="#ff4081"
-				emissiveIntensity={0.2}
-				transmission={0.6}
-				thickness={0.2}
-				roughness={0.4}
-				clearcoat={0.5}
-				wireframe={false}
-			/>
-		</T.Mesh>
-	{/if}
-
-	<!-- Ghost Mesh - Now sibling to Main Mesh, shares parent scale/rotation -->
-	<!-- DIRECTIVE 1 FIX: Ghost is now inside parent rig with main mesh (no more matcha whisk!) -->
-	<!-- DIRECTIVE 3 FIX: Ghost material now subtle - transparent, low opacity, wireframe blueprint style -->
-	{#if sculptureStore.ghostSculpture}
-		<T.Mesh bind:ref={ghostMeshRef}>
-			<T.MeshPhysicalMaterial
-				color={ghostMaterialColor}
-				opacity={0.15}
-				transparent={true}
-				wireframe={true}
-				transmission={0}
-				roughness={0.9}
-				metalness={0}
-			/>
-		</T.Mesh>
-	{/if}
+		<!-- Ghost Mesh - Now sibling to Main Mesh, shares parent scale/rotation -->
+		<!-- DIRECTIVE 1 FIX: Ghost is now inside parent rig with main mesh (no more matcha whisk!) -->
+		<!-- DIRECTIVE 3 FIX: Ghost material now subtle - transparent, low opacity, wireframe blueprint style -->
+		{#if sculptureStore.ghostSculpture}
+			<T.Mesh bind:ref={ghostMeshRef}>
+				<T.MeshPhysicalMaterial
+					color={ghostMaterialColor}
+					opacity={0.15}
+					transparent={true}
+					wireframe={true}
+					transmission={0}
+					roughness={0.9}
+					metalness={0}
+				/>
+			</T.Mesh>
+		{/if}
 	</T.Group>
-</svelte:fragment>
+{/if}

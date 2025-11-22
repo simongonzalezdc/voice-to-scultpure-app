@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
+	import { Grid, ContactShadows } from '@threlte/extras';
 	import Sculpture from './Sculpture.svelte';
 	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
 	import OrbitControls from './OrbitControls.svelte';
@@ -23,6 +24,17 @@
 	maxPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.1 : Math.PI}
 	minPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.5 : 0}
 />
+
+<!-- Reference Ground: Grid and Contact Shadows -->
+<Grid
+	infiniteGrid
+	sectionColor="#4a4a4a"
+	cellColor="#2a2a2a"
+	sectionSize={10}
+	cellSize={1}
+	fadeDistance={50}
+/>
+<ContactShadows opacity={0.5} scale={20} blur={2} far={10} resolution={256} color="#000000" />
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
 <AnalysisVisualizer />

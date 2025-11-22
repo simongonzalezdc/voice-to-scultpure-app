@@ -93,3 +93,7 @@ export function finishOnboarding(): void {
 export function toggleOrientation(): void {
 	uiStore.orientation = uiStore.orientation === 'vertical' ? 'horizontal' : 'vertical';
 }
+
+export function setOrientation(orientation: 'vertical' | 'horizontal'): void {
+	uiStore.orientation = orientation;
+}

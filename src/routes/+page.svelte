@@ -13,9 +13,11 @@
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
-	import { uiStore, startOnboarding, togglePanel } from '$lib/stores/uiStore.svelte';
-	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
+	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import { recordingStore } from '$lib/stores/recordingStore.svelte';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import type { SculptureDefinition } from '$lib/types';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
@@ -97,6 +99,30 @@
 		}
 
 		switch (event.key) {
+			case ' ':
+				// Space: Toggle Recording (handles all states: idle -> start, recording -> stop, complete -> reset)
+				event.preventDefault();
+				const recordButton = document.querySelector('[data-record-button]') as HTMLButtonElement;
+				recordButton?.click();
+				break;
+			case '1':
+				// 1: Switch to Pottery (Vertical)
+				event.preventDefault();
+				setOrientation('vertical');
+				break;
+			case '2':
+				// 2: Switch to Lathe (Horizontal)
+				event.preventDefault();
+				setOrientation('horizontal');
+				break;
+			case 'x':
+			case 'X':
+				// X: Reset Calibration
+				event.preventDefault();
+				if (confirm('Reset calibration? This will require recalibration.')) {
+					resetCalibration();
+				}
+				break;
 			case 'r':
 			case 'R':
 				// Toggle recording (will be handled by Transport component)
@@ -138,92 +164,154 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
+<style>
+	.app-shell {
+		display: grid;
+		grid-template-rows: 60px 1fr 60px;
+		grid-template-columns: 1fr 320px;
+		height: 100vh;
+		background: #1a1a1a;
+	}
+
+	.app-header {
+		grid-column: 1 / -1;
+		grid-row: 1;
+		border-bottom: 1px solid #4a4a4a;
+		background: #1a1a1a;
+		padding: 0 16px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.app-canvas {
+		grid-column: 1;
+		grid-row: 2;
+		position: relative;
+		overflow: hidden;
+		background: #1a1a1a;
+	}
+
+	.app-sidebar {
+		grid-column: 2;
+		grid-row: 2;
+		border-left: 1px solid #4a4a4a;
+		background: #1a1a1a;
+		overflow-y: auto;
+		padding: 16px;
+	}
+
+	.app-footer {
+		grid-column: 1 / -1;
+		grid-row: 3;
+		border-top: 1px solid #4a4a4a;
+		background: #1a1a1a;
+		padding: 0 16px;
+		display: flex;
+		align-items: center;
+	}
+</style>
+
 {#if browser}
 	<ErrorBoundary>
-		<div class="flex flex-col h-screen">
-			<Header />
-			<CapabilityGuard />
-			
-			{#if showStudio}
-				<!-- Studio View (only shown when calibrated) -->
-				<div class="flex-1 relative overflow-hidden bg-bg-elevated">
-					<Canvas>
-						<MainScene />
-					</Canvas>
-					<!-- Transport Controls - Bottom Center -->
-					<div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
-						<Transport />
-					</div>
-
-					<!-- AI Panel - Bottom Right -->
-					{#if uiStore.panels.aiPanel}
-						<div class="absolute bottom-4 right-4 w-96 z-10">
-							<AIPanel />
-						</div>
-					{/if}
-					<div class="absolute top-4 right-4 w-64 z-10">
-						<ParameterSliders />
-					</div>
-					<!-- Test Mesh & Export Controls -->
-					<div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
+		<CapabilityGuard />
+		
+		{#if showStudio}
+			<!-- Pro Tool UI: CSS Grid App Shell -->
+			<div class="app-shell">
+				<!-- Header: Top Row, Full Width -->
+				<header class="app-header">
+					<div class="flex items-center gap-4">
+						<h1 class="text-lg font-semibold text-white">Voice-to-Sculpture Studio</h1>
 						<button
-							class="button-secondary px-4 py-2 text-sm"
+							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
 							type="button"
 							onclick={generateTestMesh}
 						>
 							Generate Test Mesh
 						</button>
 						<button
-							class="button-primary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white disabled:opacity-50 disabled:cursor-not-allowed"
 							type="button"
 							onclick={handleExportSTL}
 							disabled={!sculptureStore.currentSculpture}
 						>
-							Export STL
+							Export
+						</button>
+						<button
+							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
+							type="button"
+							onclick={toggleOrientation}
+							title={`Current: ${uiStore.orientation === 'vertical' ? 'Pottery Wheel (Vertical)' : 'Lathe (Horizontal)'}`}
+						>
+							{uiStore.orientation === 'vertical' ? '⊶ Pottery' : '↺ Lathe'}
 						</button>
 					</div>
+				</header>
 
-					<!-- Project List - Only show when panel is open -->
-					{#if uiStore.panels.projectList}
-						<div class="absolute top-4 left-24 w-80 z-20">
-							<ProjectList />
-						</div>
-					{/if}
-					{#if uiStore.panels.settings}
-						<div class="absolute inset-0 flex items-center justify-center z-40">
-							<div class="surface-panel p-6 rounded-lg max-w-md w-full">
-								<SettingsPanel />
-							</div>
-						</div>
-					{/if}
-					{#if uiStore.panels.fabricationPanel}
-						<div class="absolute inset-0 flex items-center justify-center z-40">
-							<FabricationPanel />
-						</div>
-					{/if}
+				<!-- Canvas: Center Area -->
+				<div class="app-canvas">
+					<Canvas>
+						<MainScene />
+					</Canvas>
 				</div>
 
-				<!-- Keyboard shortcuts help -->
-				<div class="fixed bottom-4 left-4 text-xs text-muted bg-bg-panel px-3 py-2 rounded border border-subtle">
-					<div class="font-semibold mb-1">Keyboard Shortcuts:</div>
-					<div>A: Toggle AI Panel</div>
-					<div>P: Toggle Projects</div>
-					<div>S: Toggle Settings</div>
-					<div>F: Toggle Fabrication</div>
-					<div>Esc: Close Panels</div>
-				</div>
-			{:else}
-				<!-- Tutorial/Gating View (shown when not calibrated) -->
-				<div class="flex-1 relative overflow-hidden bg-app flex items-center justify-center">
-					<div class="text-center text-secondary">
-						<p>Please complete the calibration tutorial to access the studio.</p>
+				<!-- Sidebar: Right Column -->
+				<aside class="app-sidebar">
+					<ParameterSliders />
+				</aside>
+
+				<!-- Footer: Bottom Row, Full Width -->
+				<footer class="app-footer">
+					<div class="flex items-center gap-4">
+						<Transport />
+						<div class="flex-1 text-xs text-[#888]">
+							Mic Level: {Math.round(analysisStore.micLevel * 100)}% | 
+							Orientation: {uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe'} |
+							State: {recordingStore.state}
+						</div>
+					</div>
+				</footer>
+			</div>
+
+			<!-- Modal Panels (Overlay) -->
+			{#if uiStore.panels.aiPanel}
+				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
+					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
+						<AIPanel />
 					</div>
 				</div>
 			{/if}
-			
-			<!-- Tutorial overlay (always rendered, but only visible when active) -->
-			<Tutorial />
-		</div>
+			{#if uiStore.panels.projectList}
+				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
+					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-2xl w-full">
+						<ProjectList />
+					</div>
+				</div>
+			{/if}
+			{#if uiStore.panels.settings}
+				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
+					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
+						<SettingsPanel />
+					</div>
+				</div>
+			{/if}
+			{#if uiStore.panels.fabricationPanel}
+				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
+					<FabricationPanel />
+				</div>
+			{/if}
+		{:else}
+			<!-- Tutorial/Gating View (shown when not calibrated) -->
+			<div class="flex-1 relative overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
+				<div class="text-center text-[#888]">
+					<p>Please complete the calibration tutorial to access the studio.</p>
+				</div>
+			</div>
+		{/if}
+		
+		<!-- Tutorial overlay (always rendered, but only visible when active) -->
+		<Tutorial />
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">
