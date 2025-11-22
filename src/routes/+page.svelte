@@ -11,9 +11,10 @@
 	import CapabilityGuard from '$lib/components/layout/CapabilityGuard.svelte';
 	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
-	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
-	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
-	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
+import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
+import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
+import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
+import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { recordingStore } from '$lib/stores/recordingStore.svelte';
@@ -256,22 +257,44 @@
 					</Canvas>
 				</div>
 
-				<!-- Sidebar: Right Column -->
-				<aside class="app-sidebar">
-					<ParameterSliders />
-				</aside>
+			<!-- Sidebar: Right Column with Tabbed Interface -->
+			<aside class="app-sidebar">
+				<TabbedSidebar />
+			</aside>
 
-				<!-- Footer: Bottom Row, Full Width -->
-				<footer class="app-footer">
-					<div class="flex items-center gap-4">
-						<Transport />
-						<div class="flex-1 text-xs text-[#888]">
-							Mic Level: {Math.round(analysisStore.micLevel * 100)}% | 
-							Orientation: {uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe'} |
-							State: {recordingStore.state}
+			<!-- Footer: Bottom Row, Full Width - Transport + Telemetry Hub -->
+			<footer class="app-footer">
+				<div class="flex items-center justify-between w-full gap-4">
+					<!-- Transport Controls (Left) -->
+					<Transport />
+					
+					<!-- Telemetry Hub (Center) - Compact Inline Display -->
+					<div class="flex items-center gap-6 text-xs text-[#888] flex-1 px-4 border-l border-r border-[#4a4a4a]">
+						<!-- Mic Level Indicator -->
+						<div class="flex items-center gap-1.5 whitespace-nowrap">
+							<span class="text-[#666]">🎙️</span>
+							<span>{Math.round(analysisStore.micLevel * 100)}%</span>
+						</div>
+						
+						<!-- Orientation Badge -->
+						<div class="flex items-center gap-1.5 whitespace-nowrap">
+							<span class="text-[#666]">{uiStore.orientation === 'vertical' ? '⊶' : '↺'}</span>
+							<span>{uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe'}</span>
+						</div>
+						
+						<!-- Recording State Badge -->
+						<div class="flex items-center gap-1.5 whitespace-nowrap">
+							<span class="w-2 h-2 rounded-full {recordingStore.state === 'recording' ? 'bg-red-500 animate-pulse' : recordingStore.state === 'processing' ? 'bg-yellow-500 animate-pulse' : recordingStore.state === 'complete' ? 'bg-green-500' : 'bg-[#666]'}"></span>
+							<span>{recordingStore.state === 'idle' ? 'Ready' : recordingStore.state === 'recording' ? 'Recording' : recordingStore.state === 'processing' ? 'Processing' : recordingStore.state === 'complete' ? 'Complete' : 'Paused'}</span>
 						</div>
 					</div>
-				</footer>
+					
+					<!-- Info Placeholder (Right) - Reserved for future metrics -->
+					<div class="text-xs text-[#666] whitespace-nowrap">
+						FPS: 60 | GPU: Ready
+					</div>
+				</div>
+			</footer>
 			</div>
 
 			<!-- Modal Panels (Overlay) -->
