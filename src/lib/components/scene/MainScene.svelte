@@ -6,18 +6,28 @@
 	import OrbitControls from './OrbitControls.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
+	
+	// Lighting controls - Derived from global UI store
+	let lightAngle = $derived(uiStore.view.lightingAngle);
 </script>
 
 <!-- Pure Scene Component - Canvas wrapper is in parent -->
 <T.PerspectiveCamera makeDefault position={[0, 2, 5]} fov={50} />
-<T.DirectionalLight
-	position={[5, 10, 5]}
-	intensity={1}
-	castShadow
-	shadow-mapSize-width={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
-	shadow-mapSize-height={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
-/>
+
+<!-- Main Light - Rotatable -->
+<T.Group rotation.y={lightAngle}>
+	<T.DirectionalLight
+		position={[5, 10, 5]}
+		intensity={1}
+		castShadow
+		shadow-mapSize-width={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
+		shadow-mapSize-height={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
+	/>
+</T.Group>
+
 <T.AmbientLight intensity={0.3} />
+
 <OrbitControls 
 	enableDamping 
 	dampingFactor={0.05} 

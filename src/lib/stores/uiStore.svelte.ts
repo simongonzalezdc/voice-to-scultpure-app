@@ -18,6 +18,10 @@ export const uiStore = $state<{
 		completed: Set<OnboardingStep>;
 	};
 	orientation: 'vertical' | 'horizontal';
+	view: {
+		lightingAngle: number;
+		zoom: number;
+	};
 }>({
 	panels: {
 		aiPanel: false,
@@ -30,7 +34,11 @@ export const uiStore = $state<{
 		currentStep: null,
 		completed: new Set()
 	},
-	orientation: 'vertical'
+	orientation: 'vertical',
+	view: {
+		lightingAngle: 0,
+		zoom: 1.0
+	}
 });
 
 export function togglePanel(panel: keyof typeof uiStore.panels): void {
@@ -94,6 +102,11 @@ export function toggleOrientation(): void {
 	uiStore.orientation = uiStore.orientation === 'vertical' ? 'horizontal' : 'vertical';
 }
 
-export function setOrientation(orientation: 'vertical' | 'horizontal'): void {
-	uiStore.orientation = orientation;
+export function setLightingAngle(angle: number): void {
+	uiStore.view.lightingAngle = angle;
 }
+
+export function setZoom(zoom: number): void {
+	uiStore.view.zoom = Math.max(0.5, Math.min(3.0, zoom));
+}
+

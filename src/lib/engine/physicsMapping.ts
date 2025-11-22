@@ -20,7 +20,13 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 	// 1. Safety: If empty, return hourglass (so we know it failed)
 	if (!frames.length) return createHourglass(); 
 
-	// 2. Resample: Limit to 200 points max
+	// NOISE GATE LOGIC
+	// Get noise floor from profile, default to 0.05 if not set
+	// RMS values below this are considered silence/background noise
+	const noiseFloor = profile?.energyRange?.min || 0.02; 
+	const silenceThreshold = noiseFloor * 1.5; // Add 50% safety margin
+
+	// 2. Resample: Limit to 200 points max (High Res)
 	const maxPoints = 200;
 	const samplingRate = Math.ceil(frames.length / maxPoints);
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
@@ -28,9 +34,17 @@ export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): L
 	// 3. Map Frames to Points
 	return sampledFrames.map((frame, index) => {
 		// AGGRESSIVE MAPPING
-		// Quiet (0.01) -> Radius 0.2
-		// Loud (0.8) -> Radius 1.5 (Huge bulge)
-		const energy = frame.energy || 0;
+		let energy = frame.energy || 0;
+		
+		// Apply Noise Gate
+		if (energy < silenceThreshold) {
+			energy = 0;
+		} else {
+			// Normalize energy relative to the gate
+			// energy = Math.max(0, energy - noiseFloor); 
+            // Let's keep it simple to avoid clipping legitimate low volume
+		}
+
 		if (energy > 0.1) console.log("I HEAR YOU:", energy);
 
 		const radius = 0.2 + (energy * 2.0); 
@@ -114,7 +128,10 @@ export function createSculptureFromFrames(
 		radiusCurve,
 		surface: {
 			...surface,
-			displacementStrength: 0
+			displacementStrength: 0,
+			// Default to ceramic/beige if not specified
+			materialType: 'ceramic',
+			baseColor: '#E0C9A6'
 		},
 		deformation: {
 			twist: 0,

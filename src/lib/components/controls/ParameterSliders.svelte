@@ -237,10 +237,10 @@
 			/>
 		</div>
 
-		<!-- Roughness Slider -->
+		<!-- Resolution Slider (Formerly Roughness) -->
 		<div>
-			<label for="roughness-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Adds surface texture and geometric noise">
-				Roughness: {roughness.toFixed(2)}
+			<label for="roughness-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Controls geometry resolution. Left = Low Poly/Blocky, Right = Smooth/Round">
+				Resolution: {roughness.toFixed(2)}
 				<span class="text-xs text-subtle opacity-50">ⓘ</span>
 			</label>
 			<input
@@ -254,6 +254,10 @@
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
+			<div class="flex justify-between text-xs text-secondary mt-1">
+				<span>Low Poly</span>
+				<span>Smooth</span>
+			</div>
 		</div>
 
 		<!-- Glaze Slider -->

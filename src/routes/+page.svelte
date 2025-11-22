@@ -6,15 +6,14 @@
 	import Transport from '$lib/components/controls/Transport.svelte';
 	import { Canvas } from '@threlte/core';
 	import AIPanel from '$lib/components/panels/AIPanel.svelte';
-	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
 	import ProjectList from '$lib/components/library/ProjectList.svelte';
 	import CapabilityGuard from '$lib/components/layout/CapabilityGuard.svelte';
 	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
-import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
-import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
-import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
-import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
+	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
+	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
+	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
+	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { recordingStore } from '$lib/stores/recordingStore.svelte';
@@ -22,6 +21,7 @@ import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientatio
 	import type { SculptureDefinition } from '$lib/types';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
+	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 
 	// Gatekeeper: Check if user has completed calibration
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -50,7 +50,10 @@ import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientatio
 			surface: {
 				textureRoughness: 0.5,
 				glazeTransmission: 0.3,
-				displacementStrength: 0
+				displacementStrength: 0,
+				// Default to ceramic/beige if not specified
+				materialType: 'ceramic',
+				baseColor: '#E0C9A6'
 			},
 			deformation: {
 				twist: 0,
@@ -199,7 +202,7 @@ import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientatio
 		border-left: 1px solid #4a4a4a;
 		background: #1a1a1a;
 		overflow-y: auto;
-		padding: 16px;
+		/* padding removed to let TabbedSidebar handle it */
 	}
 
 	.app-footer {
@@ -255,6 +258,10 @@ import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientatio
 					<Canvas>
 						<MainScene />
 					</Canvas>
+					<!-- On-screen Viewport Controls -->
+					<div class="absolute top-4 right-4 z-10">
+						<ViewportControls />
+					</div>
 				</div>
 
 			<!-- Sidebar: Right Column with Tabbed Interface -->
@@ -321,7 +328,9 @@ import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientatio
 			{/if}
 			{#if uiStore.panels.fabricationPanel}
 				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<FabricationPanel />
+					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
+						<FabricationPanel />
+					</div>
 				</div>
 			{/if}
 		{:else}

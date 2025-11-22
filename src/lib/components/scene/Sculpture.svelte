@@ -59,28 +59,31 @@
 	// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
 	// NOT here in the geometry, to avoid double-scaling (heightScale²)
 
-		// 5. Add Roughness-based Geometry Displacement
-		// DIRECTIVE 2: Roughness is achieved through geometry noise, not texture maps
-		// Use textureRoughness from slider (0-1) to control displacement amount
-		const roughness = sculpture.surface.textureRoughness || 0;
+		// 5. Low Poly / Resolution Logic
+		// DIRECTIVE 2: Resolution Slider controls Geometry Segments
+		// roughness input (0-1) maps to segments:
+		// 0 = Low Poly (6 segments - hexagonal/blocky)
+		// 1 = High Poly (64 segments - smooth)
+		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
 		
-		// Scale roughness effect - 0.1 is maximum noise amplitude
-		const noiseScale = 0.1; 
-		
-		if (roughness > 0) {
-			basePoints = basePoints.map((p, i) => ({
-				x: p.x + (Math.random() - 0.5) * roughness * noiseScale,
-				y: p.y
-			}));
-		}
+		// Map 0-1 to 6-64 segments
+		// Use floor to get integer segments
+		// Resolution 0.0 -> 6 segments
+		// Resolution 1.0 -> 64 segments
+		const segments = Math.floor(6 + (roughnessInput * 58)); 
 
+		// Apply flat shading effect if low resolution (poly look)
+		// When resolution is low (< 0.3 / segments < 20), enable flat shading for style
+		// Note: Material update happens in the template, geometry update happens here
+		
 		if (basePoints.length < 2) {
 			return null;
 		}
 
-		// 6. Generate Geometry from final deformed + modulated + displaced points
+		// 6. Generate Geometry from final deformed + modulated points
 		const vectors = basePoints.map(p => new Vector2(p.x, p.y));
-		return new LatheGeometry(vectors, 32);
+		// Use dynamic segments count for Low Poly effect
+		return new LatheGeometry(vectors, segments);
 	}
 
 	// Create geometry immediately when meshRef is bound and sculpture exists
