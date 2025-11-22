@@ -4,6 +4,7 @@
 	import Header from '$lib/components/layout/Header.svelte';
 	import MainScene from '$lib/components/scene/MainScene.svelte';
 	import Transport from '$lib/components/controls/Transport.svelte';
+	import { Canvas } from '@threlte/core';
 	import AIPanel from '$lib/components/panels/AIPanel.svelte';
 	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
 	import ProjectList from '$lib/components/library/ProjectList.svelte';
@@ -132,8 +133,10 @@
 			
 			{#if showStudio}
 				<!-- Studio View (only shown when calibrated) -->
-				<div class="flex-1 relative overflow-hidden">
-					<MainScene />
+				<div class="flex-1 relative overflow-hidden bg-bg-elevated">
+					<Canvas>
+						<MainScene />
+					</Canvas>
 					<div class="absolute bottom-4 left-4 right-4 flex gap-4 items-end">
 						<div class="flex-1 max-w-md">
 							<Transport />

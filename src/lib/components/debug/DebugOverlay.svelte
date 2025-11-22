@@ -30,13 +30,22 @@
 		}
 	});
 
-	// Get calibration status - FIX: Use $derived.by() for function-based derived values
+	// Get calibration status - FIX: Defensive null checks for corrupt state
 	let calibrationStatus = $derived.by(() => {
 		const profile = appSettings.userProfile;
-		if (!profile || !profile.calibrated) {
+
+		// Strict safety check: Ensure all nested objects exist
+		if (!profile?.calibrated || !profile?.pitchRange || !profile?.energyRange) {
 			return 'Not Calibrated';
 		}
-		return `Pitch: ${profile.pitchRange.min.toFixed(0)}-${profile.pitchRange.max.toFixed(0)}Hz | Energy: ${profile.energyRange.min.toFixed(2)}-${profile.energyRange.max.toFixed(2)}`;
+
+		// Safe access with fallbacks
+		const pMin = profile.pitchRange.min ?? 0;
+		const pMax = profile.pitchRange.max ?? 0;
+		const eMin = profile.energyRange.min ?? 0;
+		const eMax = profile.energyRange.max ?? 0;
+
+		return `Pitch: ${pMin.toFixed(0)}-${pMax.toFixed(0)}Hz | Energy: ${eMin.toFixed(2)}-${eMax.toFixed(2)}`;
 	});
 
 	// Get detected pitch - FIX: Use $derived.by() for function-based derived values
