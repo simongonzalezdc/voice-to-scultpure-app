@@ -9,6 +9,8 @@ export interface SculptureSurface {
 	textureRoughness: number; // 0-1
 	glazeTransmission: number; // 0-1
 	displacementStrength: number; // 0-1
+	materialType?: 'ceramic' | 'plastic'; // Default: 'ceramic'
+	baseColor?: string; // Hex code, default depends on material
 }
 
 export interface SculptureDeformation {
@@ -21,6 +23,7 @@ export interface SculpturePhysical {
 	height: number; // Physical height in millimeters (default 150mm for mug/small vase)
 	units: 'mm' | 'inch'; // Measurement units (default 'mm')
 	wallThickness?: number; // Wall thickness in mm (for 3D printing vs solid ceramic)
+	orientation: 'vertical' | 'horizontal'; // Axis orientation: vertical (pottery wheel) or horizontal (lathe)
 }
 
 export interface SculptureDefinition {
@@ -77,6 +80,9 @@ export interface AppSettings {
 	graphicsQuality: 'low' | 'high';
 	defaultMicrophone?: string;
 	userProfile?: UserProfile;
+	viewMode?: {
+		potteryMode: boolean; // Lock camera to central axis
+	};
 }
 
 export interface AudioRingBuffer {

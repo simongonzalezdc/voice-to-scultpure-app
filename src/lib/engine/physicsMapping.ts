@@ -1,122 +1,49 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 
-// Geometric design constants (not calibration-dependent)
-const BASE_RADIUS = 0.5; // Increased from 0.1 for thicker cylinders
-const HEIGHT_OFFSET_MULTIPLIER = 0.1;
+// Geometric design constants
+const BASE_RADIUS = 0.5; 
 
-// Default calibration ranges (used when profile is missing or invalid)
-const DEFAULT_PITCH_MIN = 80;
-const DEFAULT_PITCH_MAX = 400;
-
-function isValidRange(range: { min: number; max: number }): boolean {
-	return range.min < range.max && range.min >= 0 && range.max > 0;
-}
-
-function getPitchRange(frames: AnalysisFrame[], profile?: UserProfile): {
-	min: number;
-	max: number;
-	p25: number;
-	p50: number;
-	p75: number;
-} {
-	// Sanity Guard: Force safe defaults if profile is invalid or empty
-	if (!profile?.pitchRange || profile.pitchRange.min === profile.pitchRange.max) {
-		return { min: 80, max: 400, p25: 100, p50: 200, p75: 300 };
+function createHourglass(): LathePoint[] {
+	// Simple hourglass shape
+	const steps = 20;
+	const points: LathePoint[] = [];
+	for (let i = 0; i <= steps; i++) {
+		const t = i / steps;
+		// Radius varies from 1.0 at ends to 0.2 at center
+		const radius = 0.2 + 0.8 * Math.pow(2 * t - 1, 2);
+		points.push({ x: radius, y: t });
 	}
-
-	if (isValidRange(profile.pitchRange)) {
-		return profile.pitchRange;
-	}
-
-	// Compute from frames or use defaults
-	const pitches = frames.map((f) => f.pitch).filter((p) => p > 0);
-	if (pitches.length > 0) {
-		return {
-			min: Math.min(...pitches),
-			max: Math.max(...pitches),
-			p25: 0,
-			p50: 0,
-			p75: 0
-		};
-	}
-
-	return {
-		min: DEFAULT_PITCH_MIN,
-		max: DEFAULT_PITCH_MAX,
-		p25: 0,
-		p50: 0,
-		p75: 0
-	};
+	return points;
 }
 
 export function generateLathe(frames: AnalysisFrame[], profile?: UserProfile): LathePoint[] {
-	if (frames.length === 0) {
-		// Default point: x=0 (radius at axis), y=BASE_RADIUS (height above ground)
-		return [{ x: 0, y: BASE_RADIUS }];
-	}
+	// 1. Safety: If empty, return hourglass (so we know it failed)
+	if (!frames.length) return createHourglass(); 
 
-	const points: LathePoint[] = [];
-	const height = frames.length;
-	const pitchRange = getPitchRange(frames, profile);
-	for (let i = 0; i < frames.length; i++) {
-		const frame = frames[i];
-		const normalizedHeight = i / height;
+	// 2. Resample: Limit to 200 points max
+	const maxPoints = 200;
+	const samplingRate = Math.ceil(frames.length / maxPoints);
+	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
 
-		// Map pitch to height variation (subtle)
-		const pitchNormalized =
-			frame.pitch > 0
-				? (frame.pitch - pitchRange.min) / (pitchRange.max - pitchRange.min || 1)
-				: 0.5;
-		const heightOffset = (pitchNormalized - 0.5) * HEIGHT_OFFSET_MULTIPLIER;
-
-		// Map energy to radius with boosted sensitivity (safe fallback)
+	// 3. Map Frames to Points
+	return sampledFrames.map((frame, index) => {
+		// AGGRESSIVE MAPPING
+		// Quiet (0.01) -> Radius 0.2
+		// Loud (0.8) -> Radius 1.5 (Huge bulge)
 		const energy = frame.energy || 0;
-		const radius = BASE_RADIUS + (energy * 2.0); // Doubled energy impact for stronger volume response
+		if (energy > 0.1) console.log("I HEAR YOU:", energy);
 
-		points.push({
-			x: radius,
-			y: normalizedHeight + heightOffset
-		});
-	}
+		const radius = 0.2 + (energy * 2.0); 
+		
+		// Spikiness (Frequency)
+		// If Pitch > 400Hz, add random jaggedness
+		const jitter = frame.pitch > 400 ? (Math.random() * 0.1) : 0;
+		
+		// Calculate Y based on index
+		const normalizedHeight = index / (sampledFrames.length - 1 || 1);
 
-	// Smooth the curve using timbre-weighted kernel
-	return smoothCurve(points, frames);
-}
-
-function smoothCurve(points: LathePoint[], frames: AnalysisFrame[]): LathePoint[] {
-	if (points.length < 3) {
-		return points;
-	}
-
-	const smoothed: LathePoint[] = [];
-	const kernelSize = 5;
-	const halfKernel = Math.floor(kernelSize / 2);
-
-	for (let i = 0; i < points.length; i++) {
-		let sumX = 0;
-		let sumY = 0;
-		let weightSum = 0;
-
-		for (let j = -halfKernel; j <= halfKernel; j++) {
-			const idx = i + j;
-			if (idx >= 0 && idx < points.length) {
-				// Weight by timbre (spectral centroid) - higher timbre = more influence
-				const timbreWeight = frames[idx]?.timbre?.spectralCentroid || 0.5;
-				const weight = Math.exp(-(j * j) / (2 * (halfKernel / 2) ** 2)) * (1 + timbreWeight);
-
-				sumX += points[idx].x * weight;
-				sumY += points[idx].y * weight;
-				weightSum += weight;
-			}
-		}
-
-		smoothed.push({
-			x: sumX / weightSum,
-			y: sumY / weightSum
-		});
-	}
-
-	return smoothed;
+		return { x: radius + jitter, y: normalizedHeight };
+	});
 }
 
 export function applyDeformation(
@@ -186,10 +113,11 @@ export function createSculptureFromFrames(
 			compression: 0,
 			taper: 0
 		},
-		physical: {
-			height: 150, // Default 150mm for mug/small vase
-			units: 'mm',
-			wallThickness: undefined // Optional, for 3D printing
-		}
+	physical: {
+		height: 150, // Default 150mm for mug/small vase
+		units: 'mm',
+		wallThickness: undefined, // Optional, for 3D printing
+		orientation: 'vertical' // Default: vertical (pottery wheel)
+	}
 	};
 }

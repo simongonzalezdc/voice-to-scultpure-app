@@ -23,9 +23,14 @@ export function createAnalysisWorkerClient(
 		type: 'module'
 	});
 
+	let frameCount = 0;
 	worker.onmessage = (e) => {
 		const { type, payload } = e.data;
 		if (type === 'analysis-frame') {
+			frameCount++;
+			if (frameCount === 1) {
+				console.log('🔊 [WORKER] First analysis frame received');
+			}
 			onFrame(payload as AnalysisFrame);
 		}
 	};
@@ -50,11 +55,14 @@ export function createAnalysisWorkerClient(
 	return {
 		start: () => {
 			if (worker && configured) {
+				console.log('▶️ [WORKER] Starting analysis worker');
+				frameCount = 0;
 				worker.postMessage({ type: 'start' });
 			}
 		},
 		stop: () => {
 			if (worker) {
+				console.log(`⏹️ [WORKER] Stopping analysis worker (processed ${frameCount} frames)`);
 				worker.postMessage({ type: 'stop' });
 			}
 		},

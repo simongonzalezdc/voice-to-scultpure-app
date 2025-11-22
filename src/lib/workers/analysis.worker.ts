@@ -23,6 +23,7 @@ let hopSize = 512;
 let running = false;
 let lastAnalysisTime = 0;
 const ANALYSIS_INTERVAL_MS = 16; // ~60fps
+let framesSent = 0;
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {
@@ -113,10 +114,21 @@ function processLoop(): void {
 		// Analyze the frame using stateless Meyda extraction
 		const frame = analyzeFrame(signal);
 		if (frame) {
+			framesSent++;
+			if (framesSent === 1) {
+				console.log('🔬 [ANALYSIS WORKER] First frame analyzed and sent');
+			} else if (framesSent % 60 === 0) {
+				console.log(`🔬 [ANALYSIS WORKER] ${framesSent} frames sent (${(framesSent / 60).toFixed(1)}s)`);
+			}
 			self.postMessage({
 				type: 'analysis-frame',
 				payload: frame
 			});
+		}
+	} else {
+		// Log if no audio data is being read
+		if (framesSent === 0) {
+			console.warn('⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet');
 		}
 	}
 
@@ -132,7 +144,9 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 				self.postMessage({ type: 'error', payload: 'Ring buffer not configured' });
 				return;
 			}
+			console.log('🚀 [ANALYSIS WORKER] Starting analysis loop');
 			running = true;
+			framesSent = 0;
 			// No analyzer needed - using stateless Meyda.extract() API
 			processLoop();
 			self.postMessage({ type: 'status', payload: 'started' });
@@ -140,6 +154,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 		}
 
 		case 'stop': {
+			console.log(`🛑 [ANALYSIS WORKER] Stopping (sent ${framesSent} frames total)`);
 			running = false;
 			// No analyzer to clean up
 			self.postMessage({ type: 'status', payload: 'stopped' });

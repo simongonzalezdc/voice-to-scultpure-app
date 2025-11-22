@@ -5,18 +5,22 @@
 
 	let {
 		enableDamping = true,
+		enableZoom = true,
 		dampingFactor = 0.1,
 		target: targetProp = [0, 0, 0] as [number, number, number],
 		minDistance,
 		maxDistance,
-		maxPolarAngle
+		maxPolarAngle,
+		minPolarAngle
 	} = $props<{
 		enableDamping?: boolean;
+		enableZoom?: boolean;
 		dampingFactor?: number;
 		target?: [number, number, number];
 		minDistance?: number;
 		maxDistance?: number;
 		maxPolarAngle?: number;
+		minPolarAngle?: number;
 	}>();
 
 	const targetVector = $derived(targetProp);
@@ -29,6 +33,7 @@
 			return;
 		}
 		controls.enableDamping = enableDamping;
+		controls.enableZoom = enableZoom;
 		controls.dampingFactor = dampingFactor;
 		controls.target.set(targetVector[0], targetVector[1], targetVector[2]);
 		if (typeof minDistance === 'number') {
@@ -39,6 +44,9 @@
 		}
 		if (typeof maxPolarAngle === 'number') {
 			controls.maxPolarAngle = maxPolarAngle;
+		}
+		if (typeof minPolarAngle === 'number') {
+			controls.minPolarAngle = minPolarAngle;
 		}
 		controls.update();
 	}

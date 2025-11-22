@@ -7,7 +7,7 @@
 	} from '$lib/stores/sculptureStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 
-	let height = $state(1);
+	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
 	let compression = $state(0);
 	let roughness = $state(0.5);
@@ -20,6 +20,7 @@
 	$effect(() => {
 		const sculpture = sculptureStore.currentSculpture;
 		if (sculpture && !isDragging) {
+			height = sculpture.physical.height;
 			twist = sculpture.deformation.twist;
 			compression = sculpture.deformation.compression;
 			roughness = sculpture.surface.textureRoughness;
@@ -30,12 +31,13 @@
 	function handlePointerDown() {
 		if (!sculptureStore.currentSculpture) return;
 		isDragging = true;
-		// Clone sculpture for preview
+		// Clone sculpture for preview - DIRECTIVE 4: Include physical height
 		previewSculpture = {
 			...sculptureStore.currentSculpture,
 			radiusCurve: sculptureStore.currentSculpture.radiusCurve.map((p) => ({ ...p })),
 			surface: { ...sculptureStore.currentSculpture.surface },
-			deformation: { ...sculptureStore.currentSculpture.deformation }
+			deformation: { ...sculptureStore.currentSculpture.deformation },
+			physical: { ...sculptureStore.currentSculpture.physical }
 		};
 		applyPreview();
 	}
@@ -59,21 +61,22 @@
 				twist,
 				compression,
 				taper: 0
+			},
+			physical: {
+				...previewSculpture.physical,
+				height: height // DIRECTIVE 4: Update height from slider
 			}
 		});
 	}
 
 	function handlePointerUp() {
 		if (isDragging && previewSculpture) {
-			// Commit changes
-			const deformed = applyDeformation(previewSculpture.radiusCurve, {
-				twist,
-				compression,
-				taper: 0
-			});
+			// Commit changes - DIRECTIVE 1: Non-destructive! Never overwrite radiusCurve
+			// FIX: Do NOT apply deformation to radiusCurve here. 
+			// The Sculpture component handles that visually based on the deformation params.
 			setCurrentSculpture({
 				...previewSculpture,
-				radiusCurve: deformed,
+				// radiusCurve: previewSculpture.radiusCurve, // Keep original!
 				surface: {
 					...previewSculpture.surface,
 					textureRoughness: roughness,
@@ -83,6 +86,10 @@
 					twist,
 					compression,
 					taper: 0
+				},
+				physical: {
+					...previewSculpture.physical,
+					height: height // DIRECTIVE 4: Include height in committed changes
 				}
 			});
 		}
@@ -97,17 +104,23 @@
 		if (!isDragging || !previewSculpture) return;
 		
 		// Access slider values to create reactive dependencies
+		const currentHeight = height;
 		const currentTwist = twist;
 		const currentCompression = compression;
 		const currentRoughness = roughness;
 		const currentGlaze = glaze;
 		
-		// Apply preview with current values
+		// Apply preview with current values - DIRECTIVE 4: Include height
+		// FIX: For ghost, we DO want to see the deformation, so we apply it to the ghost's radiusCurve
+		// BUT we must ensure we start from the ORIGINAL radiusCurve, not the already deformed one.
+		// previewSculpture.radiusCurve is the clean copy we made in handlePointerDown.
+		
 		const deformed = applyDeformation(previewSculpture.radiusCurve, {
 			twist: currentTwist,
 			compression: currentCompression,
 			taper: 0
 		});
+
 		setGhostSculpture({
 			...previewSculpture,
 			radiusCurve: deformed,
@@ -120,6 +133,10 @@
 				twist: currentTwist,
 				compression: currentCompression,
 				taper: 0
+			},
+			physical: {
+				...previewSculpture.physical,
+				height: currentHeight
 			}
 		});
 	});
@@ -129,15 +146,17 @@
 	<h2 class="text-lg font-semibold mb-4">Parameters</h2>
 	<div class="space-y-4">
 		<div>
-			<label for="height-slider" class="text-sm text-secondary block mb-1"
-				>Height: {height.toFixed(2)}</label
-			>
+			<!-- DIRECTIVE 4: Height slider controls vertical scale (in mm, not count) -->
+			<label for="height-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Adjusts the physical height of the sculpture in millimeters">
+				Height: {height.toFixed(0)}mm
+				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+			</label>
 			<input
 				id="height-slider"
 				type="range"
-				min="0.5"
-				max="2"
-				step="0.01"
+				min="50"
+				max="300"
+				step="5"
 				bind:value={height}
 				class="w-full"
 				onpointerdown={handlePointerDown}
@@ -145,9 +164,10 @@
 			/>
 		</div>
 		<div>
-			<label for="twist-slider" class="text-sm text-secondary block mb-1"
-				>Twist: {twist.toFixed(2)}</label
-			>
+			<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Twists the form around its vertical axis">
+				Twist: {twist.toFixed(2)}
+				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+			</label>
 			<input
 				id="twist-slider"
 				type="range"
@@ -161,9 +181,10 @@
 			/>
 		</div>
 		<div>
-			<label for="compression-slider" class="text-sm text-secondary block mb-1"
-				>Compression: {compression.toFixed(2)}</label
-			>
+			<label for="compression-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Squashes the form vertically, widening the bottom">
+				Compression: {compression.toFixed(2)}
+				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+			</label>
 			<input
 				id="compression-slider"
 				type="range"
@@ -177,9 +198,10 @@
 			/>
 		</div>
 		<div>
-			<label for="roughness-slider" class="text-sm text-secondary block mb-1"
-				>Roughness: {roughness.toFixed(2)}</label
-			>
+			<label for="roughness-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Adds surface texture and geometric noise">
+				Roughness: {roughness.toFixed(2)}
+				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+			</label>
 			<input
 				id="roughness-slider"
 				type="range"
@@ -193,9 +215,10 @@
 			/>
 		</div>
 		<div>
-			<label for="glaze-slider" class="text-sm text-secondary block mb-1"
-				>Glaze: {glaze.toFixed(2)}</label
-			>
+			<label for="glaze-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Controls how glass-like or clay-like the surface appears">
+				Glaze: {glaze.toFixed(2)}
+				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+			</label>
 			<input
 				id="glaze-slider"
 				type="range"

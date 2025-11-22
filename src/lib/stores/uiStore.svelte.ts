@@ -17,6 +17,7 @@ export const uiStore = $state<{
 		currentStep: OnboardingStep | null;
 		completed: Set<OnboardingStep>;
 	};
+	orientation: 'vertical' | 'horizontal';
 }>({
 	panels: {
 		aiPanel: false,
@@ -28,7 +29,8 @@ export const uiStore = $state<{
 		active: false,
 		currentStep: null,
 		completed: new Set()
-	}
+	},
+	orientation: 'vertical'
 });
 
 export function togglePanel(panel: keyof typeof uiStore.panels): void {
@@ -86,4 +88,8 @@ export function finishOnboarding(): void {
 	uiStore.onboarding.active = false;
 	uiStore.onboarding.currentStep = null;
 	steps.forEach((step) => completeOnboardingStep(step));
+}
+
+export function toggleOrientation(): void {
+	uiStore.orientation = uiStore.orientation === 'vertical' ? 'horizontal' : 'vertical';
 }

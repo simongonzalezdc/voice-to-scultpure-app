@@ -17,7 +17,12 @@
 	shadow-mapSize-height={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
 />
 <T.AmbientLight intensity={0.3} />
-<OrbitControls enableDamping dampingFactor={0.05} />
+<OrbitControls 
+	enableDamping 
+	dampingFactor={0.05} 
+	maxPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.1 : Math.PI}
+	minPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.5 : 0}
+/>
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
 <AnalysisVisualizer />

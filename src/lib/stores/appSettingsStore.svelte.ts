@@ -40,7 +40,10 @@ function loadSettings(): AppSettings {
 function getDefaultSettings(): AppSettings {
 	return {
 		aiProvider: 'cloud',
-		graphicsQuality: 'high'
+		graphicsQuality: 'high',
+		viewMode: {
+			potteryMode: false
+		}
 	};
 }
 
@@ -70,6 +73,7 @@ export function updateSettings(updates: Partial<AppSettings>): void {
 	appSettings.graphicsQuality = updates.graphicsQuality ?? appSettings.graphicsQuality;
 	appSettings.defaultMicrophone = updates.defaultMicrophone ?? appSettings.defaultMicrophone;
 	appSettings.userProfile = updates.userProfile ?? appSettings.userProfile;
+	appSettings.viewMode = updates.viewMode ?? appSettings.viewMode;
 	saveSettings(appSettings);
 }
 
@@ -81,5 +85,6 @@ export function resetSettings(): void {
 	appSettings.graphicsQuality = defaults.graphicsQuality;
 	appSettings.defaultMicrophone = defaults.defaultMicrophone;
 	appSettings.userProfile = defaults.userProfile;
+	appSettings.viewMode = defaults.viewMode;
 	saveSettings(appSettings);
 }

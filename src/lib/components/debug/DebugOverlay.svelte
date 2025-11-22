@@ -73,6 +73,20 @@
 				return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
 		}
 	});
+	// Radius Curve SVG Points
+	let radiusCurvePoints = $derived.by(() => {
+		const sculpture = sculptureStore.currentSculpture;
+		if (!sculpture || !sculpture.radiusCurve || !sculpture.radiusCurve.length) return '';
+
+		// Normalize for SVG: width 100, height 50
+		// x axis = height (y in point), y axis = radius (x in point)
+		return sculpture.radiusCurve.map((p) => {
+			const svgX = p.y * 100; // 0-1 -> 0-100
+			const radius = Math.max(0, p.x);
+			const svgY = 50 - (radius * 20); // scale factor 20: radius 2.5 -> 0
+			return `${svgX.toFixed(1)},${svgY.toFixed(1)}`;
+		}).join(' ');
+	});
 </script>
 
 <div
@@ -120,6 +134,21 @@
 			<span class="text-primary font-semibold">{vertexCount.toLocaleString()}</span>
 		</div>
 	</div>
+
+	<!-- Radius Curve Visualizer -->
+	{#if radiusCurvePoints}
+		<div class="mt-2 border-t border-subtle pt-2">
+			<div class="text-secondary mb-1">Shape Profile</div>
+			<svg viewBox="0 0 100 50" class="w-full h-12 bg-black/20 rounded">
+				<polyline 
+					points={radiusCurvePoints} 
+					fill="none" 
+					stroke="var(--brand-primary, #8f3e48)" 
+					stroke-width="2" 
+				/>
+			</svg>
+		</div>
+	{/if}
 </div>
 
 <style>

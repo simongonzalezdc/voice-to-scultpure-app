@@ -58,7 +58,12 @@
 					connectMicrophoneToWorklet(stream);
 
 					// Create analysis worker
+					let frameCallbackCount = 0;
 					workerClient = createAnalysisWorkerClient(ringBuffer, (frame) => {
+						frameCallbackCount++;
+						if (frameCallbackCount === 1) {
+							console.log('🎯 [TRANSPORT] First frame received in callback');
+						}
 						updateAnalysisFrame(frame);
 						addAnalysisFrame(frame);
 					});

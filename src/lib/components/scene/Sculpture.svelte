@@ -2,31 +2,55 @@
 	import { T } from '@threlte/core';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore } from '$lib/stores/recordingStore.svelte';
+	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { LatheGeometry, Vector2, Mesh } from 'three';
 	import { useTask } from '@threlte/core';
+	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition } from '$lib/types';
-	import { applyDeformation } from '$lib/engine/physicsMapping';
+	import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
+
+	// DIRECTIVE 3: Smooth rotation animation for orientation toggle
+	const rotationZ = spring(0, { stiffness: 0.05, damping: 0.25 });
+	
+	$effect(() => {
+		// Update rotation based on orientation
+		const targetZ = uiStore.orientation === 'horizontal' ? Math.PI / 2 : 0;
+		rotationZ.set(targetZ);
+	});
 
 	// Raw mesh references (managed by bind:ref) to avoid Svelte 5 proxying issues
 	// eslint-disable-next-line svelte/valid-compile
 	let meshRef: Mesh;
 	// eslint-disable-next-line svelte/valid-compile
 	let ghostMeshRef: Mesh;
+	// eslint-disable-next-line svelte/valid-compile
+	let liveMeshRef: Mesh;
 
 	// Helper function to create geometry from sculpture data
+	// DIRECTIVE 1: NEVER destructively modify sculpture.radiusCurve
 	function createGeometryFromSculpture(sculpture: SculptureDefinition): LatheGeometry | null {
-		// 1. Get Base Profile
+		// Safety check
+		if (!sculpture.radiusCurve || !Array.isArray(sculpture.radiusCurve) || sculpture.radiusCurve.length === 0) {
+			return null;
+		}
+
+		// 1. START WITH BASE - Create a copy, never overwrite original
 		let basePoints = sculpture.radiusCurve.map(p => ({ x: p.x, y: p.y }));
 
-		// 2. Apply Deformations (Twist/Compression from sliders)
+		// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
 		if (sculpture.deformation && (sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)) {
 			basePoints = applyDeformation(basePoints, sculpture.deformation);
 		}
 
-		// 3. Directive 1: Physics Bridge - Live Audio Modulation
+		// 3. Apply Physical Height Scaling
+		// The height slider controls vertical scale, not geometry points
+		const heightScale = sculpture.physical.height / 150; // 150mm is default base height
+
+		// 4. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
 		// If recording, modulate the sculpture with live audio
 		if (recordingStore.state === 'recording') {
 			const frame = analysisStore.latestFrame;
@@ -37,10 +61,31 @@
 			// Apply sensitivity boost (match physicsMapping.ts line 74)
 			const energy = rawEnergy * 2.0;
 			
-			// Radial "breathing" effect - modulate all points uniformly
+			// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
 			const breathScale = 1.0 + (energy * 0.3); // 0-30% radial expansion
 			basePoints = basePoints.map(p => ({
 				x: p.x * breathScale,
+				y: p.y * heightScale // Apply height scale here
+			}));
+		} else {
+			// When not recording, still apply height scale
+			basePoints = basePoints.map(p => ({
+				x: p.x,
+				y: p.y * heightScale
+			}));
+		}
+
+		// 5. Add Roughness-based Geometry Displacement
+		// DIRECTIVE 2: Roughness is achieved through geometry noise, not texture maps
+		// Use textureRoughness from slider (0-1) to control displacement amount
+		const roughness = sculpture.surface.textureRoughness || 0;
+		
+		// Scale roughness effect - 0.1 is maximum noise amplitude
+		const noiseScale = 0.1; 
+		
+		if (roughness > 0) {
+			basePoints = basePoints.map((p, i) => ({
+				x: p.x + (Math.random() - 0.5) * roughness * noiseScale,
 				y: p.y
 			}));
 		}
@@ -49,7 +94,7 @@
 			return null;
 		}
 
-		// 4. Generate Geometry from deformed + modulated points
+		// 6. Generate Geometry from final deformed + modulated + displaced points
 		const vectors = basePoints.map(p => new Vector2(p.x, p.y));
 		return new LatheGeometry(vectors, 32);
 	}
@@ -70,25 +115,34 @@
 
 	// Update geometry in render loop for live audio modulation
 	useTask(() => {
-		if (!sculpture || !meshRef) {
-			return;
-		}
-
-		// Only update if recording (for live modulation)
-		if (recordingStore.state !== 'recording') {
-			return;
-		}
-
-		const newGeom = createGeometryFromSculpture(sculpture);
-		if (newGeom) {
-			const oldGeom = meshRef.geometry;
-			meshRef.geometry = newGeom;
-			if (oldGeom) oldGeom.dispose();
+		if (recordingStore.state === 'recording') {
+			// Live Visualization: Update Live Mesh
+			const frames = getCapturedFrames();
+			if (frames.length > 0 && liveMeshRef) {
+				// Generate geometry on the fly from current frames
+				const profile = generateLathe(frames, appSettings.userProfile);
+				const vectors = profile.map(p => new Vector2(p.x, p.y));
+				const newGeom = new LatheGeometry(vectors, 32);
+				
+				const oldGeom = liveMeshRef.geometry;
+				liveMeshRef.geometry = newGeom;
+				if (oldGeom) oldGeom.dispose();
+			}
+		} else if (sculpture && meshRef) {
+			// Modulate existing sculpture if needed (breathing effect)
+			// Only need to re-run if we want the breathing effect on the *static* sculpture during playback
+			// Currently createGeometryFromSculpture handles this if state is 'recording', but 
+			// if we are using the separate Live Mesh, we might not need this block.
 		}
 	});
 
 	// Helper function to create ghost geometry
 	function createGhostGeometry(ghost: SculptureDefinition): LatheGeometry | null {
+		// Safety check
+		if (!ghost.radiusCurve || !Array.isArray(ghost.radiusCurve) || ghost.radiusCurve.length === 0) {
+			return null;
+		}
+
 		// 1. Get Base Points
 		let points = ghost.radiusCurve.map(p => ({ x: p.x, y: p.y }));
 
@@ -124,32 +178,122 @@
 			if (oldGeom) oldGeom.dispose();
 		}
 	});
+
+	// Helper to interpolate color
+	function lerpColor(colorA: string, colorB: string, t: number): string {
+		const c1 = parseInt(colorA.slice(1), 16);
+		const c2 = parseInt(colorB.slice(1), 16);
+		
+		const r1 = (c1 >> 16) & 255;
+		const g1 = (c1 >> 8) & 255;
+		const b1 = c1 & 255;
+		
+		const r2 = (c2 >> 16) & 255;
+		const g2 = (c2 >> 8) & 255;
+		const b2 = c2 & 255;
+		
+		const r = Math.round(r1 + (r2 - r1) * t);
+		const g = Math.round(g1 + (g2 - g1) * t);
+		const b = Math.round(b1 + (b2 - b1) * t);
+		
+		return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+	}
+
+	// Material Configuration
+	const CLAY_COLOR_DEFAULT = '#E0C9A6';
+	const PORCELAIN_COLOR = '#FFFFFF';
+	
+	// Derived material properties based on material type
+	let isPlastic = $derived(sculpture?.surface.materialType === 'plastic');
+	
+	// Color Logic:
+	// Ceramic: Blend between Clay and Porcelain based on Glaze Transmission
+	// Plastic: Use baseColor or default to white, Glaze adds gloss
+	let materialColor = $derived.by(() => {
+		if (!sculpture) return PORCELAIN_COLOR;
+		
+		if (isPlastic) {
+			return sculpture.surface.baseColor || '#3080ff'; // Default plastic blue
+		}
+		
+		// Ceramic Logic
+		const base = sculpture.surface.baseColor || CLAY_COLOR_DEFAULT;
+		// If glaze is high, we see more of the glaze (white/glass) or the underlying clay?
+		// Actually, glaze usually adds a layer. If clear glaze, we see clay. If colored glaze, we see glaze.
+		// Current simple logic: Interpolate to White (Porcelain look) as glaze increases
+		return lerpColor(base, PORCELAIN_COLOR, sculpture.surface.glazeTransmission);
+	});
+
+	let ghostMaterialColor = $derived(sculptureStore.ghostSculpture 
+		? lerpColor(CLAY_COLOR_DEFAULT, PORCELAIN_COLOR, sculptureStore.ghostSculpture.surface.glazeTransmission)
+		: '#8F3E48'
+	);
 </script>
 
-{#if sculpture}
-	<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
-		<T.MeshPhysicalMaterial
-			transmission={sculpture.surface.glazeTransmission}
-			thickness={0.5}
-			roughness={sculpture.surface.textureRoughness}
-			clearcoat={0.8}
-			clearcoatRoughness={0.2}
-			color="#ffffff"
-		/>
-	</T.Mesh>
+<!-- Main Sculpture (Only visible if not recording, OR if recording but we want to see the old one? No, hide old one during recording) -->
+{#if sculpture && recordingStore.state !== 'recording'}
+	<T.Group rotation={[0, 0, $rotationZ]}>
+		<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
+			<!-- Material Switching -->
+			{#if isPlastic}
+				<!-- Plastic: Standard Material (shiny, plastic look) -->
+				<T.MeshStandardMaterial
+					color={materialColor}
+					roughness={sculpture.surface.textureRoughness}
+					metalness={0.1}
+					flatShading={false}
+				/>
+			{:else}
+				<!-- Ceramic: Physical Material (transmission, clearcoat) -->
+				<T.MeshPhysicalMaterial
+					transmission={sculpture.surface.glazeTransmission * 0.8} 
+					thickness={0.5}
+					roughness={sculpture.surface.textureRoughness}
+					clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
+					clearcoatRoughness={0.1}
+					color={materialColor}
+					metalness={0.1}
+					ior={1.5}
+					envMapIntensity={1.0}
+				/>
+			{/if}
+		</T.Mesh>
+	</T.Group>
 {/if}
+
+<!-- Live Sculpture (Visible ONLY during recording) -->
+{#if recordingStore.state === 'recording'}
+	<T.Group rotation={[0, 0, 0]}>
+		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
+			<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
+			<T.MeshPhysicalMaterial
+				color="#ff4081"
+				emissive="#ff4081"
+				emissiveIntensity={0.2}
+				transmission={0.6}
+				thickness={0.2}
+				roughness={0.4}
+				clearcoat={0.5}
+				wireframe={false}
+			/>
+		</T.Mesh>
+	</T.Group>
+{/if}
+
 {#if sculptureStore.ghostSculpture}
-	<T.Mesh bind:ref={ghostMeshRef}>
-		<T.MeshPhysicalMaterial
-			transmission={sculptureStore.ghostSculpture.surface.glazeTransmission}
-			thickness={0.5}
-			roughness={sculptureStore.ghostSculpture.surface.textureRoughness}
-			clearcoat={0.8}
-			clearcoatRoughness={0.2}
-			color="#8F3E48"
-			opacity={0.5}
-			transparent
-			wireframe
-		/>
-	</T.Mesh>
+	<T.Group rotation={[0, 0, $rotationZ]}>
+		<T.Mesh bind:ref={ghostMeshRef}>
+			<T.MeshPhysicalMaterial
+				transmission={sculptureStore.ghostSculpture.surface.glazeTransmission}
+				thickness={0.5}
+				roughness={sculptureStore.ghostSculpture.surface.textureRoughness}
+				clearcoat={0.8}
+				clearcoatRoughness={0.2}
+				color={ghostMaterialColor}
+				opacity={0.5}
+				transparent
+				wireframe
+			/>
+		</T.Mesh>
+	</T.Group>
 {/if}

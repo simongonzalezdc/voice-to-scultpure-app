@@ -57,7 +57,8 @@
 			physical: {
 				height: 150,
 				units: 'mm',
-				wallThickness: undefined
+				wallThickness: undefined,
+				orientation: 'vertical'
 			}
 		};
 		setCurrentSculpture(testSculpture);
