@@ -121,6 +121,7 @@
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
+import { uiStore, closePanel } from '$lib/stores/uiStore.svelte';
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);
@@ -133,10 +134,23 @@
 			}
 		});
 	}
+
+	function handleClose() {
+		closePanel('fabricationPanel');
+	}
 </script>
 
 <div class="surface-panel p-6 rounded-lg max-w-md w-full">
-	<h2 class="text-2xl font-bold mb-4">Fabrication & View</h2>
+	<div class="flex items-center justify-between mb-4">
+		<h2 class="text-2xl font-bold">Fabrication & Export</h2>
+		<button 
+			onclick={handleClose}
+			class="text-secondary hover:text-primary transition-colors text-xl"
+			title="Close panel (or press Escape)"
+		>
+			✕
+		</button>
+	</div>
 
 	{#if !sculptureStore.currentSculpture}
 		<p class="text-secondary mb-4">No sculpture loaded. Generate a test mesh or record audio first.</p>
@@ -159,43 +173,6 @@
 				</p>
 			</div>
 
-			<!-- Material Settings -->
-			<div>
-				<h3 class="text-sm font-semibold mb-2 text-secondary">Material</h3>
-				
-				<!-- Material Type -->
-				<div class="flex gap-2 mb-3">
-					<button 
-						class="flex-1 py-2 px-3 text-sm rounded border transition-colors {editingMaterialType === 'ceramic' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-						onclick={() => { editingMaterialType = 'ceramic'; handleMaterialChange(); }}
-					>
-						Ceramic
-					</button>
-					<button 
-						class="flex-1 py-2 px-3 text-sm rounded border transition-colors {editingMaterialType === 'plastic' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-						onclick={() => { editingMaterialType = 'plastic'; handleMaterialChange(); }}
-					>
-						3D Print (Plastic)
-					</button>
-				</div>
-
-				<!-- Base Color Picker -->
-				<div>
-					<label for="base-color" class="text-sm text-secondary block mb-1">
-						Base Material Color
-					</label>
-					<div class="flex gap-2 items-center">
-						<input
-							id="base-color"
-							type="color"
-							bind:value={editingBaseColor}
-							onchange={handleColorChange}
-							class="w-8 h-8 rounded cursor-pointer border-none p-0 bg-transparent"
-						/>
-						<span class="text-xs text-secondary font-mono uppercase">{editingBaseColor}</span>
-					</div>
-				</div>
-			</div>
 			<!-- Physical Dimensions -->
 			<div>
 				<label for="target-height" class="text-sm text-secondary block mb-1">

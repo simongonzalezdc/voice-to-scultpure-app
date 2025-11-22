@@ -50,10 +50,18 @@ export function applyDeformation(
 	curve: LathePoint[],
 	deformation: { twist: number; compression: number; taper: number }
 ): LathePoint[] {
+	// ISSUE 3 FIX: Non-destructive compression formula
+	// compression range: -0.5 (stretch) to 0.5 (squash)
+	// Formula: Apply more effect at the top, less at the bottom (normalized by height)
 	return curve.map((point, i) => {
 		const normalizedHeight = i / curve.length;
 		const angle = deformation.twist * normalizedHeight * Math.PI * 2;
-		const compressedY = point.y * (1 - deformation.compression * normalizedHeight);
+		
+		// Compression formula: Linear scaling based on normalized height
+		// Negative compression stretches (factor > 1), positive compresses (factor < 1)
+		const compressionFactor = 1 - deformation.compression * normalizedHeight;
+		const compressedY = point.y * compressionFactor;
+		
 		const taperedX = point.x * (1 - deformation.taper * normalizedHeight);
 
 		// Apply twist (rotate around Y axis)

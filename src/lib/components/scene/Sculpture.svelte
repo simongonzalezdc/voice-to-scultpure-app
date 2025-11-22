@@ -46,34 +46,27 @@
 			basePoints = applyDeformation(basePoints, sculpture.deformation);
 		}
 
-		// 3. Apply Physical Height Scaling
-		// The height slider controls vertical scale, not geometry points
-		const heightScale = sculpture.physical.height / 150; // 150mm is default base height
-
-		// 4. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
-		// If recording, modulate the sculpture with live audio
-		if (recordingStore.state === 'recording') {
-			const frame = analysisStore.latestFrame;
-			
-			// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
-			const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
-			
-			// Apply sensitivity boost (match physicsMapping.ts line 74)
-			const energy = rawEnergy * 2.0;
-			
-			// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
-			const breathScale = 1.0 + (energy * 0.3); // 0-30% radial expansion
-			basePoints = basePoints.map(p => ({
-				x: p.x * breathScale,
-				y: p.y * heightScale // Apply height scale here
-			}));
-		} else {
-			// When not recording, still apply height scale
-			basePoints = basePoints.map(p => ({
-				x: p.x,
-				y: p.y * heightScale
-			}));
-		}
+	// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
+	// If recording, modulate the sculpture with live audio
+	if (recordingStore.state === 'recording') {
+		const frame = analysisStore.latestFrame;
+		
+		// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
+		const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
+		
+		// Apply sensitivity boost (match physicsMapping.ts line 74)
+		const energy = rawEnergy * 2.0;
+		
+		// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
+		const breathScale = 1.0 + (energy * 0.3); // 0-30% radial expansion
+		basePoints = basePoints.map(p => ({
+			x: p.x * breathScale,
+			y: p.y
+		}));
+	}
+	
+	// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
+	// NOT here in the geometry, to avoid double-scaling (heightScale²)
 
 		// 5. Add Roughness-based Geometry Displacement
 		// DIRECTIVE 2: Roughness is achieved through geometry noise, not texture maps
@@ -121,7 +114,13 @@
 			if (frames.length > 0 && liveMeshRef) {
 				// Generate geometry on the fly from current frames
 				const profile = generateLathe(frames, appSettings.userProfile);
-				const vectors = profile.map(p => new Vector2(p.x, p.y));
+				
+				// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
+				if (!profile || profile.length === 0) return;
+				const validProfile = profile.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+				if (validProfile.length < 2) return;
+				
+				const vectors = validProfile.map(p => new Vector2(p.x, p.y));
 				const newGeom = new LatheGeometry(vectors, 32);
 				
 				const oldGeom = liveMeshRef.geometry;
@@ -156,7 +155,13 @@
 		}
 
 		// 3. Create geometry from deformed points
-		const vectorPoints = points.map(p => new Vector2(p.x, p.y));
+		// ISSUE 1 FIX: Crash Guard - Ensure all points are valid before mapping
+		const validPoints = points.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+		if (validPoints.length < 2) {
+			return null;
+		}
+		
+		const vectorPoints = validPoints.map(p => new Vector2(p.x, p.y));
 		return new LatheGeometry(vectorPoints, 32);
 	}
 
@@ -230,9 +235,16 @@
 	);
 </script>
 
-<!-- Main Sculpture (Only visible if not recording, OR if recording but we want to see the old one? No, hide old one during recording) -->
-{#if sculpture && recordingStore.state !== 'recording'}
-	<T.Group rotation={[0, 0, $rotationZ]}>
+<!-- DIRECTIVE 1 & 2: Parent Rig - Unified Hierarchy for Main + Ghost
+     DIRECTIVE 2: Axis Anchoring - Proper rotation pivot
+     Pottery (Vertical): rotation [0, 0, 0]
+     Lathe (Horizontal): rotation [0, 0, -Math.PI/2]
+-->
+{@const heightScale = sculpture?.physical.height ? sculpture.physical.height / 150 : 1}
+{@const orientationRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0}
+<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]}>
+	<!-- Main Sculpture (Only visible if not recording) -->
+	{#if sculpture && recordingStore.state !== 'recording'}
 		<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 			<!-- Material Switching -->
 			{#if isPlastic}
@@ -258,12 +270,10 @@
 				/>
 			{/if}
 		</T.Mesh>
-	</T.Group>
-{/if}
+	{/if}
 
-<!-- Live Sculpture (Visible ONLY during recording) -->
-{#if recordingStore.state === 'recording'}
-	<T.Group rotation={[0, 0, 0]}>
+	<!-- Live Sculpture (Visible ONLY during recording) -->
+	{#if recordingStore.state === 'recording'}
 		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
 			<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
 			<T.MeshPhysicalMaterial
@@ -277,23 +287,22 @@
 				wireframe={false}
 			/>
 		</T.Mesh>
-	</T.Group>
-{/if}
+	{/if}
 
-{#if sculptureStore.ghostSculpture}
-	<T.Group rotation={[0, 0, $rotationZ]}>
+	<!-- Ghost Mesh - Now sibling to Main Mesh, shares parent scale/rotation -->
+	<!-- DIRECTIVE 1 FIX: Ghost is now inside parent rig with main mesh (no more matcha whisk!) -->
+	<!-- DIRECTIVE 3 FIX: Ghost material now subtle - transparent, low opacity, wireframe blueprint style -->
+	{#if sculptureStore.ghostSculpture}
 		<T.Mesh bind:ref={ghostMeshRef}>
 			<T.MeshPhysicalMaterial
-				transmission={sculptureStore.ghostSculpture.surface.glazeTransmission}
-				thickness={0.5}
-				roughness={sculptureStore.ghostSculpture.surface.textureRoughness}
-				clearcoat={0.8}
-				clearcoatRoughness={0.2}
 				color={ghostMaterialColor}
-				opacity={0.5}
-				transparent
-				wireframe
+				opacity={0.15}
+				transparent={true}
+				wireframe={true}
+				transmission={0}
+				roughness={0.9}
+				metalness={0}
 			/>
 		</T.Mesh>
-	</T.Group>
-{/if}
+	{/if}
+</T.Group>
