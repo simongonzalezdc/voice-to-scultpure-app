@@ -29,6 +29,10 @@ export const uiStore = $state<{
 		lightingAngle: number;
 		zoom: number;
 	};
+	sculptZone: {
+		min: number; // 0.0 = bottom
+		max: number; // 1.0 = top
+	};
 }>({
 	panels: {
 		aiPanel: false,
@@ -52,6 +56,10 @@ export const uiStore = $state<{
 	view: {
 		lightingAngle: 0,
 		zoom: 1.0
+	},
+	sculptZone: {
+		min: 0.0, // Default: entire height (bottom)
+		max: 1.0  // Default: entire height (top)
 	}
 });
 
@@ -138,5 +146,12 @@ export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint'): void 
 
 export function setActiveGlaze(color: string, roughness: number): void {
 	uiStore.activeGlaze = { color, roughness };
+}
+
+export function setSculptZone(min: number, max: number): void {
+	uiStore.sculptZone = { 
+		min: Math.max(0, Math.min(1, min)),
+		max: Math.max(0, Math.min(1, max))
+	};
 }
 

@@ -37,10 +37,11 @@ export function generateLathe(
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
 
 	// Constants for radius calculation
+	// DIRECTIVE 3: AMPLIFIED for visibility
 	const BASE_RADIUS = 0.2;
 	const MAX_RADIUS = 1.5; // Standard block size for subtractive mode
-	const SENSITIVITY = 2.0;
-	const MIN_RADIUS = 0.1; // Constraint: never go below this
+	const SENSITIVITY = 3.5; // AMPLIFIED: was 2.0, now 3.5 (75% increase)
+	const MIN_RADIUS = 0.05; // AMPLIFIED: Allow deeper cuts (was 0.1)
 
 	// Track previous frame for attack detection
 	let previousFrame: AnalysisFrame | null = null;
@@ -86,7 +87,8 @@ export function generateLathe(
 		}
 		
 		// Use normalized roughness for noise modifier (jitter)
-		const noiseMod = (Math.random() - 0.5) * normalizedRoughness * 0.15;
+		// DIRECTIVE 3: AMPLIFIED timbre noise (was 0.15, now 0.3)
+		const noiseMod = (Math.random() - 0.5) * normalizedRoughness * 0.3;
 		
 		// Dynamic Attack Detection: Detect sharp energy spikes (chisel effect)
 		let attackJitter = 0;
@@ -97,7 +99,8 @@ export function generateLathe(
 			
 			if (isAttack) {
 				// Sharp attack creates jagged edges (chisel effect)
-				attackJitter = (Math.random() - 0.5) * 0.2;
+				// DIRECTIVE 3: AMPLIFIED attack cut (was 0.2, now 0.5 for 50% deeper indentation)
+				attackJitter = (Math.random() - 0.5) * 0.5;
 			}
 		}
 		
@@ -113,11 +116,13 @@ export function generateLathe(
 				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
 				// Higher pitches get more jitter, but scale so low notes are still visible
 				const pitchMultiplier = 0.3 + (normalizedPitch * 0.7); // 0.3 to 1.0 range
-				pitchJitter = (Math.random() - 0.5) * pitchMultiplier * 0.1;
+				// DIRECTIVE 3: AMPLIFIED pitch ripple (was 0.1, now 0.25)
+				pitchJitter = (Math.random() - 0.5) * pitchMultiplier * 0.25;
 			}
 		} else if (frame.pitch > 400) {
 			// Fallback: If no profile, use simple threshold
-			pitchJitter = (Math.random() - 0.5) * 0.1;
+			// DIRECTIVE 3: AMPLIFIED (was 0.1, now 0.25)
+			pitchJitter = (Math.random() - 0.5) * 0.25;
 		}
 		
 		// Combine all jitter sources

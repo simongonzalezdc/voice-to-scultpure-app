@@ -1,73 +1,106 @@
 <script lang="ts">
 	import { T, Canvas } from '@threlte/core';
+	import { onMount } from 'svelte';
 	import { uiStore, setActiveGlaze } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore } from '$lib/stores/recording.svelte';
+	import { getAudioContext, startVisualizerBypass } from '$lib/audio/audioContext';
 	import { Color } from 'three';
 
-	// Voice-driven color mixing
-	let currentHue = $state(0); // 0-360 (HSL)
-	let currentRoughness = $state(0.5); // 0-1
+	// Live monitoring: Reactive color based on voice input (no recording needed)
+	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
+	let liveEnergy = $derived(analysisStore.micLevel);
+	let liveTimbre = $derived(analysisStore.latestFrame?.timbre?.spectralCentroid || 0);
 
-	// Smooth interpolation for visual feedback
-	const RESPONSIVENESS = 0.1; // How quickly it responds (0-1, lower = smoother)
+	// Map Pitch (Hz) to Hue (0-360)
+	// 100Hz = Red (0°), 800Hz = Blue (240°)
+	let hue = $derived(
+		livePitch > 0 
+			? Math.min(240, Math.max(0, ((livePitch - 100) / 700) * 240))
+			: 0
+	);
 
-	// Update hue and roughness based on voice input
-	// Use $effect with requestAnimationFrame for smooth interpolation (useTask requires Canvas context)
-	$effect(() => {
-		if (recordingStore.state !== 'recording') return;
-		
-		let animationFrameId: number;
-		
-		function updateValues() {
-			const frame = analysisStore.latestFrame;
-			if (frame && recordingStore.state === 'recording') {
-				// Pitch → Hue: Low pitch = Red (0°), High pitch = Blue (240°)
-				// Map pitch range (80-400 Hz typical) to hue (0-240°)
-				const pitch = frame.pitch || 0;
-				if (pitch > 0) {
-					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / (400 - 80)));
-					const targetHue = normalizedPitch * 240; // 0° (red) to 240° (blue)
-					currentHue += (targetHue - currentHue) * RESPONSIVENESS;
-				}
+	// Map Energy to Lightness (Pulse effect)
+	// Quiet = 30%, Loud = 80%
+	let lightness = $derived(30 + (liveEnergy * 50));
 
-				// Timbre → Roughness: Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
-				const timbre = frame.timbre?.spectralCentroid || 0;
-				// Normalize timbre (typical range 1000-5000 Hz) to roughness (0-1)
-				const normalizedTimbre = Math.max(0, Math.min(1, (timbre - 1000) / (5000 - 1000)));
-				// Invert: High timbre (bright) = Low roughness (glossy), Low timbre (dark) = High roughness (matte)
-				const targetRoughness = 1 - normalizedTimbre;
-				currentRoughness += (targetRoughness - currentRoughness) * RESPONSIVENESS;
-				
-				// Continue animation loop while recording
-				if (recordingStore.state === 'recording') {
-					animationFrameId = requestAnimationFrame(updateValues);
-				}
-			}
-		}
-		
-		// Start animation loop
-		animationFrameId = requestAnimationFrame(updateValues);
-		
-		// Cleanup on unmount or when recording stops
-		return () => {
-			if (animationFrameId) {
-				cancelAnimationFrame(animationFrameId);
-			}
-		};
-	});
+	// Map Timbre to Roughness
+	// Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
+	let roughness = $derived(
+		liveTimbre === 0 
+			? 0.5 
+			: 1 - Math.max(0, Math.min(1, (liveTimbre - 1000) / (5000 - 1000))) // Invert: bright = glossy, dark = matte
+	);
 
-	// Convert HSL to hex color
+	// Convert HSL to hex for preview
 	function hslToHex(h: number, s: number, l: number): string {
-		const c = new Color().setHSL(h / 360, s, l);
+		const c = new Color().setHSL(h / 360, s / 100, l / 100);
 		return '#' + c.getHexString();
 	}
 
-	let previewColor = $derived(hslToHex(currentHue, 0.8, 0.6)); // Saturated, medium lightness
+	// Reactive preview color (HSL format for smooth transitions)
+	let previewColorHSL = $derived(`hsl(${Math.round(hue)}, 100%, ${Math.round(lightness)}%)`);
+	let previewColorHex = $derived(hslToHex(hue, 100, lightness));
+
+	// Audio context state check
+	let audioContextState = $state<'suspended' | 'running' | 'closed' | 'unknown'>('unknown');
+	let showActivateButton = $derived(audioContextState === 'suspended');
+
+	onMount(() => {
+		// Check audio context state on mount
+		const checkAudioContext = async () => {
+			const ctx = getAudioContext();
+			if (ctx) {
+				audioContextState = ctx.state as 'suspended' | 'running' | 'closed';
+				
+				// If suspended, try to resume
+				if (ctx.state === 'suspended') {
+					try {
+						await ctx.resume();
+						audioContextState = 'running';
+					} catch (err) {
+						console.warn('Failed to resume audio context:', err);
+					}
+				}
+				
+				// Start visualizer bypass for live monitoring (if not already running)
+				if (ctx.state === 'running') {
+					try {
+						await startVisualizerBypass();
+					} catch (err) {
+						console.warn('Visualizer bypass already running or failed:', err);
+					}
+				}
+			} else {
+				audioContextState = 'unknown';
+			}
+		};
+
+		checkAudioContext();
+		// Poll for state changes
+		const interval = setInterval(checkAudioContext, 500);
+		return () => clearInterval(interval);
+	});
+
+	async function handleActivateMic() {
+		const ctx = getAudioContext();
+		if (ctx && ctx.state === 'suspended') {
+			await ctx.resume();
+			audioContextState = 'running';
+		}
+	}
+
+	// Save feedback state
+	let saveFlash = $state(false);
 
 	function handleSaveGlaze() {
-		setActiveGlaze(previewColor, currentRoughness);
-		alert(`Glaze saved! Color: ${previewColor}, Roughness: ${currentRoughness.toFixed(2)}`);
+		// Capture current color and roughness
+		setActiveGlaze(previewColorHex, roughness);
+		
+		// Visual feedback flash
+		saveFlash = true;
+		setTimeout(() => {
+			saveFlash = false;
+		}, 300);
 	}
 </script>
 
@@ -78,8 +111,8 @@
 
 	<div class="space-y-4">
 		<!-- Preview Sphere -->
-		<div class="flex justify-center mb-4">
-			<div class="w-48 h-48 rounded-full border-2 border-[#4a4a4a] overflow-hidden bg-[#1a1a1a]">
+		<div class="flex justify-center mb-4 relative">
+			<div class="w-48 h-48 rounded-full border-2 border-[#4a4a4a] overflow-hidden bg-[#1a1a1a] relative">
 				<Canvas>
 					<T.PerspectiveCamera makeDefault position={[0, 0, 3]} fov={50} />
 					<T.AmbientLight intensity={0.5} />
@@ -87,28 +120,49 @@
 					<T.Mesh>
 						<T.SphereGeometry args={[1, 32, 32]} />
 						<T.MeshPhysicalMaterial
-							color={previewColor}
-							roughness={currentRoughness}
+							color={previewColorHex}
+							roughness={roughness}
 							metalness={0.1}
-							clearcoat={1 - currentRoughness}
-							clearcoatRoughness={currentRoughness * 0.5}
+							clearcoat={1 - roughness}
+							clearcoatRoughness={roughness * 0.5}
 						/>
 					</T.Mesh>
 				</Canvas>
+				
+				<!-- Tap to Activate Mic Overlay -->
+				{#if showActivateButton}
+					<div class="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full z-10">
+						<button
+							class="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded text-sm font-medium"
+							type="button"
+							onclick={handleActivateMic}
+						>
+							🎤 Tap to Activate Mic
+						</button>
+					</div>
+				{/if}
+				
+				<!-- Save Flash Feedback -->
+				{#if saveFlash}
+					<div class="absolute inset-0 flex items-center justify-center bg-green-500/50 rounded-full z-10 pointer-events-none animate-pulse">
+						<span class="text-white font-bold text-lg">✓ Glaze Captured!</span>
+					</div>
+				{/if}
 			</div>
 		</div>
 
-		<!-- Voice Input Status -->
-		{#if recordingStore.state === 'recording'}
-			<div class="text-sm text-[#888] mb-2">
-				🎵 Pitch → Hue: {Math.round(currentHue)}° | 
-				🌬️ Timbre → Roughness: {currentRoughness.toFixed(2)}
-			</div>
-		{:else}
-			<div class="text-sm text-[#888] mb-2">
-				Start recording to mix glaze with your voice
-			</div>
-		{/if}
+		<!-- Live Voice Input Status -->
+		<div class="text-sm text-[#888] mb-2">
+			{#if livePitch > 0}
+				🎵 Pitch → Hue: {Math.round(hue)}° | 
+				🌬️ Timbre → Roughness: {roughness.toFixed(2)} | 
+				🔊 Energy: {Math.round(liveEnergy * 100)}%
+			{:else if liveEnergy > 0}
+				<span class="text-[#888]">🔊 Mic active ({Math.round(liveEnergy * 100)}%) - Start recording for pitch analysis</span>
+			{:else}
+				<span class="text-[#666]">Hum or speak to see live color changes</span>
+			{/if}
+		</div>
 
 		<!-- Current Values Display -->
 		<div class="space-y-2">
@@ -116,15 +170,15 @@
 				<span class="text-sm text-secondary">Color:</span>
 				<div class="flex items-center gap-2">
 					<div
-						class="w-8 h-8 rounded border border-[#4a4a4a]"
-						style="background-color: {previewColor}"
+						class="w-8 h-8 rounded border border-[#4a4a4a] transition-colors duration-100"
+						style="background-color: {previewColorHex}"
 					></div>
-					<span class="text-xs font-mono text-secondary">{previewColor.toUpperCase()}</span>
+					<span class="text-xs font-mono text-secondary">{previewColorHex.toUpperCase()}</span>
 				</div>
 			</div>
 			<div class="flex items-center justify-between">
 				<span class="text-sm text-secondary">Roughness:</span>
-				<span class="text-sm text-secondary">{currentRoughness.toFixed(2)}</span>
+				<span class="text-sm text-secondary">{roughness.toFixed(2)}</span>
 			</div>
 		</div>
 
@@ -138,8 +192,8 @@
 		</button>
 
 		<p class="text-xs text-[#888] mt-2">
-			Speak or sing while recording to mix your glaze. Pitch controls color (low=red, high=blue), 
-			timbre controls texture (smooth=glossy, rough=matte).
+			Hum or speak to mix your glaze in real-time. Pitch controls color (low=red, high=blue), 
+			timbre controls texture (smooth=glossy, rough=matte). Click "Save Glaze" to capture the current color.
 		</p>
 	</div>
 </div>

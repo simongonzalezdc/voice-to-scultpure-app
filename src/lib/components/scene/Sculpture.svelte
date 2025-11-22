@@ -22,6 +22,113 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	// eslint-disable-next-line svelte/valid-compile
 	let liveMeshRef: Mesh;
 
+	/**
+	 * DIRECTIVE 2: Apply zone-based vertex colors to visualize the sculpt zone
+	 * Vertices outside the active zone are dimmed (darker) to show they're "locked"
+	 * @param geometry - The LatheGeometry to colorize
+	 * @param zoneMin - Bottom of active zone (0-1)
+	 * @param zoneMax - Top of active zone (0-1)
+	 */
+	function applyZoneVisualization(geometry: LatheGeometry, zoneMin: number, zoneMax: number): void {
+		if (zoneMin === 0 && zoneMax === 1) return; // Full zone, no need to dim
+
+		const positions = geometry.attributes.position;
+		if (!positions) return;
+
+		const posArray = positions.array as Float32Array;
+		const vertexCount = positions.count;
+
+		// Find min/max Y to normalize height
+		let minY = Infinity;
+		let maxY = -Infinity;
+		for (let i = 0; i < vertexCount; i++) {
+			const y = posArray[i * 3 + 1];
+			if (y < minY) minY = y;
+			if (y > maxY) maxY = y;
+		}
+
+		const totalHeight = maxY - minY;
+		if (totalHeight === 0) return;
+
+		// Create color array (RGB per vertex)
+		const colors = new Float32Array(vertexCount * 3);
+		const activeColor = new Color('#FFFFFF'); // Active zone: white
+		const lockedColor = new Color('#444444'); // Locked zone: dark gray
+
+		for (let i = 0; i < vertexCount; i++) {
+			const y = posArray[i * 3 + 1];
+			const h = (y - minY) / totalHeight; // Normalized height
+
+			// Check if vertex is in active zone
+			const isInZone = h >= zoneMin && h <= zoneMax;
+			const color = isInZone ? activeColor : lockedColor;
+
+			colors[i * 3] = color.r;
+			colors[i * 3 + 1] = color.g;
+			colors[i * 3 + 2] = color.b;
+		}
+
+		geometry.setAttribute('color', new BufferAttribute(colors, 3));
+	}
+
+	/**
+	 * DIRECTIVE 1: Apply TRUE vertex-level spiral twist
+	 * LatheGeometry is radially symmetric, so we must twist the VERTICES directly.
+	 * @param geometry - The LatheGeometry to twist
+	 * @param twistAmount - Twist multiplier (0 = none, 1 = full spiral)
+	 */
+	function applyVertexTwist(geometry: LatheGeometry, twistAmount: number): void {
+		if (Math.abs(twistAmount) < 0.001) return; // Skip if no twist
+
+		const positions = geometry.attributes.position;
+		if (!positions) return;
+
+		const posArray = positions.array as Float32Array;
+		const vertexCount = positions.count;
+
+		// Find min/max Y to normalize height
+		let minY = Infinity;
+		let maxY = -Infinity;
+		for (let i = 0; i < vertexCount; i++) {
+			const y = posArray[i * 3 + 1];
+			if (y < minY) minY = y;
+			if (y > maxY) maxY = y;
+		}
+
+		const totalHeight = maxY - minY;
+		if (totalHeight === 0) return;
+
+		// Apply twist to each vertex
+		for (let i = 0; i < vertexCount; i++) {
+			const idx = i * 3;
+			const x = posArray[idx];
+			const y = posArray[idx + 1];
+			const z = posArray[idx + 2];
+
+			// Calculate normalized height (0 = bottom, 1 = top)
+			const h = (y - minY) / totalHeight;
+
+			// Calculate twist angle: linear progression from bottom to top
+			// twistAmount of 1.0 = 2π radians (full rotation)
+			const theta = h * twistAmount * Math.PI * 2;
+
+			// Rotate X,Z around Y-axis
+			const cosTheta = Math.cos(theta);
+			const sinTheta = Math.sin(theta);
+			const newX = x * cosTheta - z * sinTheta;
+			const newZ = x * sinTheta + z * cosTheta;
+
+			// Update positions
+			posArray[idx] = newX;
+			posArray[idx + 2] = newZ;
+			// Y stays the same
+		}
+
+		// Mark for update
+		positions.needsUpdate = true;
+		geometry.computeVertexNormals(); // Recalculate normals for proper lighting
+	}
+
 	// Helper function to create geometry from sculpture data
 	// DIRECTIVE 1: NEVER destructively modify sculpture.radiusCurve
 	function createGeometryFromSculpture(sculpture: SculptureDefinition): LatheGeometry | null {
@@ -111,6 +218,11 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			}
 		}
 		
+		// DIRECTIVE 1: Apply TRUE vertex-level twist (spiral deformation)
+		if (sculpture.deformation && Math.abs(sculpture.deformation.twist) > 0.001) {
+			applyVertexTwist(geometry, sculpture.deformation.twist);
+		}
+		
 		return geometry;
 	}
 
@@ -122,6 +234,14 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 
 		const newGeom = createGeometryFromSculpture(sculpture);
 		if (newGeom) {
+			// DIRECTIVE 2: Apply zone visualization if recording and zone is restricted
+			const isRecording = recordingStore.state === 'recording';
+			const zoneIsRestricted = uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1;
+			
+			if (isRecording && zoneIsRestricted) {
+				applyZoneVisualization(newGeom, uiStore.sculptZone.min, uiStore.sculptZone.max);
+			}
+			
 			const oldGeom = meshRef.geometry;
 			meshRef.geometry = newGeom;
 			if (oldGeom) oldGeom.dispose();
@@ -233,7 +353,14 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		}
 		
 		const vectorPoints = validPoints.map(p => new Vector2(p.x, p.y));
-		return new LatheGeometry(vectorPoints, 32);
+		const geometry = new LatheGeometry(vectorPoints, 32);
+		
+		// DIRECTIVE 1: Apply vertex-level twist to ghost too
+		if (ghost.deformation && Math.abs(ghost.deformation.twist) > 0.001) {
+			applyVertexTwist(geometry, ghost.deformation.twist);
+		}
+		
+		return geometry;
 	}
 
 	// Create ghost geometry immediately when ghostMeshRef is bound
@@ -365,7 +492,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 						metalness={0.1}
 						ior={1.5}
 						envMapIntensity={1.0}
-						vertexColors={(sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint')}
+						vertexColors={(sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') || (recordingStore.state === 'recording' && (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					/>
 				{/if}
 			</T.Mesh>
