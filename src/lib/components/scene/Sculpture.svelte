@@ -13,15 +13,6 @@
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
-	// DIRECTIVE 3: Smooth rotation animation for orientation toggle
-	const rotationZ = spring(0, { stiffness: 0.05, damping: 0.25 });
-	
-	$effect(() => {
-		// Update rotation based on orientation
-		const targetZ = uiStore.orientation === 'horizontal' ? Math.PI / 2 : 0;
-		rotationZ.set(targetZ);
-	});
-
 	// Raw mesh references (managed by bind:ref) to avoid Svelte 5 proxying issues
 	// eslint-disable-next-line svelte/valid-compile
 	let meshRef: Mesh;
@@ -235,14 +226,21 @@
 	);
 </script>
 
-<!-- DIRECTIVE 1 & 2: Parent Rig - Unified Hierarchy for Main + Ghost
-     DIRECTIVE 2: Axis Anchoring - Proper rotation pivot
-     Pottery (Vertical): rotation [0, 0, 0]
-     Lathe (Horizontal): rotation [0, 0, -Math.PI/2]
+<!-- DIRECTIVE 1: Parent Rig - Unified Hierarchy for Main + Ghost
+     Both meshes are siblings inside the same parent T.Group that receives scale and rotation.
+     This ensures perfect 1:1 matching - no more "Matcha Whisk" artifact.
+     
+     DIRECTIVE 2: Axis Anchoring - Proper rotation pivot at origin (0,0,0)
+     LatheGeometry generates around Y-axis with base at y=0.
+     Rotating around Z-axis by -Math.PI/2 pivots at origin, laying geometry flat along X-axis.
+     Pottery (Vertical): rotation [0, 0, 0] - base sits at y=0
+     Lathe (Horizontal): rotation [0, 0, -Math.PI/2] - base sits at x=0, extends along X-axis
 -->
-{@const heightScale = sculpture?.physical.height ? sculpture.physical.height / 150 : 1}
-{@const orientationRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0}
-<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]}>
+<svelte:fragment>
+	{@const heightScale = sculpture?.physical.height ? sculpture.physical.height / 150 : 1}
+	{@const orientationRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0}
+	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
+	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
 	<!-- Main Sculpture (Only visible if not recording) -->
 	{#if sculpture && recordingStore.state !== 'recording'}
 		<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
@@ -305,4 +303,5 @@
 			/>
 		</T.Mesh>
 	{/if}
-</T.Group>
+	</T.Group>
+</svelte:fragment>
