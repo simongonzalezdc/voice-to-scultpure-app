@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { recordingStore } from '$lib/stores/recordingStore.svelte';
-	import { startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
+import { recordingStore, startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
 		initializeAudioContext,

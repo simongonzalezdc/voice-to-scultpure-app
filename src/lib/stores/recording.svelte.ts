@@ -1,51 +1,96 @@
-import {
-	recordingStore,
-	startRecording as startRecordingState,
-	stopRecording as stopRecordingState,
-	completeProcessing as completeProcessingState,
-	resetRecording as resetRecordingState
-} from './recordingStore.svelte';
 import { setCurrentSculpture, sculptureStore } from './sculptureStore.svelte';
 import { resetAnalysis } from './analysisStore.svelte';
 import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
 
-// Re-export recordingStore so it can be imported from here
-export { recordingStore };
+// ============================================================================
+// CONSOLIDATED RECORDING STATE (Single Source of Truth)
+// Merged from recordingStore.svelte.ts to eliminate dual-store confusion
+// ============================================================================
+
+export type RecordingState = 'idle' | 'recording' | 'processing' | 'complete';
+
+export const recordingStore = $state<{
+	state: RecordingState;
+	startTime: number | null;
+	duration: number;
+}>({
+	state: 'idle',
+	startTime: null,
+	duration: 0
+});
+
+// Low-level state setters (internal use)
+function setRecordingState(newState: RecordingState): void {
+	recordingStore.state = newState;
+}
+
+function recordingStateSetTimings(startTime: number | null, duration: number): void {
+	recordingStore.startTime = startTime;
+	recordingStore.duration = duration;
+}
 
 // Reactive state for live visualization
 // eslint-disable-next-line svelte/valid-compile
 let capturedFrames = $state<import('$lib/types').AnalysisFrame[]>([]);
 
+// ============================================================================
+// PUBLIC API: Recording lifecycle functions
+// ============================================================================
+
 export function getCapturedFrames() {
 	return capturedFrames;
 }
 
+/**
+ * Start recording: Initialize frame capture and set state to 'recording'
+ */
 export function startRecording(): void {
 	capturedFrames = [];
+	recordingStateSetTimings(Date.now(), 0);
+	setRecordingState('recording');
 	console.log('🎙️ [RECORDING] Started - frames reset to 0');
-	startRecordingState();
 }
 
+/**
+ * Stop recording and process captured frames into a sculpture
+ * PHASE 1.2: Dead Lock Guard - try/finally ensures completeProcessing() is ALWAYS called
+ */
 export function stopRecording(): void {
-	stopRecordingState();
+	if (recordingStore.state !== 'recording') {
+		console.warn('⚠️ [RECORDING] Stop called but not in recording state');
+		return;
+	}
+
+	// Mark as processing (prevents further frame capture)
+	const duration = recordingStore.startTime ? Date.now() - recordingStore.startTime : 0;
+	recordingStateSetTimings(null, duration);
+	setRecordingState('processing');
 	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
-	
+
 	// Process frames immediately when stopping
-	if (capturedFrames.length > 0) {
-		console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
-		// Create a deep copy to avoid reactivity issues during processing
-		const frames = JSON.parse(JSON.stringify(capturedFrames));
-		// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
-		const mode = sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-		const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
-		setCurrentSculpture(sculpture);
-		console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
-		completeProcessingState();
-	} else {
-		console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');
-		completeProcessingState();
+	// DEAD LOCK GUARD: use try/finally to guarantee state transition
+	try {
+		if (capturedFrames.length > 0) {
+			console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
+			// Create a deep copy to avoid reactivity issues during processing
+			const frames = JSON.parse(JSON.stringify(capturedFrames));
+			// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
+			const mode =
+				sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
+			const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
+			setCurrentSculpture(sculpture);
+			console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
+		} else {
+			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');
+		}
+	} catch (err) {
+		console.error('❌ [RECORDING] Processing failed:', err);
+	} finally {
+		// CRITICAL: Always transition to 'complete', even if processing failed
+		setRecordingState('complete');
+		console.log('✅ [RECORDING] Processing complete (or failed gracefully)');
 	}
 }
 
@@ -61,7 +106,9 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 
 export function resetRecording(): void {
 	capturedFrames = [];
-	resetRecordingState();
+	recordingStateSetTimings(null, 0);
+	setRecordingState('idle');
 	resetAnalysis();
 	setCurrentSculpture(null);
+	console.log('🔄 [RECORDING] Reset to idle state');
 }

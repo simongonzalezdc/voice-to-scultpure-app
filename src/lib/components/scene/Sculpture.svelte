@@ -5,11 +5,12 @@
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh } from 'three';
+	import { LatheGeometry, Vector2, Mesh, BoxGeometry } from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
-	import type { SculptureDefinition } from '$lib/types';
-	import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
+import type { SculptureDefinition } from '$lib/types';
+import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
+import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
@@ -202,7 +203,7 @@
 	}
 
 	// Material Configuration
-	const CLAY_COLOR_DEFAULT = '#E0C9A6';
+	const CLAY_COLOR_DEFAULT = DEFAULT_MATERIAL_CERAMIC;
 	const PORCELAIN_COLOR = '#FFFFFF';
 	
 	// Derived material properties based on material type
@@ -215,13 +216,13 @@
 		if (!sculpture) return PORCELAIN_COLOR;
 		
 		if (isPlastic) {
-			const baseColor = sculpture.surface.baseColor || '#3080ff'; // Default plastic blue
+			const baseColor = sculpture.surface.baseColor || DEFAULT_MATERIAL_PLASTIC;
 			// Dim pure white to #EEEEEE so highlights are visible
 			return baseColor === '#FFFFFF' || baseColor === '#ffffff' ? '#EEEEEE' : baseColor;
 		}
 		
 		// Ceramic Logic
-		const base = sculpture.surface.baseColor || CLAY_COLOR_DEFAULT;
+		const base = sculpture.surface.baseColor || DEFAULT_MATERIAL_CERAMIC;
 		// If glaze is high, we see more of the glaze (white/glass) or the underlying clay?
 		// Actually, glaze usually adds a layer. If clear glaze, we see clay. If colored glaze, we see glaze.
 		// Current simple logic: Interpolate to White (Porcelain look) as glaze increases
@@ -237,8 +238,16 @@
 	// Height scaling: Normalize to 150mm reference height
 	let heightScale = $derived(sculpture?.physical.height ? sculpture.physical.height / 150 : 1);
 	
-	// Orientation rotation: Horizontal mode rotates around Z-axis to lay flat along X-axis
-	let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0);
+	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
+	// Smooth rotation animation for Pottery ↔ Lathe toggle using spring for fluidity
+	const orientationSpring = spring(0, { stiffness: 0.05, damping: 0.25 });
+	
+	$effect(() => {
+		const targetRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0;
+		orientationSpring.set(targetRotation);
+	});
+	
+	let orientationRotation = $derived($orientationSpring);
 </script>
 
 <!-- DIRECTIVE 1: Parent Rig - Unified Hierarchy for Main + Ghost
@@ -317,6 +326,21 @@
 					transmission={0}
 					roughness={0.9}
 					metalness={0}
+				/>
+			</T.Mesh>
+		{/if}
+
+		<!-- PHASE 4.1: Subtractive Mode Visualization -->
+		<!-- Show a faint block wireframe when in subtractive mode to show what's being carved from -->
+		{#if sculpture?.physical.sculptMode === 'subtractive'}
+			<T.Mesh position={[0.15, 1, 0]}>
+				<T.BoxGeometry args={[0.3, 2, 0.3]} />
+				<T.MeshBasicMaterial
+					color="#888"
+					opacity={0.1}
+					transparent={true}
+					wireframe={true}
+					depthWrite={false}
 				/>
 			</T.Mesh>
 		{/if}

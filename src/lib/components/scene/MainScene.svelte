@@ -8,12 +8,17 @@
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	
+	// PHASE 2.1: Wire ViewportControls to Scene
 	// Lighting controls - Derived from global UI store
 	let lightAngle = $derived(uiStore.view.lightingAngle);
+	
+	// Zoom control via viewport controls - map zoom (0.5-3.0) to camera FOV (20-80)
+	// Higher zoom = lower FOV (more zoomed in), Lower zoom = higher FOV (more zoomed out)
+	let cameraFOV = $derived(80 - (uiStore.view.zoom - 0.5) * 30);
 </script>
 
 <!-- Pure Scene Component - Canvas wrapper is in parent -->
-<T.PerspectiveCamera makeDefault position={[0, 2, 5]} fov={50} />
+<T.PerspectiveCamera makeDefault position={[0, 2, 5]} fov={cameraFOV} />
 
 <!-- Main Light - Rotatable -->
 <T.Group rotation.y={lightAngle}>

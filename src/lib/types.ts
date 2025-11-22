@@ -1,5 +1,11 @@
 // Domain Types - Strict TypeScript interfaces
 
+// ============================================================================
+// PHASE 3.1: MATERIAL DEFAULTS (Centralized Constants)
+// ============================================================================
+export const DEFAULT_MATERIAL_CERAMIC = '#E0C9A6'; // Warm beige/clay tone
+export const DEFAULT_MATERIAL_PLASTIC = '#3080ff'; // Deep blue
+
 export interface LathePoint {
 	x: number;
 	y: number;

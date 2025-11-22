@@ -5,9 +5,10 @@
 		clearGhostSculpture,
 		setCurrentSculpture
 	} from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setSculptMode } from '$lib/stores/uiStore.svelte';
-	import { applyDeformation } from '$lib/engine/physicsMapping';
-	import type { SculptureDefinition } from '$lib/types';
+import { uiStore, setSculptMode } from '$lib/stores/uiStore.svelte';
+import { applyDeformation } from '$lib/engine/physicsMapping';
+import type { SculptureDefinition } from '$lib/types';
+import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 
 	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
@@ -15,7 +16,7 @@
 	let roughness = $state(0.5);
 	let glaze = $state(0.3);
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
-	let baseColor = $state('#E0C9A6');
+	let baseColor = $state(DEFAULT_MATERIAL_CERAMIC);
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 
 	let isDragging = $state(false);
@@ -31,7 +32,9 @@
 			roughness = sculpture.surface.textureRoughness;
 			glaze = sculpture.surface.glazeTransmission;
 			materialType = sculpture.surface.materialType ?? 'ceramic';
-			baseColor = sculpture.surface.baseColor ?? '#E0C9A6';
+			baseColor =
+				sculpture.surface.baseColor ??
+				(materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC);
 			sculptMode = sculpture.physical.sculptMode ?? uiStore.sculptMode;
 		} else if (!sculpture && !isDragging) {
 			// When no sculpture exists, sync from uiStore

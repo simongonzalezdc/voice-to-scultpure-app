@@ -16,12 +16,13 @@
 	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore } from '$lib/stores/recordingStore.svelte';
+	import { recordingStore } from '$lib/stores/recording.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import type { SculptureDefinition } from '$lib/types';
-	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
-	import { applyDeformation } from '$lib/engine/physicsMapping';
-	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
+import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
+import { applyDeformation } from '$lib/engine/physicsMapping';
+import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
+import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 
 	// Gatekeeper: Check if user has completed calibration
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -53,19 +54,20 @@
 				displacementStrength: 0,
 				// Default to ceramic/beige if not specified
 				materialType: 'ceramic',
-				baseColor: '#E0C9A6'
+				baseColor: DEFAULT_MATERIAL_CERAMIC
 			},
 			deformation: {
 				twist: 0,
 				compression: 0,
 				taper: 0
 			},
-			physical: {
-				height: 150,
-				units: 'mm',
-				wallThickness: undefined,
-				orientation: 'vertical'
-			}
+		physical: {
+			height: 150,
+			units: 'mm',
+			wallThickness: undefined,
+			orientation: 'vertical',
+			sculptMode: 'additive' // PHASE 3.2: Explicitly initialize sculptMode
+		}
 		};
 		setCurrentSculpture(testSculpture);
 	}
@@ -177,6 +179,7 @@
 		background: #1a1a1a;
 	}
 
+	/* PHASE 4.2: Z-Index Management */
 	.app-header {
 		grid-column: 1 / -1;
 		grid-row: 1;
@@ -186,6 +189,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		z-index: 50; /* Header always on top */
+		position: relative;
 	}
 
 	.app-canvas {
@@ -194,6 +199,7 @@
 		position: relative;
 		overflow: hidden;
 		background: #1a1a1a;
+		z-index: 10; /* Canvas behind viewport controls */
 	}
 
 	.app-sidebar {
@@ -202,6 +208,8 @@
 		border-left: 1px solid #4a4a4a;
 		background: #1a1a1a;
 		overflow-y: auto;
+		z-index: 40; /* Sidebar panels above canvas */
+		position: relative;
 		/* padding removed to let TabbedSidebar handle it */
 	}
 
@@ -213,6 +221,8 @@
 		padding: 0 16px;
 		display: flex;
 		align-items: center;
+		z-index: 50; /* Footer always on top */
+		position: relative;
 	}
 </style>
 
@@ -259,9 +269,9 @@
 						<MainScene />
 					</Canvas>
 					<!-- On-screen Viewport Controls -->
-					<div class="absolute top-4 right-4 z-10">
-						<ViewportControls />
-					</div>
+				<div class="absolute top-4 right-4 z-20">
+					<ViewportControls />
+				</div>
 				</div>
 
 			<!-- Sidebar: Right Column with Tabbed Interface -->

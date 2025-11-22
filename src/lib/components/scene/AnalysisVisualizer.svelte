@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { T, useTask } from '@threlte/core';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore } from '$lib/stores/recordingStore.svelte';
+	import { recordingStore } from '$lib/stores/recording.svelte';
 
 	// Ring visualizer that scales with energy/mic level
 	// Base scale and responsive range
