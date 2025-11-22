@@ -3,7 +3,6 @@
 	import { uiStore, setActiveGlaze } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore } from '$lib/stores/recording.svelte';
-	import { useTask } from '@threlte/core';
 	import { Color } from 'three';
 
 	// Voice-driven color mixing
@@ -14,26 +13,48 @@
 	const RESPONSIVENESS = 0.1; // How quickly it responds (0-1, lower = smoother)
 
 	// Update hue and roughness based on voice input
-	useTask(() => {
-		const frame = analysisStore.latestFrame;
-		if (frame && recordingStore.state === 'recording') {
-			// Pitch → Hue: Low pitch = Red (0°), High pitch = Blue (240°)
-			// Map pitch range (80-400 Hz typical) to hue (0-240°)
-			const pitch = frame.pitch || 0;
-			if (pitch > 0) {
-				const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / (400 - 80)));
-				const targetHue = normalizedPitch * 240; // 0° (red) to 240° (blue)
-				currentHue += (targetHue - currentHue) * RESPONSIVENESS;
-			}
+	// Use $effect with requestAnimationFrame for smooth interpolation (useTask requires Canvas context)
+	$effect(() => {
+		if (recordingStore.state !== 'recording') return;
+		
+		let animationFrameId: number;
+		
+		function updateValues() {
+			const frame = analysisStore.latestFrame;
+			if (frame && recordingStore.state === 'recording') {
+				// Pitch → Hue: Low pitch = Red (0°), High pitch = Blue (240°)
+				// Map pitch range (80-400 Hz typical) to hue (0-240°)
+				const pitch = frame.pitch || 0;
+				if (pitch > 0) {
+					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / (400 - 80)));
+					const targetHue = normalizedPitch * 240; // 0° (red) to 240° (blue)
+					currentHue += (targetHue - currentHue) * RESPONSIVENESS;
+				}
 
-			// Timbre → Roughness: Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
-			const timbre = frame.timbre?.spectralCentroid || 0;
-			// Normalize timbre (typical range 1000-5000 Hz) to roughness (0-1)
-			const normalizedTimbre = Math.max(0, Math.min(1, (timbre - 1000) / (5000 - 1000)));
-			// Invert: High timbre (bright) = Low roughness (glossy), Low timbre (dark) = High roughness (matte)
-			const targetRoughness = 1 - normalizedTimbre;
-			currentRoughness += (targetRoughness - currentRoughness) * RESPONSIVENESS;
+				// Timbre → Roughness: Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
+				const timbre = frame.timbre?.spectralCentroid || 0;
+				// Normalize timbre (typical range 1000-5000 Hz) to roughness (0-1)
+				const normalizedTimbre = Math.max(0, Math.min(1, (timbre - 1000) / (5000 - 1000)));
+				// Invert: High timbre (bright) = Low roughness (glossy), Low timbre (dark) = High roughness (matte)
+				const targetRoughness = 1 - normalizedTimbre;
+				currentRoughness += (targetRoughness - currentRoughness) * RESPONSIVENESS;
+				
+				// Continue animation loop while recording
+				if (recordingStore.state === 'recording') {
+					animationFrameId = requestAnimationFrame(updateValues);
+				}
+			}
 		}
+		
+		// Start animation loop
+		animationFrameId = requestAnimationFrame(updateValues);
+		
+		// Cleanup on unmount or when recording stops
+		return () => {
+			if (animationFrameId) {
+				cancelAnimationFrame(animationFrameId);
+			}
+		};
 	});
 
 	// Convert HSL to hex color
