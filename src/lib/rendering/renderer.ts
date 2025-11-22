@@ -18,11 +18,9 @@ export function createRenderer(config: RendererConfig): WebGLRenderer {
 		alpha: false
 	});
 
-	const shadowMapSize = quality === 'high' ? 2048 : 1024;
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = quality === 'high' ? 1 : 2; // PCF vs Basic
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1));
-	renderer.shadowMapSize = shadowMapSize;
 
 	return renderer;
 }

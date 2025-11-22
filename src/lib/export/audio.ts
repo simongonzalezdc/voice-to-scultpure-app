@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const audioBufferToWav = require('audiobuffer-to-wav') as (buffer: AudioBuffer) => ArrayBuffer;
+import toWav from 'audiobuffer-to-wav';
 
 export function convertFloat32ArrayToWav(
 	audioData: Float32Array,
@@ -16,7 +15,7 @@ export function convertFloat32ArrayToWav(
 	channelData.set(audioData);
 	audioBuffer.copyToChannel(channelData, 0);
 
-	const wav = audioBufferToWav(audioBuffer);
+	const wav = toWav(audioBuffer);
 	return new Blob([wav], { type: 'audio/wav' });
 }
 

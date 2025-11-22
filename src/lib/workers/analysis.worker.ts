@@ -29,22 +29,10 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		return null;
 	}
 
-	// Use Meyda's stateless extraction API (works in Web Workers)
-	// Create an AudioBuffer-like object for Meyda.extract
-	const audioBuffer = {
-		getChannelData: (channel: number) => {
-			if (channel === 0) return audioData;
-			return new Float32Array(audioData.length);
-		},
-		numberOfChannels: 1,
-		sampleRate: sampleRate,
-		length: audioData.length
-	};
-
-	// Extract features using stateless API
+	// Extract features using stateless API with raw Float32Array
 	const features = Meyda.extract(
 		['rms', 'zcr', 'spectralCentroid'],
-		audioBuffer as unknown as AudioBuffer
+		audioData
 	);
 
 	if (!features) {

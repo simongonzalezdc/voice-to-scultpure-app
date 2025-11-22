@@ -12,6 +12,7 @@
 	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
+	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 	import { uiStore, startOnboarding, togglePanel } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
