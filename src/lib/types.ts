@@ -41,6 +41,7 @@ export interface SculptureDefinition {
 	surface: SculptureSurface;
 	deformation: SculptureDeformation;
 	physical: SculpturePhysical;
+	vertexColors?: number[]; // RGB values as array (3 values per vertex) for glazing
 	audioBlobId?: string;
 	instructions?: string[];
 }

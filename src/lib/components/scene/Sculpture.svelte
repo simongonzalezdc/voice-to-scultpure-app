@@ -10,7 +10,7 @@
 	import { spring } from 'svelte/motion';
 import type { SculptureDefinition } from '$lib/types';
 import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
-import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
+	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
@@ -86,21 +86,29 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 		// Use dynamic segments count for Low Poly effect
 		const geometry = new LatheGeometry(vectors, segments);
 		
-		// DIRECTIVE 2B: Initialize vertex colors if in glaze-paint mode
-		// Note: Full glazing implementation would update colors during recording based on activeGlaze and volume
-		if (uiStore.toolMode === 'glaze-paint' && geometry.attributes.position) {
+		// DIRECTIVE 2B: Initialize vertex colors if saved colors exist or in glaze mode
+		if (geometry.attributes.position) {
 			const positions = geometry.attributes.position;
-			const colors = new Float32Array(positions.count * 3);
-			const baseColorObj = new Color(materialColor);
+			const vertexCount = positions.count;
 			
-			// Initialize all vertices with base color
-			for (let i = 0; i < positions.count; i++) {
-				colors[i * 3] = baseColorObj.r;
-				colors[i * 3 + 1] = baseColorObj.g;
-				colors[i * 3 + 2] = baseColorObj.b;
+			// Check if sculpture has saved vertex colors
+			if (sculpture.vertexColors && sculpture.vertexColors.length === vertexCount * 3) {
+				// Use saved colors
+				const colors = new Float32Array(sculpture.vertexColors);
+				geometry.setAttribute('color', new BufferAttribute(colors, 3));
+			} else if (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') {
+				// Initialize with base color if no saved colors
+				const colors = new Float32Array(vertexCount * 3);
+				const baseColorObj = new Color(materialColor);
+				
+				for (let i = 0; i < vertexCount; i++) {
+					colors[i * 3] = baseColorObj.r;
+					colors[i * 3 + 1] = baseColorObj.g;
+					colors[i * 3 + 2] = baseColorObj.b;
+				}
+				
+				geometry.setAttribute('color', new BufferAttribute(colors, 3));
 			}
-			
-			geometry.setAttribute('color', new BufferAttribute(colors, 3));
 		}
 		
 		return geometry;
@@ -123,26 +131,72 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 	// Update geometry in render loop for live audio modulation
 	useTask(() => {
 		if (recordingStore.state === 'recording') {
-			// Live Visualization: Update Live Mesh
 			const frames = getCapturedFrames();
-			if (frames.length > 0 && liveMeshRef) {
-				// Get sculpt mode from current sculpture or default to 'additive'
-				const mode = sculpture?.physical.sculptMode ?? 'additive';
-				
-				// Generate geometry on the fly from current frames with sculpt mode
-				const profile = generateLathe(frames, appSettings.userProfile, mode);
-				
-				// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
-				if (!profile || profile.length === 0) return;
-				const validProfile = profile.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
-				if (validProfile.length < 2) return;
-				
-				const vectors = validProfile.map(p => new Vector2(p.x, p.y));
-				const newGeom = new LatheGeometry(vectors, 32);
-				
-				const oldGeom = liveMeshRef.geometry;
-				liveMeshRef.geometry = newGeom;
-				if (oldGeom) oldGeom.dispose();
+			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+			
+			if (isGlazeMode) {
+				// GLAZE MODE: Non-destructive painting - use existing geometry, only update colors
+				if (sculpture && meshRef && frames.length > 0) {
+					// Use existing sculpture geometry (don't regenerate shape)
+					const existingGeom = meshRef.geometry;
+					if (existingGeom && existingGeom.attributes.position) {
+						// Generate glaze colors from frames
+						const glazeColors = generateGlaze(frames, uiStore.activeGlaze);
+						
+						// Apply colors to geometry
+						// Map frame index to vertex rings (each frame corresponds to a ring of vertices)
+						const positions = existingGeom.attributes.position;
+						const vertexCount = positions.count;
+						const ringCount = Math.floor(vertexCount / 32); // Assuming 32 segments per ring
+						
+						// Create color array matching vertex count
+						const colors = new Float32Array(vertexCount * 3);
+						const frameCount = Math.min(glazeColors.length / 3, ringCount);
+						
+						for (let ringIdx = 0; ringIdx < ringCount; ringIdx++) {
+							const frameIdx = Math.floor((ringIdx / ringCount) * frameCount);
+							const colorIdx = frameIdx * 3;
+							
+							// Get color for this ring
+							const r = glazeColors[colorIdx] || 1;
+							const g = glazeColors[colorIdx + 1] || 1;
+							const b = glazeColors[colorIdx + 2] || 1;
+							
+							// Apply to all vertices in this ring (32 vertices per ring)
+							for (let segIdx = 0; segIdx < 32; segIdx++) {
+								const vertexIdx = ringIdx * 32 + segIdx;
+								if (vertexIdx < vertexCount) {
+									colors[vertexIdx * 3] = r;
+									colors[vertexIdx * 3 + 1] = g;
+									colors[vertexIdx * 3 + 2] = b;
+								}
+							}
+						}
+						
+						existingGeom.setAttribute('color', new BufferAttribute(colors, 3));
+					}
+				}
+			} else {
+				// SCULPT MODE: Update geometry from frames
+				if (frames.length > 0 && liveMeshRef) {
+					// Get sculpt mode from current sculpture or default to 'additive'
+					const mode = sculpture?.physical.sculptMode ?? 'additive';
+					
+					// Generate geometry on the fly from current frames with sculpt mode
+					const profile = generateLathe(frames, appSettings.userProfile, mode);
+					
+					// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
+					if (!profile || profile.length === 0) return;
+					const validProfile = profile.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+					if (validProfile.length < 2) return;
+					
+					const vectors = validProfile.map(p => new Vector2(p.x, p.y));
+					const newGeom = new LatheGeometry(vectors, 32);
+					
+					const oldGeom = liveMeshRef.geometry;
+					liveMeshRef.geometry = newGeom;
+					if (oldGeom) oldGeom.dispose();
+				}
 			}
 		} else if (sculpture && meshRef) {
 			// Modulate existing sculpture if needed (breathing effect)
@@ -284,8 +338,8 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 {#if sculpture || recordingStore.state === 'recording'}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
-		<!-- Main Sculpture (Only visible if not recording AND sculpture exists) -->
-		{#if sculpture && recordingStore.state !== 'recording'}
+		<!-- Main Sculpture (Visible during glaze mode recording, hidden during sculpt mode recording) -->
+		{#if sculpture && (recordingStore.state !== 'recording' || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint'))}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 				<!-- Material Switching -->
 			{#if isPlastic}
@@ -311,14 +365,14 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 						metalness={0.1}
 						ior={1.5}
 						envMapIntensity={1.0}
-						vertexColors={uiStore.toolMode === 'glaze-paint'}
+						vertexColors={(sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint')}
 					/>
 				{/if}
 			</T.Mesh>
 		{/if}
 
-		<!-- Live Sculpture (Visible ONLY during recording) -->
-		{#if recordingStore.state === 'recording'}
+		<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
+		{#if recordingStore.state === 'recording' && uiStore.toolMode === 'sculpt'}
 			<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
 				<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
 				<T.MeshPhysicalMaterial

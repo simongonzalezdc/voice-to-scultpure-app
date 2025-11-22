@@ -1,4 +1,5 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
+import { Color } from 'three';
 
 // Geometric design constants
 const BASE_RADIUS = 0.5; 
@@ -201,6 +202,64 @@ export function deriveSurfaceParameters(
 		textureRoughness: normalizedTimbre,
 		glazeTransmission: 0.3 + normalizedVariance * 0.4
 	};
+}
+
+/**
+ * Generate glaze colors from audio frames
+ * Maps pitch to hue and energy to intensity/alpha
+ * @param frames - Audio analysis frames
+ * @param activeGlaze - Active glaze color and roughness from uiStore
+ * @returns Float32Array of RGB values (3 values per vertex: R, G, B)
+ */
+export function generateGlaze(
+	frames: AnalysisFrame[],
+	activeGlaze: { color: string; roughness: number }
+): Float32Array {
+	if (!frames.length) {
+		// Return default color (white) if no frames
+		return new Float32Array([1, 1, 1]);
+	}
+
+	// Resample frames to match geometry resolution (same as generateLathe)
+	const maxPoints = 200;
+	const samplingRate = Math.ceil(frames.length / maxPoints);
+	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
+
+	// Base color from activeGlaze
+	const baseColor = new Color(activeGlaze.color);
+	const baseR = baseColor.r;
+	const baseG = baseColor.g;
+	const baseB = baseColor.b;
+
+	// Calculate colors for each frame
+	const colors: number[] = [];
+
+	for (const frame of sampledFrames) {
+		// Map pitch to hue (100-800 Hz typical range)
+		const pitch = frame.pitch || 0;
+		const normalizedPitch = Math.max(0, Math.min(1, (pitch - 100) / (800 - 100)));
+		
+		// Convert pitch to HSL hue (0-360 degrees)
+		// Low pitch = Red (0°), High pitch = Blue (240°)
+		const hue = normalizedPitch * 240; // 0° (red) to 240° (blue)
+		
+		// Map energy to intensity/alpha (blending power)
+		const energy = frame.energy || 0;
+		const intensity = Math.min(1, energy * 2); // Scale energy to 0-1
+		
+		// Create color from hue
+		const pitchColor = new Color().setHSL(hue / 360, 0.8, 0.6); // Saturated, medium lightness
+		
+		// Blend base glaze color with pitch-based hue
+		// Intensity controls how much the pitch color affects the base
+		const r = baseR + (pitchColor.r - baseR) * intensity;
+		const g = baseG + (pitchColor.g - baseG) * intensity;
+		const b = baseB + (pitchColor.b - baseB) * intensity;
+		
+		colors.push(r, g, b);
+	}
+
+	return new Float32Array(colors);
 }
 
 export function createSculptureFromFrames(

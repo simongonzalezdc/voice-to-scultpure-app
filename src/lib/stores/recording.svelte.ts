@@ -1,8 +1,8 @@
-import { setCurrentSculpture, sculptureStore } from './sculptureStore.svelte';
-import { resetAnalysis } from './analysisStore.svelte';
-import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
-import { appSettings } from './appSettingsStore.svelte';
-import { uiStore } from './uiStore.svelte';
+import { setCurrentSculpture, sculptureStore, updateSculptureColors } from './sculptureStore.svelte';
+	import { resetAnalysis } from './analysisStore.svelte';
+	import { createSculptureFromFrames, generateGlaze } from '$lib/engine/physicsMapping';
+	import { appSettings } from './appSettingsStore.svelte';
+	import { uiStore } from './uiStore.svelte';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -45,12 +45,21 @@ export function getCapturedFrames() {
 
 /**
  * Start recording: Initialize frame capture and set state to 'recording'
+ * DIRECTIVE 2: Non-destructive for glaze mode - only clears frames, preserves sculpture
  */
 export function startRecording(): void {
+	const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+	
+	// Clear frames array (prepare for new recording)
 	capturedFrames = [];
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
-	console.log('🎙️ [RECORDING] Started - frames reset to 0');
+	
+	if (isGlazeMode) {
+		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
+	} else {
+		console.log('🎙️ [RECORDING] Started - frames reset to 0');
+	}
 }
 
 /**
@@ -73,15 +82,34 @@ export function stopRecording(): void {
 	// DEAD LOCK GUARD: use try/finally to guarantee state transition
 	try {
 		if (capturedFrames.length > 0) {
-			console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
-			// Create a deep copy to avoid reactivity issues during processing
-			const frames = JSON.parse(JSON.stringify(capturedFrames));
-			// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
-			const mode =
-				sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-			const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
-			setCurrentSculpture(sculpture);
-			console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
+			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+			
+			if (isGlazeMode) {
+				// GLAZE MODE: Non-destructive - only update colors, preserve geometry
+				if (!sculptureStore.currentSculpture) {
+					console.warn('⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.');
+				} else {
+					console.log(`🎨 [RECORDING] Applying glaze colors from ${capturedFrames.length} frames...`);
+					// Create a deep copy to avoid reactivity issues
+					const frames = JSON.parse(JSON.stringify(capturedFrames));
+					// Generate glaze colors
+					const glazeColors = generateGlaze(frames, uiStore.activeGlaze);
+					// Update colors without changing geometry
+					updateSculptureColors(glazeColors);
+					console.log(`✅ [RECORDING] Glaze colors applied (${glazeColors.length / 3} vertices)`);
+				}
+			} else {
+				// SCULPT MODE: Create new sculpture from frames
+				console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
+				// Create a deep copy to avoid reactivity issues during processing
+				const frames = JSON.parse(JSON.stringify(capturedFrames));
+				// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
+				const mode =
+					sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
+				const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
+				setCurrentSculpture(sculpture);
+				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
+			}
 		} else {
 			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');
 		}
