@@ -5,7 +5,7 @@
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh, BoxGeometry } from 'three';
+	import { LatheGeometry, Vector2, Mesh, BoxGeometry, Color, BufferGeometry, BufferAttribute } from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 import type { SculptureDefinition } from '$lib/types';
@@ -84,7 +84,26 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 		// 6. Generate Geometry from final deformed + modulated points
 		const vectors = basePoints.map(p => new Vector2(p.x, p.y));
 		// Use dynamic segments count for Low Poly effect
-		return new LatheGeometry(vectors, segments);
+		const geometry = new LatheGeometry(vectors, segments);
+		
+		// DIRECTIVE 2B: Initialize vertex colors if in glaze-paint mode
+		// Note: Full glazing implementation would update colors during recording based on activeGlaze and volume
+		if (uiStore.toolMode === 'glaze-paint' && geometry.attributes.position) {
+			const positions = geometry.attributes.position;
+			const colors = new Float32Array(positions.count * 3);
+			const baseColorObj = new Color(materialColor);
+			
+			// Initialize all vertices with base color
+			for (let i = 0; i < positions.count; i++) {
+				colors[i * 3] = baseColorObj.r;
+				colors[i * 3 + 1] = baseColorObj.g;
+				colors[i * 3 + 2] = baseColorObj.b;
+			}
+			
+			geometry.setAttribute('color', new BufferAttribute(colors, 3));
+		}
+		
+		return geometry;
 	}
 
 	// Create geometry immediately when meshRef is bound and sculpture exists
@@ -281,6 +300,7 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 				/>
 				{:else}
 					<!-- Ceramic: Physical Material (transmission, clearcoat) -->
+					<!-- DIRECTIVE 2B: Enable vertex colors for glazing -->
 					<T.MeshPhysicalMaterial
 						transmission={sculpture.surface.glazeTransmission * 0.8} 
 						thickness={0.5}
@@ -291,6 +311,7 @@ import { applyDeformation, generateLathe } from '$lib/engine/physicsMapping';
 						metalness={0.1}
 						ior={1.5}
 						envMapIntensity={1.0}
+						vertexColors={uiStore.toolMode === 'glaze-paint'}
 					/>
 				{/if}
 			</T.Mesh>

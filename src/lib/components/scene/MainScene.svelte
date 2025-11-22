@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { T } from '@threlte/core';
-	import { Grid, ContactShadows } from '@threlte/extras';
-	import Sculpture from './Sculpture.svelte';
-	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
-	import OrbitControls from './OrbitControls.svelte';
-	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { uiStore } from '$lib/stores/uiStore.svelte';
+import { T } from '@threlte/core';
+import { Grid, ContactShadows } from '@threlte/extras';
+import Sculpture from './Sculpture.svelte';
+import AnalysisVisualizer from './AnalysisVisualizer.svelte';
+import OrbitControls from './OrbitControls.svelte';
+import GhostMachines from './GhostMachines.svelte';
+import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 	
 	// PHASE 2.1: Wire ViewportControls to Scene
 	// Lighting controls - Derived from global UI store
@@ -50,6 +51,9 @@
 	fadeDistance={50}
 />
 <ContactShadows opacity={0.5} scale={20} blur={2} far={10} resolution={256} color="#000000" />
+
+<!-- Ghost Machines: Contextual Rigs (Pottery Wheel / Lathe) -->
+<GhostMachines />
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
 <AnalysisVisualizer />

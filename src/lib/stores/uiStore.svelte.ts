@@ -11,6 +11,7 @@ export const uiStore = $state<{
 		projectList: boolean;
 		settings: boolean;
 		fabricationPanel: boolean;
+		glazeMixer: boolean;
 	};
 	onboarding: {
 		active: boolean;
@@ -19,6 +20,11 @@ export const uiStore = $state<{
 	};
 	orientation: 'vertical' | 'horizontal';
 	sculptMode: 'additive' | 'subtractive';
+	toolMode: 'sculpt' | 'glaze-mix' | 'glaze-paint';
+	activeGlaze: {
+		color: string; // Hex color
+		roughness: number; // 0-1
+	};
 	view: {
 		lightingAngle: number;
 		zoom: number;
@@ -28,7 +34,8 @@ export const uiStore = $state<{
 		aiPanel: false,
 		projectList: false,
 		settings: false,
-		fabricationPanel: false
+		fabricationPanel: false,
+		glazeMixer: false
 	},
 	onboarding: {
 		active: false,
@@ -37,6 +44,11 @@ export const uiStore = $state<{
 	},
 	orientation: 'vertical',
 	sculptMode: 'additive',
+	toolMode: 'sculpt',
+	activeGlaze: {
+		color: '#FFFFFF',
+		roughness: 0.5
+	},
 	view: {
 		lightingAngle: 0,
 		zoom: 1.0
@@ -118,5 +130,13 @@ export function setZoom(zoom: number): void {
 
 export function setSculptMode(mode: 'additive' | 'subtractive'): void {
 	uiStore.sculptMode = mode;
+}
+
+export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint'): void {
+	uiStore.toolMode = mode;
+}
+
+export function setActiveGlaze(color: string, roughness: number): void {
+	uiStore.activeGlaze = { color, roughness };
 }
 

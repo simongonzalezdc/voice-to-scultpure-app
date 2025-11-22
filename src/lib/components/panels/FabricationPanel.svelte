@@ -2,6 +2,7 @@
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
+	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition } from '$lib/types';
 
@@ -118,6 +119,22 @@
 		} catch (error) {
 			console.error('Export failed:', error);
 			alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	async function handleExportGLB() {
+		const sculpture = sculptureStore.currentSculpture;
+		if (!sculpture) {
+			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			return;
+		}
+
+		try {
+			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
+			await exportSculptureToGLB(sculpture, filename);
+		} catch (error) {
+			console.error('GLB export failed:', error);
+			alert(`GLB export failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
@@ -253,6 +270,15 @@ import { uiStore, closePanel } from '$lib/stores/uiStore.svelte';
 						onclick={handleExportSTL}
 					>
 						Export STL (3D Print)
+					</button>
+
+					<!-- GLB Export (Universal 3D Format) -->
+					<button
+						class="button-primary px-4 py-2 w-full text-sm"
+						type="button"
+						onclick={handleExportGLB}
+					>
+						Export GLB (Universal 3D)
 					</button>
 
 					<!-- Blueprint Export (Ceramic) -->

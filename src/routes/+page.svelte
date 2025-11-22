@@ -13,6 +13,7 @@
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
+	import LegendOverlay from '$lib/components/overlay/LegendOverlay.svelte';
 	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
@@ -343,6 +344,11 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 					</div>
 				</div>
 			{/if}
+			{#if uiStore.panels.glazeMixer}
+				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
+					<GlazeMixer />
+				</div>
+			{/if}
 		{:else}
 			<!-- Tutorial/Gating View (shown when not calibrated) -->
 			<div class="flex-1 relative overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
@@ -354,6 +360,11 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 		
 		<!-- Tutorial overlay (always rendered, but only visible when active) -->
 		<Tutorial />
+		
+		<!-- Visual Legend Overlay (context-aware guidance) -->
+		{#if showStudio}
+			<LegendOverlay />
+		{/if}
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">
