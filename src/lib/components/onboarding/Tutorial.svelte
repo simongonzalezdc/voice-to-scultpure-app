@@ -186,8 +186,11 @@
 					<h2 class="text-2xl font-bold mb-4">Calibration</h2>
 					{#if calibrationState === 'idle'}
 						<p class="text-secondary mb-4">
-							We'll record 5 seconds of your voice to calibrate the system. Speak normally during
-							this time.
+							We'll record 5 seconds to calibrate the system to your voice and environment.
+						</p>
+						<p class="text-secondary mb-4 text-sm">
+							<strong>Make a range of sounds:</strong> Low hums, high whistles, and sharp noises (Pa! Ka! Shhh!).
+							This helps us calibrate texture, pitch, and attack detection.
 						</p>
 						<button
 							class="button-primary px-4 py-2"
@@ -198,7 +201,10 @@
 						</button>
 					{:else if calibrationState === 'recording'}
 						<p class="text-secondary mb-4">
-							Recording... Please speak normally. The system is analyzing your voice characteristics.
+							Recording... Make diverse sounds: Low hums, high whistles, sharp attacks (Pa! Ka! Shhh!).
+						</p>
+						<p class="text-secondary mb-2 text-sm">
+							The system is analyzing your voice characteristics, timbre range, and attack patterns.
 						</p>
 						<div class="text-4xl font-bold text-brand-primary mb-4 text-center">
 							{calibrationCountdown}

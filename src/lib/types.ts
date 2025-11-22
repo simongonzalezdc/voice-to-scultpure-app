@@ -63,12 +63,13 @@ export interface UserProfile {
 		p75: number;
 	};
 	timbreRange: {
-		min: number;
-		max: number;
+		min: number; // Timbre floor (noise/silence baseline)
+		max: number; // Timbre ceiling (max grit/harsh sounds)
 		p25: number;
 		p50: number;
 		p75: number;
 	};
+	attackThreshold: number; // Dynamic threshold for detecting sharp attacks (chisel effect)
 }
 
 export type AIProvider = 'cloud' | 'local';

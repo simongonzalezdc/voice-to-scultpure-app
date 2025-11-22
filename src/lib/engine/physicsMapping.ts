@@ -41,6 +41,9 @@ export function generateLathe(
 	const SENSITIVITY = 2.0;
 	const MIN_RADIUS = 0.1; // Constraint: never go below this
 
+	// Track previous frame for attack detection
+	let previousFrame: AnalysisFrame | null = null;
+
 	// 3. Map Frames to Points
 	return sampledFrames.map((frame, index) => {
 		// AGGRESSIVE MAPPING
@@ -49,10 +52,6 @@ export function generateLathe(
 		// Apply Noise Gate
 		if (energy < silenceThreshold) {
 			energy = 0;
-		} else {
-			// Normalize energy relative to the gate
-			// energy = Math.max(0, energy - noiseFloor); 
-            // Let's keep it simple to avoid clipping legitimate low volume
 		}
 
 		if (energy > 0.1) console.log("I HEAR YOU:", energy);
@@ -71,14 +70,65 @@ export function generateLathe(
 			radius = BASE_RADIUS + (energy * SENSITIVITY);
 		}
 		
-		// Spikiness (Frequency)
-		// If Pitch > 400Hz, add random jaggedness
-		const jitter = frame.pitch > 400 ? (Math.random() * 0.1) : 0;
+		// Timbre Normalization: Use calibrated range to normalize spectral centroid
+		// Clamp noise floor so background hiss = 0 roughness
+		let normalizedRoughness = 0;
+		if (profile?.timbreRange && frame.timbre?.spectralCentroid) {
+			const tMin = profile.timbreRange.min;
+			const tMax = profile.timbreRange.max;
+			const rawCentroid = frame.timbre.spectralCentroid;
+			
+			// Normalize 0 to 1, clamping to prevent negative values
+			if (tMax > tMin) {
+				normalizedRoughness = Math.max(0, Math.min(1, (rawCentroid - tMin) / (tMax - tMin)));
+			}
+		}
+		
+		// Use normalized roughness for noise modifier (jitter)
+		const noiseMod = (Math.random() - 0.5) * normalizedRoughness * 0.15;
+		
+		// Dynamic Attack Detection: Detect sharp energy spikes (chisel effect)
+		let attackJitter = 0;
+		if (previousFrame && profile?.attackThreshold) {
+			const threshold = profile.attackThreshold || 0.15; // Fallback if missing
+			const deltaEnergy = Math.abs(frame.energy - previousFrame.energy);
+			const isAttack = deltaEnergy > threshold;
+			
+			if (isAttack) {
+				// Sharp attack creates jagged edges (chisel effect)
+				attackJitter = (Math.random() - 0.5) * 0.2;
+			}
+		}
+		
+		// Pitch Scaling: Normalize pitch to user's range for consistent visibility
+		let pitchJitter = 0;
+		if (frame.pitch > 0 && profile?.pitchRange) {
+			const pitchMin = profile.pitchRange.min || 80;
+			const pitchMax = profile.pitchRange.max || 400;
+			const pitchRange = pitchMax - pitchMin;
+			
+			if (pitchRange > 0) {
+				// Normalize pitch to 0-1, then scale jitter
+				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
+				// Higher pitches get more jitter, but scale so low notes are still visible
+				const pitchMultiplier = 0.3 + (normalizedPitch * 0.7); // 0.3 to 1.0 range
+				pitchJitter = (Math.random() - 0.5) * pitchMultiplier * 0.1;
+			}
+		} else if (frame.pitch > 400) {
+			// Fallback: If no profile, use simple threshold
+			pitchJitter = (Math.random() - 0.5) * 0.1;
+		}
+		
+		// Combine all jitter sources
+		const totalJitter = noiseMod + attackJitter + pitchJitter;
 		
 		// Calculate Y based on index
 		const normalizedHeight = index / (sampledFrames.length - 1 || 1);
 
-		return { x: Math.max(MIN_RADIUS, radius + jitter), y: normalizedHeight };
+		// Update previous frame for next iteration
+		previousFrame = frame;
+
+		return { x: Math.max(MIN_RADIUS, radius + totalJitter), y: normalizedHeight };
 	});
 }
 
@@ -110,7 +160,10 @@ export function applyDeformation(
 	});
 }
 
-export function deriveSurfaceParameters(frames: AnalysisFrame[]): {
+export function deriveSurfaceParameters(
+	frames: AnalysisFrame[],
+	profile?: UserProfile
+): {
 	textureRoughness: number;
 	glazeTransmission: number;
 } {
@@ -119,9 +172,24 @@ export function deriveSurfaceParameters(frames: AnalysisFrame[]): {
 	}
 
 	// Average timbre (spectral centroid) influences roughness
-	const avgTimbre =
-		frames.reduce((sum, f) => sum + (f.timbre?.spectralCentroid || 0), 0) / frames.length;
-	const normalizedTimbre = Math.min(1, Math.max(0, avgTimbre / 5000)); // Normalize to 0-1
+	// Use calibrated range if available, otherwise fallback to raw normalization
+	let normalizedTimbre = 0.5; // Default
+	if (profile?.timbreRange) {
+		const avgTimbre =
+			frames.reduce((sum, f) => sum + (f.timbre?.spectralCentroid || 0), 0) / frames.length;
+		const tMin = profile.timbreRange.min;
+		const tMax = profile.timbreRange.max;
+		
+		if (tMax > tMin) {
+			// Normalize using calibrated range
+			normalizedTimbre = Math.max(0, Math.min(1, (avgTimbre - tMin) / (tMax - tMin)));
+		}
+	} else {
+		// Fallback: Raw normalization
+		const avgTimbre =
+			frames.reduce((sum, f) => sum + (f.timbre?.spectralCentroid || 0), 0) / frames.length;
+		normalizedTimbre = Math.min(1, Math.max(0, avgTimbre / 5000));
+	}
 
 	// Energy variance influences glaze
 	const energies = frames.map((f) => f.energy);
@@ -142,7 +210,7 @@ export function createSculptureFromFrames(
 	mode: 'additive' | 'subtractive' = 'additive'
 ): SculptureDefinition {
 	const radiusCurve = generateLathe(frames, profile, mode);
-	const surface = deriveSurfaceParameters(frames);
+	const surface = deriveSurfaceParameters(frames, profile);
 
 	return {
 		id: crypto.randomUUID(),
