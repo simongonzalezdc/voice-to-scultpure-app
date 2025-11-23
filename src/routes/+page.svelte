@@ -16,11 +16,11 @@
 	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation, setToolMode } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore } from '$lib/stores/recording.svelte';
+	import { recordingStore, getCapturedFrames, hasCapturedFrames } from '$lib/stores/recording.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import type { SculptureDefinition } from '$lib/types';
 import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
-import { applyDeformation } from '$lib/engine/physicsMapping';
+import { applyDeformation, createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 
@@ -35,6 +35,93 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 				startOnboarding('welcome');
 			}
 		}
+	});
+
+	// LIVE PREVIEW: Reactive regeneration for all generative parameters
+	// Watches: constraintMode, sculptMode, sculptZone
+	// This allows users to see the shape morph in real-time when toggling modes
+	let lastRegenerationState: { mode: string, sculptMode: string, zone: string } | null = null;
+	
+	$effect(() => {
+		// Watch for changes to generative parameters
+		const currentConstraintMode = uiStore.constraintMode;
+		const currentSculptMode = uiStore.sculptMode;
+		const currentZone = uiStore.sculptZone;
+		
+		// CRITICAL: Skip if recording or processing (prevents infinite loop during state transitions)
+		if (recordingStore.state === 'recording' || recordingStore.state === 'processing') {
+			return;
+		}
+		
+		// Only regenerate if:
+		// 1. We have a current sculpture
+		// 2. We have captured frames to regenerate from
+		// 3. State has actually changed (prevent infinite loop)
+		if (!sculptureStore.currentSculpture || !hasCapturedFrames()) {
+			return;
+		}
+		
+		// Create state signature to detect actual changes
+		const currentState = {
+			mode: currentConstraintMode,
+			sculptMode: currentSculptMode,
+			zone: `${currentZone.min}-${currentZone.max}`
+		};
+		
+		// Skip if state hasn't changed (prevents regeneration loop)
+		if (lastRegenerationState && 
+		    lastRegenerationState.mode === currentState.mode &&
+		    lastRegenerationState.sculptMode === currentState.sculptMode &&
+		    lastRegenerationState.zone === currentState.zone) {
+			return;
+		}
+		
+		// Skip initial render (when lastRegenerationState is null)
+		if (lastRegenerationState === null) {
+			lastRegenerationState = currentState;
+			return;
+		}
+		
+		const frames = getCapturedFrames();
+		const currentSculpture = sculptureStore.currentSculpture;
+		
+		// Log what changed
+		if (lastRegenerationState.sculptMode !== currentState.sculptMode) {
+			console.log(`🔄 [SCULPT MODE] Changed to "${currentSculptMode}" - regenerating sculpture...`);
+		} else if (lastRegenerationState.mode !== currentState.mode) {
+			console.log(`🔄 [CONSTRAINTS] Changed to "${currentConstraintMode}" - regenerating sculpture...`);
+		} else {
+			console.log(`🔄 [ZONE] Changed to ${currentZone.min}-${currentZone.max} - regenerating sculpture...`);
+		}
+		
+		const zone = (currentZone.min > 0 || currentZone.max < 1) 
+			? currentZone 
+			: undefined;
+		
+		const regenerated = createSculptureFromFrames(
+			frames,
+			appSettings.userProfile,
+			currentSculpture.name, // Keep the same name
+			currentSculptMode, // Use current UI sculpt mode
+			zone,
+			currentConstraintMode // Apply current constraint mode
+		);
+		
+		// Preserve user-modified properties (sliders)
+		regenerated.deformation = currentSculpture.deformation;
+		regenerated.surface = currentSculpture.surface;
+		// Update physical.sculptMode to match UI
+		regenerated.physical = {
+			...currentSculpture.physical,
+			sculptMode: currentSculptMode
+		};
+		regenerated.vertexColors = currentSculpture.vertexColors;
+		
+		// Update state signature BEFORE setting sculpture (prevents loop)
+		lastRegenerationState = currentState;
+		
+		setCurrentSculpture(regenerated);
+		console.log(`✅ [LIVE PREVIEW] Sculpture regenerated with current settings`);
 	});
 
 	function generateTestMesh() {

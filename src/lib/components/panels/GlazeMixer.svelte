@@ -9,38 +9,44 @@
 	// Live monitoring: Reactive color based on voice input (no recording needed)
 	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
 	
-	// DIRECTIVE 1: Apply Exponential Noise Gate (matches physicsMapping.ts)
-	// Cut off bottom 10% and apply exponential curve to ignore background noise
-	const NOISE_FLOOR = 0.1;
-	const EXPONENT = 2.5;
-	const ENERGY_MULTIPLIER = 4.0;
+	// DIRECTIVE 2: Improved Noise Gate & Non-Linear Curve
+	// Crush background noise (TV, fans, etc.) and make it usable
+	const NOISE_FLOOR = 0.15; // Ignore anything below 15% (was 10%)
 	
 	let rawEnergy = $derived(analysisStore.micLevel);
 	let liveEnergy = $derived.by(() => {
-		// 1. Apply Noise Gate (Cut off bottom 10%)
+		// 1. Noise Gate (Crush background noise)
 		const gatedEnergy = Math.max(0, rawEnergy - NOISE_FLOOR);
 		
-		// 2. Apply Exponential Curve (Crush background noise, boost loud sounds)
-		// Matches the feel of the Sculpt Mode
-		const nonLinearEnergy = Math.pow(gatedEnergy, EXPONENT) * ENERGY_MULTIPLIER;
-		return Math.min(1.0, nonLinearEnergy);
+		// 2. Non-Linear Curve (Make it usable)
+		// Input 0.2 -> Output 0.05 (Faint)
+		// Input 0.8 -> Output 1.0 (Vivid)
+		return Math.min(1.0, Math.pow(gatedEnergy, 2) * 3.0);
 	});
 	
 	let liveTimbre = $derived(analysisStore.latestFrame?.timbre?.spectralCentroid || 0);
 
-	// DIRECTIVE 1: Retune Pitch-to-Hue for Human Vocal Range
-	// 80Hz (Low Male) = Red (0°), 600Hz (High Soprano) = Purple (280°)
+	// DIRECTIVE 2: Pitch Safety - Persist hue state to lock last valid color
+	// Prevents flashing Red when pitch detection fails
 	const MIN_HZ = 80;
 	const MAX_HZ = 600;
+	const MIN_PITCH_HZ = 50; // Minimum valid pitch (below this is noise)
+	const MIN_ENERGY_FOR_PITCH = 0.05; // Need at least 5% energy to trust pitch
 	
-	let hue = $derived.by(() => {
-		if (livePitch <= 0) return 0; // No pitch detected
+	let hue = $state(0); // Persist state (not derived)
+	
+	// Update hue only when we have valid pitch + energy
+	$effect(() => {
+		const detectedPitch = analysisStore.latestFrame?.pitch || 0;
+		const currentEnergy = liveEnergy;
 		
-		// Normalize to 0-1 range
-		const t = Math.max(0, Math.min(1, (livePitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
-		
-		// Map to Hue (0 = Red, 280 = Purple)
-		return t * 280;
+		// Only update hue if we have sufficient energy AND valid pitch
+		if (currentEnergy > MIN_ENERGY_FOR_PITCH && detectedPitch > MIN_PITCH_HZ) {
+			// Map 80Hz-600Hz to 0-360 Hue
+			const normalizedPitch = Math.max(0, Math.min(1, (detectedPitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
+			hue = normalizedPitch * 360;
+		}
+		// Otherwise, keep the last valid hue (don't reset to 0)
 	});
 
 	// DIRECTIVE 2: Remap Volume to Saturation & Lightness (NOT Opacity)

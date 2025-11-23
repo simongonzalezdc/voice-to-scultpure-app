@@ -9,6 +9,7 @@ let analyserDataArray: Uint8Array<ArrayBuffer> | null = null;
 let visualizerPollInterval: number | null = null;
 let gainNode: GainNode | null = null; // Directive 2: Keep graph alive
 let inputGainNode: GainNode | null = null; // Mic sensitivity boost
+let sourceNode: MediaStreamAudioSourceNode | null = null; // Track the mic source node
 const MIC_SENSITIVITY_MULTIPLIER = 3.0; // Increase mic sensitivity (1.0 = normal, 3.0 = 3x boost)
 
 // CRITICAL FIX: Volume smoothing to prevent jitter
@@ -103,10 +104,17 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 		throw new Error('Audio context not initialized');
 	}
 
-	const source = audioContext.createMediaStreamSource(stream);
+	// Disconnect existing source if present (prevents duplicate connections)
+	if (sourceNode) {
+		sourceNode.disconnect();
+		sourceNode = null;
+	}
+
+	// Create and track the source node
+	sourceNode = audioContext.createMediaStreamSource(stream);
 	
 	// Connect source through input gain node for sensitivity boost
-	source.connect(inputGainNode);
+	sourceNode.connect(inputGainNode);
 	
 	// Connect amplified signal to both worklet (for recording) and analyser (for visualizer bypass)
 	inputGainNode.connect(workletNode);
@@ -114,6 +122,8 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 
 	// Start the visualizer bypass polling
 	startVisualizerBypass();
+	
+	console.log('🎤 [AUDIO] Microphone connected to worklet - ready to record');
 }
 
 // Directive 1: Visualizer Bypass - Direct mic level calculation
@@ -185,10 +195,19 @@ export function stopMicrophoneCapture(): void {
 	// and provides essential real-time feedback.
 	// Only stop it on full audio context reset.
 	
+	// Disconnect source node
+	if (sourceNode) {
+		sourceNode.disconnect();
+		sourceNode = null;
+	}
+	
+	// Stop media stream tracks
 	if (mediaStream) {
 		mediaStream.getTracks().forEach((track) => track.stop());
 		mediaStream = null;
 	}
+	
+	console.log('🎤 [AUDIO] Microphone capture stopped');
 }
 
 export function getAudioContext(): AudioContext | null {
@@ -203,6 +222,10 @@ export function resetAudioContext(): void {
 	stopMicrophoneCapture();
 	stopVisualizerBypass();
 	
+	if (sourceNode) {
+		sourceNode.disconnect();
+		sourceNode = null;
+	}
 	if (workletNode) {
 		workletNode.disconnect();
 		workletNode = null;
@@ -226,4 +249,6 @@ export function resetAudioContext(): void {
 	
 	analyserDataArray = null;
 	initialized = false;
+	
+	console.log('🔄 [AUDIO] Audio context fully reset');
 }

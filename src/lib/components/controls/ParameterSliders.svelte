@@ -317,6 +317,13 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			<p class="text-xs text-secondary opacity-75 mb-3">
 				Lock areas by adjusting the focus range. Only the highlighted zone will be affected during recording.
 			</p>
+			{#if sculptureStore.currentSculpture}
+				<div class="mb-3 surface-panel-alt p-2 rounded">
+					<p class="text-xs text-brand-primary font-medium">
+						✨ Live Preview: Move sliders to see zones dim in real-time!
+					</p>
+				</div>
+			{/if}
 			
 			<!-- Zone Bottom Slider -->
 			<div class="mb-3">
@@ -374,6 +381,13 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		<!-- Sculpt Mode Selection -->
 		<div class="border-t border-subtle pt-4">
 			<h3 class="text-sm font-semibold mb-2 text-secondary">Sculpt Mode</h3>
+			{#if sculptureStore.currentSculpture}
+				<div class="mb-3 surface-panel-alt p-2 rounded">
+					<p class="text-xs text-brand-primary font-medium">
+						🔄 Live Preview: Toggle between Add/Subtract to see instant shape changes!
+					</p>
+				</div>
+			{/if}
 			<div class="flex gap-2 mb-4">
 				<button 
 					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {sculptMode === 'additive' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"

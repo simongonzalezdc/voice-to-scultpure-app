@@ -226,20 +226,32 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		return geometry;
 	}
 
-	// Create geometry immediately when meshRef is bound and sculpture exists
+	// LIVE PREVIEW: Create geometry immediately when any relevant state changes
+	// Watches: sculpture, sculptZone for real-time feedback
+	// Runs only when NOT actively recording (to avoid performance issues)
 	$effect(() => {
 		if (!sculpture || !meshRef) {
 			return;
 		}
 
-		const newGeom = createGeometryFromSculpture(sculpture);
+		// Skip during recording - let useTask handle live updates instead
+		if (recordingStore.state === 'recording') {
+			return;
+		}
+
+		// Access reactive dependencies to trigger on their changes
+		const currentSculpture = sculpture;
+		const zoneMin = uiStore.sculptZone.min;
+		const zoneMax = uiStore.sculptZone.max;
+		
+		const newGeom = createGeometryFromSculpture(currentSculpture);
 		if (newGeom) {
-			// DIRECTIVE 2: Apply zone visualization if recording and zone is restricted
-			const isRecording = recordingStore.state === 'recording';
-			const zoneIsRestricted = uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1;
+			// DIRECTIVE 2: Apply zone visualization if zone is restricted
+			// Show zone dimming when zone sliders are being adjusted
+			const zoneIsRestricted = zoneMin > 0 || zoneMax < 1;
 			
-			if (isRecording && zoneIsRestricted) {
-				applyZoneVisualization(newGeom, uiStore.sculptZone.min, uiStore.sculptZone.max);
+			if (zoneIsRestricted) {
+				applyZoneVisualization(newGeom, zoneMin, zoneMax);
 			}
 			
 			const oldGeom = meshRef.geometry;

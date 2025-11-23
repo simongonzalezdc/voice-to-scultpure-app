@@ -43,6 +43,10 @@ export function getCapturedFrames() {
 	return capturedFrames;
 }
 
+export function hasCapturedFrames(): boolean {
+	return capturedFrames.length > 0;
+}
+
 /**
  * Start recording: Initialize frame capture and set state to 'recording'
  * DIRECTIVE 2: Non-destructive for glaze mode - only clears frames, preserves sculpture

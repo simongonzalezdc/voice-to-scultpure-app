@@ -227,6 +227,15 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 						</p>
 					</div>
 				</div>
+				
+				<!-- Live Preview Hint -->
+				{#if sculptureStore.currentSculpture}
+					<div class="mt-2 surface-panel-alt p-2 rounded">
+						<p class="text-xs text-brand-primary font-medium">
+							💡 Switch modes above to see your sculpture adapt in real-time!
+						</p>
+					</div>
+				{/if}
 			</div>
 
 			<!-- View Settings (Pottery Mode) -->
