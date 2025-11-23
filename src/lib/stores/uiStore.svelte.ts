@@ -66,60 +66,53 @@ export const uiStore = $state<{
 });
 
 export function togglePanel(panel: keyof typeof uiStore.panels): void {
-	uiStore.panels[panel] = !uiStore.panels[panel];
+        uiStore.panels[panel] = !uiStore.panels[panel];
 }
 
 export function openPanel(panel: keyof typeof uiStore.panels): void {
-	uiStore.panels[panel] = true;
+        uiStore.panels[panel] = true;
 }
 
 export function closePanel(panel: keyof typeof uiStore.panels): void {
-	uiStore.panels[panel] = false;
-}
-
-export function startOnboarding(step: OnboardingStep = 'welcome'): void {
-	uiStore.onboarding.active = true;
-	uiStore.onboarding.currentStep = step;
-}
-
-export function completeOnboardingStep(step: OnboardingStep): void {
-	uiStore.onboarding.completed.add(step);
-}
-
-export function nextOnboardingStep(): void {
-	const steps: OnboardingStep[] = [
-		'welcome',
-		'mic-permission',
-		'calibration',
-		'first-recording',
-		'ai-tutorial'
-	];
-	const current = uiStore.onboarding.currentStep;
-	if (!current) {
-		uiStore.onboarding.currentStep = 'welcome';
-		return;
-	}
-	const currentIndex = steps.indexOf(current);
-	if (currentIndex < steps.length - 1) {
-		uiStore.onboarding.currentStep = steps[currentIndex + 1];
-		completeOnboardingStep(current);
-	} else {
-		finishOnboarding();
-	}
+        uiStore.panels[panel] = false;
 }
 
 const steps: OnboardingStep[] = [
-	'welcome',
-	'mic-permission',
-	'calibration',
-	'first-recording',
-	'ai-tutorial'
+        'welcome',
+        'mic-permission',
+        'calibration',
+        'first-recording',
+        'ai-tutorial'
 ];
 
+export function startOnboarding(step: OnboardingStep = steps[0]): void {
+        uiStore.onboarding.active = true;
+        uiStore.onboarding.currentStep = step;
+}
+
+export function completeOnboardingStep(step: OnboardingStep): void {
+        uiStore.onboarding.completed.add(step);
+}
+
+export function nextOnboardingStep(): void {
+        const current = uiStore.onboarding.currentStep;
+        if (!current) {
+                uiStore.onboarding.currentStep = steps[0];
+                return;
+        }
+        const currentIndex = steps.indexOf(current);
+        if (currentIndex < steps.length - 1) {
+                uiStore.onboarding.currentStep = steps[currentIndex + 1];
+                completeOnboardingStep(current);
+        } else {
+                finishOnboarding();
+        }
+}
+
 export function finishOnboarding(): void {
-	uiStore.onboarding.active = false;
-	uiStore.onboarding.currentStep = null;
-	steps.forEach((step) => completeOnboardingStep(step));
+        uiStore.onboarding.active = false;
+        uiStore.onboarding.currentStep = null;
+        steps.forEach((step) => completeOnboardingStep(step));
 }
 
 export function toggleOrientation(): void {
@@ -151,10 +144,22 @@ export function setActiveGlaze(color: string, roughness: number): void {
 }
 
 export function setSculptZone(min: number, max: number): void {
-	uiStore.sculptZone = { 
-		min: Math.max(0, Math.min(1, min)),
-		max: Math.max(0, Math.min(1, max))
-	};
+        const clampedMin = Math.max(0, Math.min(1, min));
+        const clampedMax = Math.max(0, Math.min(1, max));
+
+        if (clampedMin > clampedMax) {
+                console.warn?.('Sculpt zone min exceeds max; swapping values.', {
+                        min: clampedMin,
+                        max: clampedMax
+                });
+                uiStore.sculptZone = { min: clampedMax, max: clampedMin };
+                return;
+        }
+
+        uiStore.sculptZone = {
+                min: clampedMin,
+                max: clampedMax
+        };
 }
 
 export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
