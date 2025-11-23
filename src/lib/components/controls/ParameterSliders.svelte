@@ -202,59 +202,71 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	<div class="space-y-4">
 		<!-- Height Slider -->
 		<div>
-			<label for="height-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Adjusts the physical height of the sculpture in millimeters">
+			<label for="height-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Adjusts the physical height of the sculpture (10mm to 1000mm = 1 meter)">
 				Height: {height.toFixed(0)}mm
 				<span class="text-xs text-subtle opacity-50">ⓘ</span>
 			</label>
 			<input
 				id="height-slider"
 				type="range"
-				min="50"
-				max="300"
+				min="10"
+				max="1000"
 				step="5"
 				bind:value={height}
 				class="w-full"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
+			<div class="flex justify-between text-xs text-secondary mt-1">
+				<span>1cm</span>
+				<span>1 meter</span>
+			</div>
 		</div>
 
 		<!-- Twist Slider -->
 		<div>
-			<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Twists the form around its vertical axis">
-				Twist: {twist.toFixed(2)}
+			<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Twists the form around its vertical axis (multiple rotations possible)">
+				Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
 				<span class="text-xs text-subtle opacity-50">ⓘ</span>
 			</label>
 			<input
 				id="twist-slider"
 				type="range"
-				min="-1"
-				max="1"
+				min="-5"
+				max="5"
 				step="0.01"
 				bind:value={twist}
 				class="w-full"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
+			<div class="flex justify-between text-xs text-secondary mt-1">
+				<span>-5 turns</span>
+				<span>+5 turns</span>
+			</div>
 		</div>
 
 		<!-- Compression Slider -->
 		<div>
-			<label for="compression-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Negative = Stretch, Positive = Squash">
+			<label for="compression-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Extreme deformation: Super Stretch to Pancake">
 				Compression: {compression.toFixed(2)}
 				<span class="text-xs text-subtle opacity-50">ⓘ</span>
 			</label>
 			<input
 				id="compression-slider"
 				type="range"
-				min="-0.5"
-				max="0.5"
+				min="-2.0"
+				max="0.95"
 				step="0.01"
 				bind:value={compression}
 				class="w-full"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
+			<div class="flex justify-between text-xs text-secondary mt-1">
+				<span>Super Stretch</span>
+				<span>Pancake</span>
+			</div>
 		</div>
 
 		<!-- Resolution Slider (Formerly Roughness) -->

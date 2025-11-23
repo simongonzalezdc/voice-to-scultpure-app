@@ -106,9 +106,15 @@ export function stopRecording(): void {
 				// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
 				const mode =
 					sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-				const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode);
+				
+				// DIRECTIVE 4: Pass zone parameter if zone is restricted
+				const zone = (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1) 
+					? uiStore.sculptZone 
+					: undefined;
+				
+				const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode, zone);
 				setCurrentSculpture(sculpture);
-				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`);
+				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''}`);
 			}
 		} else {
 			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');

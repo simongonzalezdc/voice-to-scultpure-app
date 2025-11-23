@@ -19,11 +19,12 @@ let ringBuffer: AudioRingBuffer | null = null;
 let sampleRate = 44100;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let fftSize = 2048;
-let hopSize = 512;
+let hopSize = 512; // Standard hop size: 11.6ms at 44.1kHz. Pitch detection improved via autocorrelation tuning.
 let running = false;
 let lastAnalysisTime = 0;
 const ANALYSIS_INTERVAL_MS = 16; // ~60fps
 let framesSent = 0;
+let pitchDetectionFailures = 0; // Track how often pitch detection fails
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {
@@ -76,8 +77,23 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 		}
 	}
 
-	if (bestPeriod > 0 && maxCorrelation > 0.3) {
-		return sampleRate / bestPeriod;
+	// CRITICAL FIX: Lower threshold from 0.3 to 0.08 for more sensitive pitch detection
+	// 0.3 was too strict - many valid pitched sounds were rejected
+	// 0.08 is more forgiving while still filtering noise
+	if (bestPeriod > 0 && maxCorrelation > 0.08) {
+		const pitch = sampleRate / bestPeriod;
+		
+		// Log successful pitch detection occasionally for debugging
+		if (Math.random() < 0.01) { // 1% of the time
+			console.log(`[PITCH] Detected ${pitch.toFixed(1)}Hz (correlation: ${maxCorrelation.toFixed(3)})`);
+		}
+		
+		return pitch;
+	}
+
+	// Log failures occasionally to see why pitch isn't detected
+	if (Math.random() < 0.01) { // 1% of the time
+		console.log(`[PITCH] Failed - bestPeriod: ${bestPeriod}, maxCorrelation: ${maxCorrelation.toFixed(3)} (need > 0.08)`);
 	}
 
 	return null;
@@ -118,8 +134,15 @@ function processLoop(): void {
 			if (framesSent === 1) {
 				console.log('🔬 [ANALYSIS WORKER] First frame analyzed and sent');
 			} else if (framesSent % 60 === 0) {
+				// Log pitch detection success rate every 60 frames
 				console.log(`🔬 [ANALYSIS WORKER] ${framesSent} frames sent (${(framesSent / 60).toFixed(1)}s)`);
 			}
+			
+			// Debug: Log pitch values occasionally
+			if (framesSent % 30 === 0 && frame.pitch > 0) {
+				console.log(`🎵 [PITCH DEBUG] ${frame.pitch.toFixed(1)}Hz detected (energy: ${frame.energy.toFixed(3)})`);
+			}
+			
 			self.postMessage({
 				type: 'analysis-frame',
 				payload: frame

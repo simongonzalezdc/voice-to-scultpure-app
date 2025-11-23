@@ -20,7 +20,8 @@ function createHourglass(): LathePoint[] {
 export function generateLathe(
 	frames: AnalysisFrame[], 
 	profile?: UserProfile,
-	mode: 'additive' | 'subtractive' = 'additive'
+	mode: 'additive' | 'subtractive' = 'additive',
+	zone?: { min: number; max: number } // DIRECTIVE 4: Zone Sculpting
 ): LathePoint[] {
 	// 1. Safety: If empty, return hourglass (so we know it failed)
 	if (!frames.length) return createHourglass(); 
@@ -128,8 +129,18 @@ export function generateLathe(
 		// Combine all jitter sources
 		const totalJitter = noiseMod + attackJitter + pitchJitter;
 		
-		// Calculate Y based on index
-		const normalizedHeight = index / (sampledFrames.length - 1 || 1);
+		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
+		// If zone is specified, map frames to that height range instead of full 0-1
+		let normalizedHeight: number;
+		if (zone && (zone.min > 0 || zone.max < 1)) {
+			// Map index to zone range: min to max instead of 0 to 1
+			const zoneHeight = zone.max - zone.min;
+			const indexNormalized = index / (sampledFrames.length - 1 || 1);
+			normalizedHeight = zone.min + (indexNormalized * zoneHeight);
+		} else {
+			// Full height (default behavior)
+			normalizedHeight = index / (sampledFrames.length - 1 || 1);
+		}
 
 		// Update previous frame for next iteration
 		previousFrame = frame;
@@ -210,8 +221,9 @@ export function deriveSurfaceParameters(
 }
 
 /**
- * Generate glaze colors from audio frames
- * Maps pitch to hue and energy to intensity/alpha
+ * DIRECTIVE 4: Generate glaze colors from audio frames
+ * Uses SAME mapping as GlazeMixer for consistency
+ * Maps pitch to hue (80-600Hz → 0-280°) and energy to saturation/lightness
  * @param frames - Audio analysis frames
  * @param activeGlaze - Active glaze color and roughness from uiStore
  * @returns Float32Array of RGB values (3 values per vertex: R, G, B)
@@ -230,38 +242,41 @@ export function generateGlaze(
 	const samplingRate = Math.ceil(frames.length / maxPoints);
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
 
-	// Base color from activeGlaze
-	const baseColor = new Color(activeGlaze.color);
-	const baseR = baseColor.r;
-	const baseG = baseColor.g;
-	const baseB = baseColor.b;
+	// DIRECTIVE 4: Human vocal range constants (match GlazeMixer)
+	const MIN_HZ = 80;  // Low male voice
+	const MAX_HZ = 600; // High soprano
 
 	// Calculate colors for each frame
 	const colors: number[] = [];
 
 	for (const frame of sampledFrames) {
-		// Map pitch to hue (100-800 Hz typical range)
+		// DIRECTIVE 4: Map pitch to hue using human vocal range
+		// 80Hz = Red (0°), 600Hz = Purple (280°)
 		const pitch = frame.pitch || 0;
-		const normalizedPitch = Math.max(0, Math.min(1, (pitch - 100) / (800 - 100)));
+		const t = Math.max(0, Math.min(1, (pitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
+		const hue = t * 280; // 0° (red) to 280° (purple)
 		
-		// Convert pitch to HSL hue (0-360 degrees)
-		// Low pitch = Red (0°), High pitch = Blue (240°)
-		const hue = normalizedPitch * 240; // 0° (red) to 240° (blue)
-		
-		// Map energy to intensity/alpha (blending power)
+		// DIRECTIVE 4: Map energy to saturation & lightness (NOT opacity)
 		const energy = frame.energy || 0;
-		const intensity = Math.min(1, energy * 2); // Scale energy to 0-1
+		const saturation = 0.5 + (energy * 0.5); // 50% to 100% (0.5 to 1.0)
+		const lightness = 0.3 + (energy * 0.4);  // 30% to 70% (0.3 to 0.7)
 		
-		// Create color from hue
-		const pitchColor = new Color().setHSL(hue / 360, 0.8, 0.6); // Saturated, medium lightness
+		// Create color from HSL
+		// If no pitch detected, use base glaze color
+		let finalColor: Color;
+		if (pitch > 0) {
+			// Voice-driven color
+			finalColor = new Color().setHSL(hue / 360, saturation, lightness);
+		} else {
+			// No pitch: use base glaze color with energy-driven brightness
+			const baseColor = new Color(activeGlaze.color);
+			const hsl = { h: 0, s: 0, l: 0 };
+			baseColor.getHSL(hsl);
+			// Keep base hue/saturation, but modulate lightness with energy
+			finalColor = new Color().setHSL(hsl.h, hsl.s, 0.3 + (energy * 0.4));
+		}
 		
-		// Blend base glaze color with pitch-based hue
-		// Intensity controls how much the pitch color affects the base
-		const r = baseR + (pitchColor.r - baseR) * intensity;
-		const g = baseG + (pitchColor.g - baseG) * intensity;
-		const b = baseB + (pitchColor.b - baseB) * intensity;
-		
-		colors.push(r, g, b);
+		colors.push(finalColor.r, finalColor.g, finalColor.b);
 	}
 
 	return new Float32Array(colors);
@@ -271,9 +286,10 @@ export function createSculptureFromFrames(
 	frames: AnalysisFrame[],
 	profile?: UserProfile,
 	name?: string,
-	mode: 'additive' | 'subtractive' = 'additive'
+	mode: 'additive' | 'subtractive' = 'additive',
+	zone?: { min: number; max: number } // DIRECTIVE 4: Zone parameter
 ): SculptureDefinition {
-	const radiusCurve = generateLathe(frames, profile, mode);
+	const radiusCurve = generateLathe(frames, profile, mode, zone);
 	const surface = deriveSurfaceParameters(frames, profile);
 
 	return {

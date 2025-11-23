@@ -43,10 +43,10 @@ export function createAnalysisWorkerClient(
 	worker.postMessage({
 		type: 'config',
 		payload: {
-			ringBuffer: ringBuffer.buffer,
-			sampleRate: ringBuffer.sampleRate,
-			fftSize: 2048,
-			hopSize: 512
+		ringBuffer: ringBuffer.buffer,
+		sampleRate: ringBuffer.sampleRate,
+		fftSize: 2048,
+		hopSize: 512 // REVERT: 2048 caused Meyda buffer size error. Improved pitch detection in autocorrelation instead.
 		}
 	});
 

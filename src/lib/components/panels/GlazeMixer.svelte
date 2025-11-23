@@ -11,17 +11,25 @@
 	let liveEnergy = $derived(analysisStore.micLevel);
 	let liveTimbre = $derived(analysisStore.latestFrame?.timbre?.spectralCentroid || 0);
 
-	// Map Pitch (Hz) to Hue (0-360)
-	// 100Hz = Red (0°), 800Hz = Blue (240°)
-	let hue = $derived(
-		livePitch > 0 
-			? Math.min(240, Math.max(0, ((livePitch - 100) / 700) * 240))
-			: 0
-	);
+	// DIRECTIVE 1: Retune Pitch-to-Hue for Human Vocal Range
+	// 80Hz (Low Male) = Red (0°), 600Hz (High Soprano) = Purple (280°)
+	const MIN_HZ = 80;
+	const MAX_HZ = 600;
+	
+	let hue = $derived.by(() => {
+		if (livePitch <= 0) return 0; // No pitch detected
+		
+		// Normalize to 0-1 range
+		const t = Math.max(0, Math.min(1, (livePitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
+		
+		// Map to Hue (0 = Red, 280 = Purple)
+		return t * 280;
+	});
 
-	// Map Energy to Lightness (Pulse effect)
-	// Quiet = 30%, Loud = 80%
-	let lightness = $derived(30 + (liveEnergy * 50));
+	// DIRECTIVE 2: Remap Volume to Saturation & Lightness (NOT Opacity)
+	// Quiet = Greyish (low saturation), Loud = Vibrant (high saturation)
+	let saturation = $derived(50 + (liveEnergy * 50)); // 50% to 100%
+	let lightness = $derived(30 + (liveEnergy * 40));  // 30% (Dark) to 70% (Bright)
 
 	// Map Timbre to Roughness
 	// Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
@@ -38,54 +46,96 @@
 	}
 
 	// Reactive preview color (HSL format for smooth transitions)
-	let previewColorHSL = $derived(`hsl(${Math.round(hue)}, 100%, ${Math.round(lightness)}%)`);
-	let previewColorHex = $derived(hslToHex(hue, 100, lightness));
+	// DIRECTIVE 2: Use dynamic saturation instead of fixed 100%
+	let previewColorHSL = $derived(`hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`);
+	let previewColorHex = $derived(hslToHex(hue, saturation, lightness));
 
 	// Audio context state check
 	let audioContextState = $state<'suspended' | 'running' | 'closed' | 'unknown'>('unknown');
-	let showActivateButton = $derived(audioContextState === 'suspended');
+	let needsInitialization = $state(true);
+	let showActivateButton = $derived(audioContextState === 'suspended' || audioContextState === 'unknown');
 
 	onMount(() => {
+		console.log('[GLAZE MIXER] Mounted - initializing audio monitoring');
+		
 		// Check audio context state on mount
 		const checkAudioContext = async () => {
 			const ctx = getAudioContext();
-			if (ctx) {
-				audioContextState = ctx.state as 'suspended' | 'running' | 'closed';
-				
-				// If suspended, try to resume
-				if (ctx.state === 'suspended') {
-					try {
-						await ctx.resume();
-						audioContextState = 'running';
-					} catch (err) {
-						console.warn('Failed to resume audio context:', err);
-					}
-				}
-				
-				// Start visualizer bypass for live monitoring (if not already running)
-				if (ctx.state === 'running') {
-					try {
-						await startVisualizerBypass();
-					} catch (err) {
-						console.warn('Visualizer bypass already running or failed:', err);
-					}
-				}
-			} else {
+			
+			if (!ctx) {
+				// No audio context yet - user needs to record first OR we need to initialize
 				audioContextState = 'unknown';
+				return;
+			}
+			
+			const previousState = audioContextState;
+			audioContextState = ctx.state as 'suspended' | 'running' | 'closed';
+			
+			// If state changed, log it
+			if (previousState !== audioContextState) {
+				console.log(`[GLAZE MIXER] Audio context state: ${previousState} → ${audioContextState}`);
+			}
+			
+			// If suspended, try to resume
+			if (ctx.state === 'suspended') {
+				try {
+					await ctx.resume();
+					audioContextState = 'running';
+					console.log('[GLAZE MIXER] Audio context resumed');
+				} catch (err) {
+					console.warn('[GLAZE MIXER] Failed to resume audio context:', err);
+				}
+			}
+			
+			// CRITICAL FIX: Always try to start visualizer bypass if context is running
+			if (ctx.state === 'running') {
+				try {
+					await startVisualizerBypass();
+					if (needsInitialization) {
+						console.log('[GLAZE MIXER] Visualizer bypass started');
+						needsInitialization = false;
+					}
+				} catch (err) {
+					// This is expected if already running - not an error
+					if (needsInitialization) {
+						console.log('[GLAZE MIXER] Visualizer bypass already active');
+						needsInitialization = false;
+					}
+				}
 			}
 		};
 
 		checkAudioContext();
-		// Poll for state changes
-		const interval = setInterval(checkAudioContext, 500);
-		return () => clearInterval(interval);
+		// Poll more frequently for responsive UI
+		const interval = setInterval(checkAudioContext, 250);
+		return () => {
+			console.log('[GLAZE MIXER] Unmounting - cleaning up');
+			clearInterval(interval);
+		};
 	});
 
 	async function handleActivateMic() {
+		console.log('[GLAZE MIXER] User clicked activate mic button');
 		const ctx = getAudioContext();
-		if (ctx && ctx.state === 'suspended') {
-			await ctx.resume();
-			audioContextState = 'running';
+		
+		if (!ctx) {
+			console.warn('[GLAZE MIXER] No audio context - user needs to record first to initialize audio pipeline');
+			alert('Please click the Record button at least once to initialize the microphone, then return to the Glaze Mixer.');
+			return;
+		}
+		
+		if (ctx.state === 'suspended') {
+			try {
+				await ctx.resume();
+				audioContextState = 'running';
+				console.log('[GLAZE MIXER] Audio context resumed by user action');
+				
+				// Start visualizer bypass
+				await startVisualizerBypass();
+				console.log('[GLAZE MIXER] Visualizer bypass started by user action');
+			} catch (err) {
+				console.error('[GLAZE MIXER] Failed to activate audio:', err);
+			}
 		}
 	}
 
@@ -131,14 +181,21 @@
 				
 				<!-- Tap to Activate Mic Overlay -->
 				{#if showActivateButton}
-					<div class="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full z-10">
+					<div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-full z-10 p-4">
 						<button
-							class="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded text-sm font-medium"
+							class="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded text-sm font-medium mb-2"
 							type="button"
 							onclick={handleActivateMic}
 						>
-							🎤 Tap to Activate Mic
+							🎤 Activate Microphone
 						</button>
+						<p class="text-xs text-[#aaa] text-center">
+							{#if audioContextState === 'unknown'}
+								Record once first to initialize audio
+							{:else}
+								Click to resume audio context
+							{/if}
+						</p>
 					</div>
 				{/if}
 				
@@ -151,16 +208,44 @@
 			</div>
 		</div>
 
-		<!-- Live Voice Input Status -->
-		<div class="text-sm text-[#888] mb-2">
+		<!-- DIRECTIVE 3: Debug Readout -->
+		<div class="bg-[#1a1a1a] border border-[#333] rounded p-3 mb-3 font-mono text-xs">
+			<div class="text-[#888] mb-1 font-semibold">Live Audio Debug:</div>
 			{#if livePitch > 0}
-				🎵 Pitch → Hue: {Math.round(hue)}° | 
-				🌬️ Timbre → Roughness: {roughness.toFixed(2)} | 
-				🔊 Energy: {Math.round(liveEnergy * 100)}%
-			{:else if liveEnergy > 0}
-				<span class="text-[#888]">🔊 Mic active ({Math.round(liveEnergy * 100)}%) - Start recording for pitch analysis</span>
+				<div class="text-[#4ade80]">
+					🎵 Pitch: <span class="text-white font-bold">{livePitch.toFixed(0)}Hz</span>
+					<span class="text-[#888]">
+						({livePitch < MIN_HZ ? 'Low' : livePitch > MAX_HZ ? 'High' : 
+							livePitch < 150 ? 'Red' : livePitch < 300 ? 'Yellow' : livePitch < 450 ? 'Green' : 'Purple'})
+					</span>
+				</div>
 			{:else}
-				<span class="text-[#666]">Hum or speak to see live color changes</span>
+				<div class="text-[#ef4444]">🎵 Pitch: <span class="text-white font-bold">0Hz</span> (Not detected)</div>
+			{/if}
+			{#if liveEnergy > 0}
+				<div class="text-[#60a5fa]">
+					🔊 Vol: <span class="text-white font-bold">{Math.round(liveEnergy * 100)}%</span>
+					<span class="text-[#888]">
+						({liveEnergy < 0.3 ? 'Quiet' : liveEnergy < 0.6 ? 'Medium' : 'Loud - Vivid!'})
+					</span>
+				</div>
+			{:else}
+				<div class="text-[#ef4444]">🔊 Vol: <span class="text-white font-bold">0%</span> (Silent)</div>
+			{/if}
+			<div class="text-[#a78bfa]">
+				🌬️ Timbre: <span class="text-white font-bold">{liveTimbre > 0 ? liveTimbre.toFixed(0) : 'N/A'}</span>
+				<span class="text-[#888]">→ Roughness: {roughness.toFixed(2)}</span>
+			</div>
+		</div>
+
+		<!-- Live Voice Input Status (Simplified) -->
+		<div class="text-sm text-[#888] mb-2 text-center">
+			{#if livePitch > 0 && liveEnergy > 0}
+				<span class="text-[#4ade80]">✓ Voice detected - Colors mixing!</span>
+			{:else if liveEnergy > 0}
+				<span class="text-[#fbbf24]">⚠️ Mic active - Try humming for pitch</span>
+			{:else}
+				<span class="text-[#666]">💤 Hum or speak to see live color changes</span>
 			{/if}
 		</div>
 
@@ -192,9 +277,16 @@
 		</button>
 
 		<p class="text-xs text-[#888] mt-2">
-			Hum or speak to mix your glaze in real-time. Pitch controls color (low=red, high=blue), 
-			timbre controls texture (smooth=glossy, rough=matte). Click "Save Glaze" to capture the current color.
+			<strong>How it works:</strong> Pitch (80-600Hz) controls hue (red→purple), volume controls saturation & brightness 
+			(quiet=grey, loud=vivid), timbre controls texture (smooth=glossy, rough=matte). 
+			Click "Save Glaze" to lock the current color.
 		</p>
+		
+		<div class="mt-3 p-2 bg-[#1a1a1a] border border-[#333] rounded text-xs text-[#aaa]">
+			💡 <strong class="text-[#888]">Tip:</strong> Your microphone stays active for continuous live monitoring. 
+			The colors update in real-time as you hum or speak! Once you record at least once, 
+			this mixer will work even when not actively recording.
+		</div>
 	</div>
 </div>
 

@@ -113,7 +113,11 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 
 	async function stopRecordingFlow() {
 		workerClient?.stop();
-		stopMicrophoneCapture();
+		// CRITICAL FIX: Don't stop microphone capture here!
+		// Keep the mic open for live monitoring (GlazeMixer, visualizers, etc.)
+		// The visualizer bypass needs continuous audio input for real-time feedback.
+		// Only truly close the mic on explicit user action or page unload.
+		// stopMicrophoneCapture(); // REMOVED - mic stays open
 		stopRecording();
 	}
 

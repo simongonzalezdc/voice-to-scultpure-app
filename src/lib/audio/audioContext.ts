@@ -113,7 +113,7 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 }
 
 // Directive 1: Visualizer Bypass - Direct mic level calculation
-async function startVisualizerBypass(): Promise<void> {
+export async function startVisualizerBypass(): Promise<void> {
 	if (visualizerPollInterval !== null) {
 		return; // Already running
 	}
@@ -162,7 +162,11 @@ function stopVisualizerBypass(): void {
 }
 
 export function stopMicrophoneCapture(): void {
-	stopVisualizerBypass(); // Stop polling
+	// CRITICAL FIX: Don't stop visualizer bypass here!
+	// GlazeMixer and other UI components need continuous audio monitoring
+	// even when not actively recording. The visualizer bypass is lightweight
+	// and provides essential real-time feedback.
+	// Only stop it on full audio context reset.
 	
 	if (mediaStream) {
 		mediaStream.getTracks().forEach((track) => track.stop());
