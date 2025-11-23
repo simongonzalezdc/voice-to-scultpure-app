@@ -1,4 +1,13 @@
 import type { AppSettings } from '$lib/types';
+import {
+        CALIBRATION_ATTACK_THRESHOLD_DEFAULT,
+        ENERGY_MAX_DEFAULT,
+        ENERGY_MIN_DEFAULT,
+        PITCH_MAX_DEFAULT,
+        PITCH_MIN_DEFAULT,
+        TIMBRE_MAX_HZ,
+        TIMBRE_MIN_HZ
+} from '$lib/config/constants';
 
 const STORAGE_KEY = 'voice-to-sculpture-settings';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -38,13 +47,39 @@ function loadSettings(): AppSettings {
 }
 
 function getDefaultSettings(): AppSettings {
-	return {
-		aiProvider: 'cloud',
-		graphicsQuality: 'high',
-		viewMode: {
-			potteryMode: false
-		}
-	};
+        return {
+                aiProvider: 'cloud',
+                graphicsQuality: 'high',
+                viewMode: {
+                        potteryMode: false
+                },
+                userProfile: {
+                        id: 'default-profile',
+                        calibrated: true, // Enable studio access out of the box
+                        pitchRange: {
+                                min: PITCH_MIN_DEFAULT,
+                                max: PITCH_MAX_DEFAULT,
+                                p25: PITCH_MIN_DEFAULT,
+                                p50: (PITCH_MIN_DEFAULT + PITCH_MAX_DEFAULT) / 2,
+                                p75: PITCH_MAX_DEFAULT
+                        },
+                        energyRange: {
+                                min: ENERGY_MIN_DEFAULT,
+                                max: ENERGY_MAX_DEFAULT,
+                                p25: ENERGY_MIN_DEFAULT,
+                                p50: (ENERGY_MIN_DEFAULT + ENERGY_MAX_DEFAULT) / 2,
+                                p75: ENERGY_MAX_DEFAULT
+                        },
+                        timbreRange: {
+                                min: TIMBRE_MIN_HZ,
+                                max: TIMBRE_MAX_HZ,
+                                p25: TIMBRE_MIN_HZ,
+                                p50: (TIMBRE_MIN_HZ + TIMBRE_MAX_HZ) / 2,
+                                p75: TIMBRE_MAX_HZ
+                        },
+                        attackThreshold: CALIBRATION_ATTACK_THRESHOLD_DEFAULT
+                }
+        };
 }
 
 function saveSettings(settings: AppSettings): void {
