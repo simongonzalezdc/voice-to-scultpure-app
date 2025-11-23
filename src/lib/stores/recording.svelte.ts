@@ -1,4 +1,4 @@
-import { setCurrentSculpture, sculptureStore } from './sculptureStore.svelte';
+import { setCurrentSculpture, sculptureStore, updateSculptureColors } from './sculptureStore.svelte';
 import { resetAnalysis } from './analysisStore.svelte';
 import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
@@ -68,7 +68,7 @@ export function startRecording(): void {
 
 /**
  * Stop recording and process captured frames into a sculpture
- * PHASE 1.2: Dead Lock Guard - try/finally ensures completeProcessing() is ALWAYS called
+ * CRITICAL FIX: Capture vertex colors before setting state to 'complete' or 'idle'
  */
 export function stopRecording(): void {
 	if (recordingStore.state !== 'recording') {
@@ -82,25 +82,39 @@ export function stopRecording(): void {
 	setRecordingState('processing');
 	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
 
+	// CRITICAL: Capture vertex colors before geometry disposal in glaze mode
+	const isGlazeMode = uiStore.workspace === 'glaze';
+	if (isGlazeMode && sculptureStore.meshReference?.geometry) {
+		const geometry = sculptureStore.meshReference.geometry;
+		const colorAttribute = geometry.attributes.color;
+		
+		if (colorAttribute && colorAttribute.array && colorAttribute.array instanceof Float32Array) {
+			// Extract the painted colors from the geometry BEFORE disposal
+			const colors = Array.from(colorAttribute.array);
+			// Save them to the sculpture store for persistence
+			updateSculptureColors(new Float32Array(colors));
+			console.log(
+				`🎨 [RECORDING] Captured ${colors.length / 3} vertex colors before processing`
+			);
+		}
+	}
+
 	// Process frames immediately when stopping
 	// DEAD LOCK GUARD: use try/finally to guarantee state transition
 	try {
 		if (capturedFrames.length > 0) {
-			const isGlazeMode = uiStore.workspace === 'glaze';
-
 			if (isGlazeMode) {
-				// DIRECTIVE 1: GLAZE MODE - Colors are now captured in Sculpture.svelte
-				// The $effect() in Sculpture.svelte will extract colors from the mesh geometry
-				// BEFORE geometry disposal when state transitions to 'processing'
+				// GLAZE MODE: Colors are now captured above
+				// The mesh geometry will be regenerated with the saved colors
 				if (!sculptureStore.currentSculpture) {
 					console.warn(
 						'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
 					);
 				} else {
 					console.log(
-						`🎨 [RECORDING] Glaze recording stopped - colors will be captured from mesh geometry`
+						`🎨 [RECORDING] Glaze recording stopped - colors captured and saved`
 					);
-					// Colors will be saved by Sculpture.svelte's $effect() when geometry is recreated
+					// Colors are already saved above, mesh will use them when regenerated
 				}
 			} else {
 				// SCULPT MODE: Create new sculpture from frames

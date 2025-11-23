@@ -1,5 +1,5 @@
 import type { SculptureDefinition } from '$lib/types';
-import { Vector3 } from 'three';
+import { Vector3, type Mesh } from 'three';
 
 export const sculptureStore = $state<{
 	currentSculpture: SculptureDefinition | null;
@@ -7,12 +7,14 @@ export const sculptureStore = $state<{
 	geometryDirty: boolean;
 	interactionPoint: Vector3 | null;
 	interactionNormal: Vector3 | null;
+	meshReference: Mesh | null;
 }>({
 	currentSculpture: null,
 	ghostSculpture: null,
 	geometryDirty: false,
 	interactionPoint: null,
-	interactionNormal: null
+	interactionNormal: null,
+	meshReference: null
 });
 
 export function setCurrentSculpture(sculpture: SculptureDefinition | null): void {
@@ -62,4 +64,12 @@ export function updateSculptureColors(colors: Float32Array): void {
 	sculptureStore.currentSculpture = updated;
 	sculptureStore.geometryDirty = true;
 	console.log(`🎨 [SCULPTURE] Updated colors for ${colors.length / 3} vertices`);
+}
+
+/**
+ * Set the mesh reference for color capture
+ * @param mesh - The Mesh instance to reference
+ */
+export function setMeshReference(mesh: Mesh | null): void {
+	sculptureStore.meshReference = mesh;
 }

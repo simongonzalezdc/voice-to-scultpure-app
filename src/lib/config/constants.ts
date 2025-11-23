@@ -47,3 +47,6 @@ export const ENERGY_MAX_DEFAULT = 0.8;
 // Pitch Range Defaults
 export const PITCH_MIN_DEFAULT = 80;
 export const PITCH_MAX_DEFAULT = 400;
+
+// Default Physical Dimensions
+export const DEFAULT_HEIGHT_MM = 150; // Default 150mm for mug/small vase

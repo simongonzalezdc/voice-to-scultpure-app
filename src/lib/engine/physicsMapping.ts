@@ -8,7 +8,10 @@ import {
 	SCULPTURE_SENSITIVITY,
 	GEOMETRY_MAX_POINTS,
 	NOISE_FLOOR_DEFAULT,
-	SILENCE_THRESHOLD_MULTIPLIER
+	SILENCE_THRESHOLD_MULTIPLIER,
+	MIN_PITCH_HZ,
+	MAX_PITCH_HZ,
+	DEFAULT_HEIGHT_MM
 } from '$lib/config/constants';
 
 function createDefaultCylinder(): LathePoint[] {
@@ -55,8 +58,6 @@ export function generateLathe(
 	const SENSITIVITY = SCULPTURE_SENSITIVITY;
 	const MIN_RADIUS = SCULPTURE_MIN_RADIUS;
 
-	let currentRotation = 0; // Track accumulated rotation for Melodic Mode
-
 	// 3. Map Frames to Points (Raw curve from audio)
 	const rawCurve = sampledFrames.map((frame, index) => {
 		// AGGRESSIVE MAPPING
@@ -78,7 +79,7 @@ export function generateLathe(
 			// Map Pitch to Radius
 			// Range: 80Hz (Wide) to 800Hz (Narrow)
 			const pitch = frame.pitch || 440; // Default to A4 if no pitch
-			const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / 720));
+			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / (720)));
 			
 			// Invert: Low pitch = Large radius (Base), High pitch = Small radius (Neck)
 			// Lerp factor 0.1 handled by useTask smoothing in real-time, here we map directly
@@ -328,10 +329,6 @@ export function generateGlaze(
 	const samplingRate = Math.ceil(frames.length / maxPoints);
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
 
-	// DIRECTIVE 4: Human vocal range constants (match GlazeMixer)
-	const MIN_HZ = 80; // Low male voice
-	const MAX_HZ = 600; // High soprano
-
 	// Calculate colors for each frame
 	const colors: number[] = [];
 
@@ -339,7 +336,7 @@ export function generateGlaze(
 		// DIRECTIVE 4: Map pitch to hue using human vocal range
 		// 80Hz = Red (0°), 600Hz = Purple (280°)
 		const pitch = frame.pitch || 0;
-		const t = Math.max(0, Math.min(1, (pitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
+		const t = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / (MAX_PITCH_HZ - MIN_PITCH_HZ)));
 		const hue = t * 280; // 0° (red) to 280° (purple)
 
 		// DIRECTIVE 4: Map energy to saturation & lightness (NOT opacity)
@@ -398,7 +395,7 @@ export function createSculptureFromFrames(
 			taper: 0
 		},
 		physical: {
-			height: 150, // Default 150mm for mug/small vase
+			height: DEFAULT_HEIGHT_MM, // Default height from constants
 			units: 'mm',
 			wallThickness: undefined, // Optional, for 3D printing
 			orientation: 'vertical', // Default: vertical (pottery wheel)
