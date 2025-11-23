@@ -6,7 +6,7 @@
 		updateSculptureColors
 	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
+	import { recordingStore, getCapturedFrames, type RecordingState } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { LatheGeometry, Vector2, Mesh, Color, BufferAttribute, DynamicDrawUsage } from 'three';
@@ -28,6 +28,9 @@
 	let meshRef = $state<Mesh | null>(null);
 	let ghostMeshRef = $state<Mesh | null>(null);
 	let liveMeshRef = $state<Mesh | null>(null);
+
+	// State tracking for recording transitions
+	let previousRecordingState = $state<RecordingState>('idle');
 
 	/**
 	 * DIRECTIVE 2: Apply zone-based vertex colors to visualize the sculpt zone
@@ -93,6 +96,51 @@
 		if (colorAttr && colorAttr instanceof BufferAttribute) {
 			colorAttr.setUsage(DynamicDrawUsage);
 		}
+	}
+
+	/**
+	 * Resample vertex colors when vertex count changes
+	 * Maps saved colors to new geometry by interpolating based on vertex height
+	 */
+	function resampleVertexColors(
+		savedColors: number[],
+		oldVertexCount: number,
+		newVertexCount: number,
+		newGeometry: LatheGeometry
+	): Float32Array {
+		const colors = new Float32Array(newVertexCount * 3);
+		const positions = newGeometry.attributes.position;
+		if (!positions) return colors;
+
+		// Find min/max Y for height normalization
+		const posArray = positions.array as Float32Array;
+		let minY = Infinity;
+		let maxY = -Infinity;
+		for (let i = 0; i < newVertexCount; i++) {
+			const y = posArray[i * 3 + 1];
+			if (y < minY) minY = y;
+			if (y > maxY) maxY = y;
+		}
+		const totalHeight = maxY - minY;
+		if (totalHeight === 0) return colors;
+
+		// Map each new vertex to old vertex by normalized height
+		for (let i = 0; i < newVertexCount; i++) {
+			const y = posArray[i * 3 + 1];
+			const normalizedHeight = (y - minY) / totalHeight; // 0 = bottom, 1 = top
+			
+			// Find corresponding old vertex index
+			const oldVertexIdx = Math.floor(normalizedHeight * (oldVertexCount - 1));
+			const clampedIdx = Math.max(0, Math.min(oldVertexCount - 1, oldVertexIdx));
+			
+			// Copy color from old vertex
+			const colorIdx = clampedIdx * 3;
+			colors[i * 3] = savedColors[colorIdx] ?? 1.0;
+			colors[i * 3 + 1] = savedColors[colorIdx + 1] ?? 1.0;
+			colors[i * 3 + 2] = savedColors[colorIdx + 2] ?? 1.0;
+		}
+
+		return colors;
 	}
 
 	/**
@@ -235,10 +283,30 @@
 			const vertexCount = positions.count;
 
 			// Check if sculpture has saved vertex colors
-			if (sculpture.vertexColors && sculpture.vertexColors.length === vertexCount * 3) {
-				// Use saved colors
-				const colors = new Float32Array(sculpture.vertexColors);
-				geometry.setAttribute('color', new BufferAttribute(colors, 3));
+			if (sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+				const savedColorCount = sculpture.vertexColors.length / 3;
+				
+				if (savedColorCount === vertexCount) {
+					// Perfect match - use saved colors directly
+					const colors = new Float32Array(sculpture.vertexColors);
+					const colorAttr = new BufferAttribute(colors, 3);
+					colorAttr.setUsage(DynamicDrawUsage);
+					geometry.setAttribute('color', colorAttr);
+				} else {
+					// Vertex count changed - resample colors by height
+					console.log(
+						`🎨 [SCULPTURE] Resampling colors: ${savedColorCount} → ${vertexCount} vertices`
+					);
+					const resampledColors = resampleVertexColors(
+						sculpture.vertexColors,
+						savedColorCount,
+						vertexCount,
+						geometry
+					);
+					const colorAttr = new BufferAttribute(resampledColors, 3);
+					colorAttr.setUsage(DynamicDrawUsage);
+					geometry.setAttribute('color', colorAttr);
+				}
 			} else if (uiStore.workspace === 'glaze') {
 				// Initialize with base color if no saved colors
 				const colors = new Float32Array(vertexCount * 3);
@@ -250,7 +318,9 @@
 					colors[i * 3 + 2] = baseColorObj.b;
 				}
 
-				geometry.setAttribute('color', new BufferAttribute(colors, 3));
+				const colorAttr = new BufferAttribute(colors, 3);
+				colorAttr.setUsage(DynamicDrawUsage);
+				geometry.setAttribute('color', colorAttr);
 			}
 		}
 
@@ -266,21 +336,26 @@
 	// Watches: sculpture, sculptZone for real-time feedback
 	// Runs only when NOT actively recording (to avoid performance issues)
 	$effect(() => {
+		const currentState = recordingStore.state;
+
+		// Detect transition from 'recording' to any other state (processing/complete)
+		const justStopped = previousRecordingState === 'recording' && currentState !== 'recording';
+		previousRecordingState = currentState;
+
 		if (!sculpture || !meshRef) {
 			return;
 		}
 
 		// Skip during recording - let useTask handle live updates instead
-		if (recordingStore.state === 'recording') {
+		if (currentState === 'recording') {
 			return;
 		}
 
 		// DIRECTIVE 1: Capture glaze colors BEFORE geometry disposal
 		// When recording stops in glaze mode, extract colors from the mesh before recreating geometry
 		const isGlazeMode = uiStore.workspace === 'glaze';
-		const wasRecording = recordingStore.state === 'processing'; // Just transitioned from recording
 
-		if (isGlazeMode && wasRecording && meshRef.geometry && meshRef.geometry.attributes.color) {
+		if (isGlazeMode && justStopped && meshRef.geometry && meshRef.geometry.attributes.color) {
 			const colorAttr = meshRef.geometry.attributes.color;
 			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
 				// Extract the actual painted colors from the geometry buffer BEFORE disposal
@@ -406,7 +481,15 @@
 							}
 						}
 
-						existingGeom.setAttribute('color', new BufferAttribute(colors, 3));
+						const colorAttr = new BufferAttribute(colors, 3);
+						colorAttr.setUsage(DynamicDrawUsage);
+						existingGeom.setAttribute('color', colorAttr);
+						
+						// Mark for update
+						const existingColorAttr = existingGeom.attributes.color;
+						if (existingColorAttr) {
+							existingColorAttr.needsUpdate = true;
+						}
 					}
 				}
 			} else {
