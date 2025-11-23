@@ -8,11 +8,12 @@
 	import AIPanel from '$lib/components/panels/AIPanel.svelte';
 	import ProjectList from '$lib/components/library/ProjectList.svelte';
 	import CapabilityGuard from '$lib/components/layout/CapabilityGuard.svelte';
-	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
-	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
-	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
-	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
-	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
+import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
+import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
+import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
+import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
+import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
+import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
 	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation, setToolMode } from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
