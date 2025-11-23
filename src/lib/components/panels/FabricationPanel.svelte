@@ -129,7 +129,7 @@
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { uiStore, setConstraintMode } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setConstraintMode, setAutoFixGeometry } from '$lib/stores/uiStore.svelte';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 
@@ -147,10 +147,15 @@
 
 	// Get Constraint Mode
 	let constraintMode = $derived(uiStore.constraintMode);
+	let autoFixGeometry = $derived(uiStore.autoFixGeometry ?? true); // Default true
 	let constraintDescription = $derived(getConstraintDescription(constraintMode));
 
 	function handleConstraintModeChange(mode: ConstraintMode) {
 		setConstraintMode(mode);
+	}
+	
+	function handleAutoFixChange() {
+		setAutoFixGeometry(!autoFixGeometry);
 	}
 </script>
 
@@ -198,6 +203,25 @@
 							{getConstraintIcon('3d_print')} 3D Print
 						</button>
 					</div>
+					
+					<!-- DIRECTIVE 2: Auto-Fix Geometry Checkbox -->
+					<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded">
+						<input 
+							type="checkbox" 
+							checked={autoFixGeometry} 
+							onchange={handleAutoFixChange}
+							class="w-4 h-4 accent-brand-primary"
+						/>
+						<div class="flex flex-col">
+							<span class="text-sm text-primary font-medium">Auto-Fix Geometry</span>
+							<span class="text-[10px] text-secondary">
+								{autoFixGeometry 
+									? "Automatically adjust shape to meet physical limits." 
+									: "Show warnings (Red) where physics are violated."}
+							</span>
+						</div>
+					</label>
+
 					<!-- Constraint Description -->
 					<div class="surface-panel-alt p-3 rounded">
 						<p class="text-xs text-secondary leading-relaxed">

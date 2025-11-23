@@ -155,6 +155,7 @@ export function generateLathe(
 
 		// Dynamic Attack Detection: Detect sharp energy spikes (chisel effect)
 		let attackJitter = 0;
+		const previousFrame = index > 0 ? sampledFrames[index - 1] : null;
 		if (previousFrame && profile?.attackThreshold) {
 			const threshold = profile.attackThreshold || 0.15; // Fallback if missing
 			const deltaEnergy = Math.abs(frame.energy - previousFrame.energy);
@@ -203,9 +204,6 @@ export function generateLathe(
 			// Full height (default behavior)
 			normalizedHeight = index / (sampledFrames.length - 1 || 1);
 		}
-
-		// Update previous frame for next iteration
-		previousFrame = frame;
 
 		// DIRECTIVE 1: NaN Guard - Sanitize all values before returning
 		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter);

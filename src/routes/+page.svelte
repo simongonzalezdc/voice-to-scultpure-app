@@ -38,6 +38,7 @@
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 	import { Mic, MoveVertical, Orbit, Hammer, Palette } from 'lucide-svelte';
+	import { resetVoiceLinks } from '$lib/stores/voiceLinksStore.svelte';
 
 	// Gatekeeper: Check if user has completed calibration
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -253,6 +254,12 @@
 				uiStore.panels.aiPanel = false;
 				uiStore.panels.projectList = false;
 				uiStore.panels.settings = false;
+				// Reset Voice Links (Directive 3)
+				resetVoiceLinks();
+				// Also reset Force Mode if active? Maybe not, user might want to stay there.
+				// But Directive 4 says "Global Back". 
+				// If in Force Mode, maybe switching back to Sculpt is good?
+				// No, just panels and links for now.
 				break;
 		}
 	}

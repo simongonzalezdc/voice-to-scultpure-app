@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
-	import ForceParameters from '$lib/components/controls/ForceParameters.svelte';
+	import ForceControls from '$lib/components/controls/ForceControls.svelte';
 	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 
@@ -35,7 +35,7 @@
 			</div>
 		{:else if uiStore.workspace === 'force'}
 			<div class="p-4">
-				<ForceParameters />
+				<ForceControls />
 			</div>
 		{:else if uiStore.workspace === 'glaze'}
 			<div class="p-4">

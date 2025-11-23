@@ -5,7 +5,14 @@
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
-	let { rotation = [0, 0, 0] } = $props<{ rotation?: [number, number, number] }>();
+	// DIRECTIVE 1: Dynamic Ring Orientation based on uiStore.orientation
+	// Pottery (Vertical): Ring lies flat on XZ plane (parallel to floor)
+	// Lathe (Horizontal): Ring stands up, facing X-axis (perpendicular to floor)
+	let ringOrientation = $derived(
+		uiStore.orientation === 'horizontal'
+			? [0, Math.PI / 2, 0] // Lathe: Rotate 90° around Y-axis to face X-axis
+			: [Math.PI / 2, 0, 0] // Pottery: Rotate 90° around X-axis to lie flat
+	);
 
 	// Ring visualizer that scales with energy/mic level
 	// Base scale and responsive range
@@ -98,7 +105,7 @@
 		}
 	});
 	
-	// Local rotation state for Virtuoso spin
+	// Local rotation state for Virtuoso spin (additional rotation on Y-axis)
 	let spinRotation = $state(0);
 	
 	useTask((delta) => {
@@ -108,6 +115,14 @@
 			spinRotation = 0;
 		}
 	});
+
+	// Combined rotation: base orientation + Virtuoso spin
+	// Spin rotation is applied to Y-axis (second element)
+	let finalRotation = $derived([
+		ringOrientation[0],
+		ringOrientation[1] + spinRotation,
+		ringOrientation[2]
+	]);
 
 	// Virtuoso Color: Timbre -> Color
 	// Standard: Red/Garnet intensity
@@ -129,15 +144,13 @@
 </script>
 
 <!-- Ring visualizer - visible only during active recording -->
-<!-- DIRECTIVE 3: Align visualizer based on orientation -->
+<!-- DIRECTIVE 1: Dynamic orientation based on uiStore.orientation -->
 <!-- Pottery (Vertical): Ring flat on XZ plane - rotation={[Math.PI/2, 0, 0]} -->
-<!-- Lathe (Horizontal): Ring standing on YZ plane - rotation={[0, Math.PI/2, 0]} -->
+<!-- Lathe (Horizontal): Ring standing up, facing X-axis - rotation={[0, Math.PI/2, 0]} -->
 {#if isVisible}
-	<T.Group position={ringPosition} rotation={[rotation[0], rotation[1] + spinRotation, rotation[2]]}>
+	<T.Group position={ringPosition} rotation={finalRotation}>
 		<!-- Outer ring (energy/pitch indicator) -->
-		<T.Mesh
-			rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}
-		>
+		<T.Mesh>
 			<T.TorusGeometry args={[currentScale, 0.02, 16, 32]} />
 			<T.MeshBasicMaterial color={finalColor} transparent opacity={0.6 + colorIntensity * 0.4} />
 		</T.Mesh>
@@ -145,9 +158,7 @@
 		<!-- Inner ring (pitch/timbre indicator) -->
 		{#if analysisStore.latestFrame?.pitch && analysisStore.latestFrame.pitch > 0}
 			{@const pitchScale = Math.min(1, analysisStore.latestFrame.pitch / 1000) * 0.5}
-			<T.Mesh
-				rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}
-			>
+			<T.Mesh>
 				<T.TorusGeometry args={[currentScale * (isVirtuoso ? 0.8 : pitchScale), 0.01, 8, 16]} />
 				<T.MeshBasicMaterial color="#ffffff" transparent opacity={0.4} />
 			</T.Mesh>

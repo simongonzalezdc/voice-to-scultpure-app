@@ -1,13 +1,18 @@
 import type { SculptureDefinition } from '$lib/types';
+import { Vector3 } from 'three';
 
 export const sculptureStore = $state<{
 	currentSculpture: SculptureDefinition | null;
 	ghostSculpture: SculptureDefinition | null;
 	geometryDirty: boolean;
+	interactionPoint: Vector3 | null;
+	interactionNormal: Vector3 | null;
 }>({
 	currentSculpture: null,
 	ghostSculpture: null,
-	geometryDirty: false
+	geometryDirty: false,
+	interactionPoint: null,
+	interactionNormal: null
 });
 
 export function setCurrentSculpture(sculpture: SculptureDefinition | null): void {
@@ -29,6 +34,11 @@ export function clearGhostSculpture(): void {
 
 export function markGeometryClean(): void {
 	sculptureStore.geometryDirty = false;
+}
+
+export function setInteractionPoint(point: Vector3 | null, normal: Vector3 | null): void {
+	sculptureStore.interactionPoint = point;
+	sculptureStore.interactionNormal = normal;
 }
 
 /**

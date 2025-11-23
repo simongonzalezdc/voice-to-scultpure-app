@@ -5,7 +5,7 @@
 		clearGhostSculpture,
 		setCurrentSculpture
 	} from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setSculptMode, setSculptZone } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setSculptMode, setSculptZone, setControlMode } from '$lib/stores/uiStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition, BaseShape } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
@@ -23,7 +23,9 @@
 		Lock,
 		Sparkles,
 		Wand,
-		Printer
+		Printer,
+		BarChart,
+		Music
 	} from 'lucide-svelte';
 
 	let height = $state(150); // Height in mm (default 150mm)
@@ -38,12 +40,33 @@
 	let zoneMax = $state(1.0);
 	let constraintMode = $derived(uiStore.constraintMode); // DIRECTIVE: Constraints in Design tab
 	let controlMode = $state(uiStore.controlMode);
+	// DIRECTIVE 1: The "Twist" Ban
+	// Twist is impossible in physical fabrication (Ceramic/3D Print) without complex supports or manual intervention
+	let isTwistDisabled = $derived(constraintMode === 'ceramic' || constraintMode === '3d_print');
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
 
 	// Sync sliders with current sculpture or uiStore
 	$effect(() => {
+		// Force twist to 0 if disabled
+		if (isTwistDisabled && twist !== 0) {
+			twist = 0;
+			// If we are dragging or have a sculpture, we might need to update it?
+			// Actually, the effect below handles sync, but we should ensure local state is 0.
+			// And if a sculpture exists, we should update it to remove twist?
+			// Ideally, we just prevent user from changing it.
+			// But if they switch modes, we should probably reset it.
+			if (sculptureStore.currentSculpture && sculptureStore.currentSculpture.deformation.twist !== 0) {
+				// Auto-correct existing sculpture
+				const updated = {
+					...sculptureStore.currentSculpture,
+					deformation: { ...sculptureStore.currentSculpture.deformation, twist: 0 }
+				};
+				setCurrentSculpture(updated);
+			}
+		}
+
 		const sculpture = sculptureStore.currentSculpture;
 		if (sculpture && !isDragging) {
 			height = sculpture.physical.height;
@@ -369,27 +392,37 @@
 		</div>
 
 		<!-- Twist Slider - DIRECTIVE 1: With Voice Link -->
-		<div>
+		<div class={isTwistDisabled ? 'opacity-50 cursor-not-allowed' : ''} 
+			title={isTwistDisabled ? "Twisting is impossible in physical fabrication. Switch to Digital Mode to unlock." : ""}>
 			<label
 				for="twist-slider"
 				class="text-sm text-secondary block mb-1 flex items-center gap-2"
-				title="Twists the form around its vertical axis (multiple rotations possible)"
 			>
 				Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
 				<!-- DIRECTIVE 1: Voice Link Button for Twist -->
 				<button
 					class="ml-auto p-1 rounded transition-colors {voiceLinksStore.twist === 'pitch'
-						? 'bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30'
+						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50' 
 						: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
-					onclick={() => toggleVoiceLink('twist')}
-					title={voiceLinksStore.twist === 'pitch'
-						? '🎤 Twist linked to PITCH (click to unlink)'
-						: '🔗 Link Twist to PITCH (hands-free control)'}
-					disabled={voiceLinksStore.twist === 'pitch'}
+					onclick={() => {
+						if (isTwistDisabled) return;
+						// DIRECTIVE 3: Improved Toggle Logic
+						if (voiceLinksStore.twist === 'pitch') {
+							toggleVoiceLink('twist'); // Will set to none
+						} else {
+							toggleVoiceLink('twist'); // Will set to pitch
+						}
+					}}
+					title={isTwistDisabled 
+						? "Disabled in Physical Mode" 
+						: voiceLinksStore.twist === 'pitch'
+							? '🎤 Twist linked to PITCH (click to unlink)'
+							: '🔗 Link Twist to PITCH (hands-free control)'}
+					disabled={isTwistDisabled}
 				>
 					<Link
 						size={14}
-						class={voiceLinksStore.twist === 'pitch' ? 'opacity-100' : 'opacity-50'}
+						class={voiceLinksStore.twist === 'pitch' ? 'opacity-100 stroke-2' : 'opacity-50'}
 					/>
 				</button>
 				<span class="text-subtle opacity-50"><Info size={12} /></span>
@@ -401,8 +434,8 @@
 				max="5"
 				step="0.01"
 				bind:value={twist}
-				disabled={voiceLinksStore.twist === 'pitch'}
-				class="w-full disabled:opacity-60 disabled:cursor-not-allowed"
+				disabled={isTwistDisabled || voiceLinksStore.twist === 'pitch'}
+				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.twist === 'pitch' ? 'accent-brand-primary' : ''}"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
@@ -410,8 +443,8 @@
 				<span>-5 turns</span>
 				<span>+5 turns</span>
 				{#if voiceLinksStore.twist === 'pitch'}
-					<span class="text-brand-primary font-semibold flex items-center gap-1"
-						><Mic size={12} /> Pitch Control</span
+					<span class="text-brand-primary font-semibold flex items-center gap-1 animate-pulse"
+						><Mic size={12} /> Pitch Control Active</span
 					>
 				{/if}
 			</div>
@@ -455,17 +488,23 @@
 				<!-- DIRECTIVE 1: Voice Link Button for Roughness/Timbre -->
 				<button
 					class="ml-auto p-1 rounded transition-colors {voiceLinksStore.roughness === 'timbre'
-						? 'bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30'
+						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50' 
 						: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
-					onclick={() => toggleVoiceLink('roughness')}
+					onclick={() => {
+						// DIRECTIVE 3: Improved Toggle Logic
+						if (voiceLinksStore.roughness === 'timbre') {
+							toggleVoiceLink('roughness'); // Will set to none
+						} else {
+							toggleVoiceLink('roughness'); // Will set to timbre
+						}
+					}}
 					title={voiceLinksStore.roughness === 'timbre'
 						? '🎤 Roughness linked to TIMBRE (click to unlink)'
 						: '🔗 Link Roughness to TIMBRE (hands-free control)'}
-					disabled={voiceLinksStore.roughness === 'timbre'}
 				>
 					<Link
 						size={14}
-						class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100' : 'opacity-50'}
+						class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100 stroke-2' : 'opacity-50'}
 					/>
 				</button>
 				<span class="text-subtle opacity-50"><Info size={12} /></span>
@@ -478,7 +517,7 @@
 				step="0.01"
 				bind:value={roughness}
 				disabled={voiceLinksStore.roughness === 'timbre'}
-				class="w-full disabled:opacity-60 disabled:cursor-not-allowed"
+				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.roughness === 'timbre' ? 'accent-brand-primary' : ''}"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
@@ -486,8 +525,8 @@
 				<span>Low Poly</span>
 				<span>Smooth</span>
 				{#if voiceLinksStore.roughness === 'timbre'}
-					<span class="text-brand-primary font-semibold flex items-center gap-1"
-						><Mic size={12} /> Timbre Control</span
+					<span class="text-brand-primary font-semibold flex items-center gap-1 animate-pulse"
+						><Mic size={12} /> Timbre Control Active</span
 					>
 				{/if}
 			</div>

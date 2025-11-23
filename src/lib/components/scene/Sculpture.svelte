@@ -30,7 +30,7 @@
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { applyDeformation, generateGlaze } from '$lib/engine/physicsMapping';
-	import { applyConstraints } from '$lib/engine/constraints';
+	import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 	import {
 		voiceLinksStore,
 		pitchToTwist,
@@ -58,9 +58,11 @@
 	function applyZoneVisualization(
 		geometry: BufferGeometry,
 		zoneMin: number,
-		zoneMax: number
+		zoneMax: number,
+		risks: number[] = [] // Added risks array (0-1)
 	): void {
-		if (zoneMin === 0 && zoneMax === 1) return; // Full zone, no need to visualize
+		// If risks are provided, we MUST apply them even if zone is full
+		if (zoneMin === 0 && zoneMax === 1 && risks.length === 0) return; 
 
 		const positions = geometry.attributes.position;
 		if (!positions) return;
@@ -82,6 +84,16 @@
 
 		// Create color array (RGB per vertex)
 		const colors = new Float32Array(vertexCount * 3);
+		
+		// Need to map risks to vertices. risks array length matches LathePoint[] length (radiusCurve)
+		// LatheGeometry vertices > radiusCurve points. 
+		// LatheGeometry has 'segments' number of radial copies.
+		// We need to know how many points in profile. 
+		// Roughly: vertexCount = points * segments + (2 caps if closed). 
+		// But createGeometryFromSculpture makes segments dynamic.
+		// We need to interpolate risks based on height, similar to resampleVertexColors.
+		
+		const hasRisks = risks.length > 0;
 
 		for (let i = 0; i < vertexCount; i++) {
 			const y = posArray[i * 3 + 1];
@@ -89,23 +101,55 @@
 
 			// Check if vertex is in active zone
 			const isInZone = h >= zoneMin && h <= zoneMax;
-
-			if (isInZone) {
-				// Active zone: BRIGHT - Full white/material color at full saturation
-				colors[i * 3] = 1.0; // R
-				colors[i * 3 + 1] = 1.0; // G
-				colors[i * 3 + 2] = 1.0; // B
+			
+			// Calculate Risk Color
+			let r = 1.0, g = 1.0, b = 1.0;
+			
+			if (hasRisks) {
+				// Interpolate risk from risks array based on height h
+				const riskIndex = Math.floor(h * (risks.length - 1));
+				const risk = risks[Math.max(0, Math.min(risks.length - 1, riskIndex))] || 0;
+				
+				if (risk > 0) {
+					// 0.5 = Yellow (1,1,0), 1.0 = Red (1,0,0)
+					// Lerp White -> Yellow -> Red? Or Material Color -> Warning?
+					// Let's overwrite with pure warning color for visibility
+					if (risk >= 0.9) {
+						// RED (Error)
+						r = 1.0; g = 0.0; b = 0.0;
+					} else if (risk >= 0.1) {
+						// YELLOW (Warning) - Scale redness with risk
+						// Yellow is (1, 1, 0). 
+						// We want 0.1 -> Yellowish, 0.9 -> Reddish?
+						// Actually: Low risk = Yellow, High risk = Red.
+						r = 1.0;
+						g = 1.0 - ((risk - 0.1) / 0.8); // Fade out green as risk increases
+						b = 0.0;
+					}
+				} else {
+					// No risk - apply zone dimming
+					if (!isInZone) {
+						const grayScale = 0.3; 
+						const tint = 0.4;
+						r = grayScale * tint;
+						g = grayScale * tint;
+						b = grayScale * tint;
+					}
+				}
 			} else {
-				// DIRECTIVE 4: Locked zone: DIM + DESATURATED
-				// - Opacity reduced by 50% (0.5)
-				// - Desaturate by converting to grayscale and tinting
-				const grayScale = 0.3; // Much darker than active (0.3 instead of 1.0)
-				const tint = 0.4; // Slight color tint remains (40% gray, 60% original if any)
-
-				colors[i * 3] = grayScale * tint; // R
-				colors[i * 3 + 1] = grayScale * tint; // G
-				colors[i * 3 + 2] = grayScale * tint; // B
+				// Only zone logic
+				if (!isInZone) {
+					const grayScale = 0.3; 
+					const tint = 0.4;
+					r = grayScale * tint;
+					g = grayScale * tint;
+					b = grayScale * tint;
+				}
 			}
+
+			colors[i * 3] = r; 
+			colors[i * 3 + 1] = g; 
+			colors[i * 3 + 2] = b; 
 		}
 
 		// Enable vertex colors for rendering
@@ -330,10 +374,15 @@
 
 			// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
 			// Only applies to lathe shapes (non-lathe shapes don't use radiusCurve)
-			// These constraints persist through twist, compression, height changes, etc.
-			// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
+			let risks: number[] = [];
 			if (baseShape === 'lathe') {
-				basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+				const autoFix = uiStore.autoFixGeometry ?? true;
+				if (autoFix) {
+					basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+				} else {
+					// DIRECTIVE 2: Soft Warnings - Analyze but don't fix
+					risks = analyzeConstraints(basePoints, uiStore.constraintMode);
+				}
 			}
 
 			// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
@@ -500,9 +549,27 @@
 			// DIRECTIVE 2: Apply zone visualization if zone is restricted
 			// Show zone dimming when zone sliders are being adjusted
 			const zoneIsRestricted = zoneMin > 0 || zoneMax < 1;
+			
+			// Check if we have risks to visualize (from analyzeConstraints inside createGeometry)
+			// createGeometryFromSculpture calculates risks locally but doesn't return them.
+			// We need to re-run analyzeConstraints here or update createGeometryFromSculpture signature.
+			// Since createGeometryFromSculpture is complex, let's just re-run analyze here if needed.
+			// It's cheap enough.
+			let risks: number[] = [];
+			const autoFix = uiStore.autoFixGeometry ?? true;
+			if (!autoFix && currentSculpture.baseShape === 'lathe' && currentSculpture.radiusCurve) {
+				// Need to apply deformations first to get accurate analysis
+				let points = currentSculpture.radiusCurve.map((p) => ({ x: p.x, y: p.y }));
+				if (currentSculpture.deformation) {
+					points = applyDeformation(points, currentSculpture.deformation);
+				}
+				// Apply breathing effect if recording? No, analysis is on static shape mostly.
+				
+				risks = analyzeConstraints(points, uiStore.constraintMode);
+			}
 
-			if (zoneIsRestricted && currentSculpture.baseShape === 'lathe') {
-				applyZoneVisualization(geometryToRender, zoneMin, zoneMax);
+			if ((zoneIsRestricted || risks.length > 0) && currentSculpture.baseShape === 'lathe') {
+				applyZoneVisualization(geometryToRender, zoneMin, zoneMax, risks);
 			}
 
 			const oldGeom = meshRef.geometry;
@@ -560,6 +627,106 @@
 						setCurrentSculpture(modulated);
 					}
 				}
+			}
+		}
+
+		// PHASE 3: Sonic Force Mode (Raycasting & Deformation)
+		// Update interaction point for Force Visualizer
+		if (uiStore.workspace === 'force' && meshRef && camera.current) {
+			raycaster.setFromCamera(pointer, camera.current);
+			const intersects = raycaster.intersectObject(meshRef);
+
+			if (intersects.length > 0) {
+				const intersect = intersects[0];
+				const point = intersect.point;
+				const normal = intersect.face?.normal?.clone().transformDirection(meshRef.matrixWorld) || new Vector3(0, 1, 0);
+				
+				// Update shared store for ForceVisualizer
+				setInteractionPoint(point, normal);
+
+				// DEFORMATION LOGIC (Only when recording)
+				if (recordingStore.state === 'recording') {
+					const geometry = meshRef.geometry;
+					const positions = geometry.attributes.position;
+					const normals = geometry.attributes.normal;
+					const localPoint = meshRef.worldToLocal(point.clone());
+					
+					// Parameters from Force Panel
+					const damping = uiStore.forceParams.damping; // 0-1
+					const hardness = uiStore.forceParams.hardness; // 0-1
+					const radiusParam = uiStore.forceParams.radius; // 0-1
+					const strengthParam = uiStore.forceParams.strength; // 0-1
+					
+					// Dynamic Radius based on Pitch or fixed Focus
+					// Default to parameter, but allow pitch modulation if melodic mode
+					const pitch = analysisStore.latestFrame?.pitch || 200;
+					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 50) / 950));
+					// Radius: 0.05 to 0.5. Controlled by Focus parameter (base) and Pitch (modulation)
+					// If melodic mode, pitch dominates. If standard, Focus dominates.
+					const radius = 0.05 + (radiusParam * 0.45); 
+					
+					// Strength calculation
+					// Energy (0-1) * Multiplier * Strength Param
+					const energy = analysisStore.latestFrame?.energy || 0;
+					const forceStrength = (energy * 0.2 * strengthParam) * (1 - hardness * 0.5);
+					
+					const isPull = uiStore.sculptMode === 'additive';
+					const direction = isPull ? 1 : -1;
+
+					// DIRECTIVE: Apply damping to limit maximum displacement per frame
+					const maxDisplacementPerFrame = 0.05 * (1 - damping * 0.9);
+
+					const v = new Vector3();
+					const n = new Vector3();
+					let modified = false;
+
+					for (let i = 0; i < positions.count; i++) {
+						v.fromBufferAttribute(positions, i);
+						const dist = v.distanceTo(localPoint);
+						
+						if (dist < radius) {
+							// Falloff (Cosine window)
+							// Hardness controls falloff curve (higher hardness = sharper dropoff)
+							// Simple cosine: 0.5 * (1 + cos(pi * dist / radius))
+							// Hardness adjustment: power curve
+							let falloff = 0.5 * (1 + Math.cos((Math.PI * dist) / radius));
+							if (hardness > 0.5) {
+								falloff = Math.pow(falloff, 1 + (hardness - 0.5) * 4);
+							}
+							
+							// Get normal
+							n.fromBufferAttribute(normals, i);
+							
+							// Calculate desired displacement
+							const desiredDisplacement = forceStrength * falloff * direction;
+							
+							// Apply damping: clamp displacement to max per frame
+							const clampedDisplacement = Math.max(
+								-maxDisplacementPerFrame,
+								Math.min(maxDisplacementPerFrame, desiredDisplacement)
+							);
+							
+							// Apply clamped displacement
+							v.addScaledVector(n, clampedDisplacement);
+							
+							positions.setXYZ(i, v.x, v.y, v.z);
+							modified = true;
+						}
+					}
+
+					if (modified) {
+						positions.needsUpdate = true;
+						geometry.computeVertexNormals();
+					}
+				}
+			} else {
+				// No intersection
+				setInteractionPoint(null, null);
+			}
+		} else {
+			// Not in force mode or missing refs
+			if (sculptureStore.interactionPoint) {
+				setInteractionPoint(null, null);
 			}
 		}
 

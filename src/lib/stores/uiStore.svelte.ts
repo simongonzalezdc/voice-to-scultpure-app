@@ -26,6 +26,8 @@ export const uiStore = $state<{
 	forceParams: {
 		damping: number; // 0-1
 		hardness: number; // 0-1
+		radius: number; // 0-1 (Focus)
+		strength: number; // 0-1 (Power)
 	};
 	activeGlaze: {
 		color: string; // Hex color
@@ -41,6 +43,7 @@ export const uiStore = $state<{
 		max: number; // 1.0 = top
 	};
 	constraintMode: 'digital' | 'ceramic' | '3d_print';
+	autoFixGeometry: boolean;
 }>({
 	panels: {
 		aiPanel: false,
@@ -58,7 +61,9 @@ export const uiStore = $state<{
 	controlMode: 'standard',
 	forceParams: {
 		damping: 0.5,
-		hardness: 0.5
+		hardness: 0.5,
+		radius: 0.5,
+		strength: 0.5
 	},
 	activeGlaze: {
 		color: '#FFFFFF',
@@ -73,8 +78,13 @@ export const uiStore = $state<{
 		min: 0.0, // Default: entire height (bottom)
 		max: 1.0 // Default: entire height (top)
 	},
-	constraintMode: 'digital' // Default: no constraints
+	constraintMode: 'digital', // Default: no constraints
+	autoFixGeometry: true // Default: Auto-fix enabled
 });
+
+export function setAutoFixGeometry(enabled: boolean): void {
+	uiStore.autoFixGeometry = enabled;
+}
 
 export function setWorkspace(workspace: Workspace): void {
 	uiStore.workspace = workspace;

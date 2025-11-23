@@ -33,6 +33,41 @@ export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): Lat
 }
 
 /**
+ * Analyze constraints without modifying geometry
+ * Returns an array of risk factors (0.0 - 1.0) for each point
+ * 0.0 = Safe
+ * 0.5 = Warning (Yellow)
+ * 1.0 = Violation (Red)
+ */
+export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): number[] {
+	const risks = new Array(curve.length).fill(0);
+	
+	if (curve.length < 2 || mode === 'digital') return risks;
+
+	const constrained = applyConstraints(curve, mode);
+	
+	// Compare original vs constrained to determine risk
+	// If significant deviation, mark as violation
+	for (let i = 0; i < curve.length; i++) {
+		const original = curve[i].x;
+		const fixed = constrained[i].x;
+		const diff = Math.abs(original - fixed);
+		
+		// If fixed is different, it was a violation
+		if (diff > 0.001) {
+			// How severe?
+			// Normalized difference relative to original size?
+			// Or just simple boolean logic: if it needed fixing, it's risky.
+			// Let's scale it. Small fix = Warning (0.5), Big fix = Error (1.0)
+			const severity = Math.min(1.0, diff * 10); // 10cm deviation = full red? No, units are normalized. 0.1 diff is huge.
+			risks[i] = 0.5 + severity * 0.5; // Minimum 0.5 (Yellow) if changed
+		}
+	}
+	
+	return risks;
+}
+
+/**
  * Digital Mode: No constraints (infinite freedom)
  */
 function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
@@ -130,9 +165,9 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	if (averageRadius < MIN_HAND_RADIUS || minDetectedRadius < MIN_HAND_RADIUS / 2) {
 		// Boost entire shape to ensure it forms a viable vessel
 		const boostAmount = Math.max(0, MIN_HAND_RADIUS - averageRadius);
-		console.log(
-			`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`
-		);
+		// console.log(
+		// 	`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`
+		// );
 
 		for (let i = 0; i < constrained.length; i++) {
 			constrained[i].x += boostAmount;

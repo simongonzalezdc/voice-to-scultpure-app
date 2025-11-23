@@ -3,6 +3,8 @@
 	import { Grid, ContactShadows } from '@threlte/extras';
 	import Sculpture from './Sculpture.svelte';
 	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
+	import ForceVisualizer from './ForceVisualizer.svelte';
+	import ForceParticles from './ForceParticles.svelte';
 	import OrbitControls from './OrbitControls.svelte';
 	import GhostMachines from './GhostMachines.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
@@ -53,7 +55,10 @@
 <ContactShadows opacity={0.5} scale={20} blur={2} far={10} resolution={256} color="#000000" />
 
 <!-- Ghost Machines: Contextual Rigs (Pottery Wheel / Lathe) -->
-<GhostMachines />
+<!-- DIRECTIVE 4: Hide Machines in Force Mode (Telekinesis) -->
+{#if uiStore.workspace !== 'force'}
+	<GhostMachines />
+{/if}
 
 <!-- Axis Labels for Debugging - Colored lines with labels -->
 <T.Group position={[-3, 0, -3]}>
@@ -89,6 +94,13 @@
 </T.Group>
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
-<AnalysisVisualizer
-	rotation={uiStore.orientation === 'horizontal' ? [0, 0, -Math.PI / 2] : [0, 0, 0]}
-/>
+
+<!-- DIRECTIVE 4: Conditional Visualizers -->
+{#if uiStore.workspace === 'force'}
+	<ForceVisualizer />
+	<ForceParticles />
+{:else}
+	<AnalysisVisualizer
+		rotation={uiStore.orientation === 'horizontal' ? [0, 0, -Math.PI / 2] : [0, 0, 0]}
+	/>
+{/if}
