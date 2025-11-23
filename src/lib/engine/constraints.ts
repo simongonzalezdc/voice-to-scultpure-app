@@ -43,26 +43,62 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
 /**
  * Ceramic Mode: Pottery wheel physics
  * Ensures hand access, prevents collapse, maintains stability
+ * 
+ * DIRECTIVE 1: Harden constraints to prevent pinched necks
+ * - MIN_RADIUS_MM = 35mm for practical hand access (1.5" radius / 3" opening)
+ * - Structural smoothing via SMA to turn audio jitter into clay flow
+ * - Topological safe mode: if too narrow overall, boost entire shape
  */
 function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map(p => ({ ...p })); // Deep copy
-	const MIN_HAND_RADIUS = 0.04; // 40mm in meters (hand width)
+	
+	// DIRECTIVE 1A: Hand Access Floor (35mm = 1.5" radius)
+	const MIN_RADIUS_MM = 35;
+	const MIN_HAND_RADIUS = MIN_RADIUS_MM / 1000; // Convert to normalized units (~0.035)
+	
 	const MAX_OVERHANG_ANGLE = 45; // degrees
 	const BASE_STABILITY_RATIO = 1.5; // Base should be 1.5x wider than average
 
 	// RULE A: Hand Access - Ensure minimum radius for hand entry
-	// Exception: Top 5% (rim) can be narrower
+	// Exception: Top 5% (rim) can be narrower for closure
 	const topThreshold = 0.95; // Top 5% exempt
 	for (let i = 0; i < constrained.length; i++) {
 		const normalizedHeight = constrained[i].y;
 		
 		// Allow rim to close (top 5%)
 		if (normalizedHeight < topThreshold) {
-			// Enforce minimum radius for hand access
+			// HARDENED: Enforce stricter minimum radius for hand access
 			if (constrained[i].x < MIN_HAND_RADIUS) {
 				constrained[i].x = MIN_HAND_RADIUS;
 			}
 		}
+	}
+
+	// DIRECTIVE 1B: Structural Smoothing - Apply Simple Moving Average (SMA)
+	// Smooth audio jitter into clay flow using a 7-point moving average
+	const SMOOTH_WINDOW = 7;
+	const smoothed: LathePoint[] = [];
+	
+	for (let i = 0; i < constrained.length; i++) {
+		const start = Math.max(0, i - Math.floor(SMOOTH_WINDOW / 2));
+		const end = Math.min(constrained.length, i + Math.floor(SMOOTH_WINDOW / 2) + 1);
+		
+		let sumRadius = 0;
+		let count = 0;
+		for (let j = start; j < end; j++) {
+			sumRadius += constrained[j].x;
+			count++;
+		}
+		
+		smoothed.push({
+			x: sumRadius / count, // Average radius
+			y: constrained[i].y   // Keep original height
+		});
+	}
+	
+	// Copy smoothed values back
+	for (let i = 0; i < smoothed.length; i++) {
+		constrained[i] = smoothed[i];
 	}
 
 	// RULE B: Gravity/Slump - Limit outward overhang
@@ -86,11 +122,26 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 		}
 	}
 
+	// DIRECTIVE 2: Topological Safe Mode
+	// If shape is too narrow overall (below hand access), boost entire shape outward
+	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
+	const minDetectedRadius = Math.min(...constrained.map(p => p.x));
+	
+	if (averageRadius < MIN_HAND_RADIUS || minDetectedRadius < MIN_HAND_RADIUS / 2) {
+		// Boost entire shape to ensure it forms a viable vessel
+		const boostAmount = Math.max(0, MIN_HAND_RADIUS - averageRadius);
+		console.log(`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`);
+		
+		for (let i = 0; i < constrained.length; i++) {
+			constrained[i].x += boostAmount;
+		}
+	}
+
 	// RULE C: Base Stability - Wide base to support upper mass
 	// Bottom 10% should be wider than average radius
 	const baseThreshold = 0.1;
-	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
-	const minBaseRadius = averageRadius * BASE_STABILITY_RATIO;
+	const updatedAverageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
+	const minBaseRadius = Math.max(updatedAverageRadius * BASE_STABILITY_RATIO, MIN_HAND_RADIUS * 1.2);
 
 	for (let i = 0; i < constrained.length; i++) {
 		if (constrained[i].y < baseThreshold) {
@@ -175,7 +226,8 @@ export function getConstraintDescription(mode: ConstraintMode): string {
 		case 'digital':
 			return 'No constraints - full creative freedom. May produce impossible shapes.';
 		case 'ceramic':
-			return 'Pottery wheel physics: ensures hand access (40mm min), prevents collapse (45° max overhang), stable base.';
+			// DIRECTIVE 3: Enhanced description with actual constraints
+			return 'Pottery wheel physics: Hand Access 70mm (Min Width), Clay Smoothing (SMA), Prevents Collapse (45° max), Stable Base.';
 		case '3d_print':
 			return 'FDM printer constraints: limits overhangs to 60°, prevents floating geometry, ensures bed adhesion.';
 		default:

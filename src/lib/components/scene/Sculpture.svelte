@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh, BoxGeometry, Color, BufferGeometry, BufferAttribute } from 'three';
+	import { LatheGeometry, Vector2, Mesh, BoxGeometry, Color, BufferGeometry, BufferAttribute, DynamicDrawUsage } from 'three';
+	import * as THREE from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 import type { SculptureDefinition } from '$lib/types';
 import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
+	import { applyConstraints } from '$lib/engine/constraints';
+	import { voiceLinksStore, pitchToTwist, timbreToRoughness } from '$lib/stores/voiceLinksStore.svelte';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
@@ -29,8 +32,10 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	 * @param zoneMin - Bottom of active zone (0-1)
 	 * @param zoneMax - Top of active zone (0-1)
 	 */
+	// DIRECTIVE 4: Visualize "Active Layer" when using Zone Sculpting
+	// Shows the active zone at full brightness and locks dimmed/desaturated
 	function applyZoneVisualization(geometry: LatheGeometry, zoneMin: number, zoneMax: number): void {
-		if (zoneMin === 0 && zoneMax === 1) return; // Full zone, no need to dim
+		if (zoneMin === 0 && zoneMax === 1) return; // Full zone, no need to visualize
 
 		const positions = geometry.attributes.position;
 		if (!positions) return;
@@ -52,23 +57,35 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 
 		// Create color array (RGB per vertex)
 		const colors = new Float32Array(vertexCount * 3);
-		const activeColor = new Color('#FFFFFF'); // Active zone: white
-		const lockedColor = new Color('#444444'); // Locked zone: dark gray
 
 		for (let i = 0; i < vertexCount; i++) {
 			const y = posArray[i * 3 + 1];
-			const h = (y - minY) / totalHeight; // Normalized height
+			const h = (y - minY) / totalHeight; // Normalized height (0 = bottom, 1 = top)
 
 			// Check if vertex is in active zone
 			const isInZone = h >= zoneMin && h <= zoneMax;
-			const color = isInZone ? activeColor : lockedColor;
 
-			colors[i * 3] = color.r;
-			colors[i * 3 + 1] = color.g;
-			colors[i * 3 + 2] = color.b;
+			if (isInZone) {
+				// Active zone: BRIGHT - Full white/material color at full saturation
+				colors[i * 3] = 1.0;      // R
+				colors[i * 3 + 1] = 1.0; // G
+				colors[i * 3 + 2] = 1.0; // B
+			} else {
+				// DIRECTIVE 4: Locked zone: DIM + DESATURATED
+				// - Opacity reduced by 50% (0.5)
+				// - Desaturate by converting to grayscale and tinting
+				const grayScale = 0.3; // Much darker than active (0.3 instead of 1.0)
+				const tint = 0.4; // Slight color tint remains (40% gray, 60% original if any)
+				
+				colors[i * 3] = grayScale * tint;      // R
+				colors[i * 3 + 1] = grayScale * tint; // G
+				colors[i * 3 + 2] = grayScale * tint; // B
+			}
 		}
 
+		// Enable vertex colors for rendering
 		geometry.setAttribute('color', new BufferAttribute(colors, 3));
+		geometry.attributes.color?.setUsage(DynamicDrawUsage);
 	}
 
 	/**
@@ -140,10 +157,10 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		// 1. START WITH BASE - Create a copy, never overwrite original
 		let basePoints = sculpture.radiusCurve.map(p => ({ x: p.x, y: p.y }));
 
-		// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
-		if (sculpture.deformation && (sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)) {
-			basePoints = applyDeformation(basePoints, sculpture.deformation);
-		}
+	// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
+	if (sculpture.deformation && (sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)) {
+		basePoints = applyDeformation(basePoints, sculpture.deformation);
+	}
 
 	// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
 	// If recording, modulate the sculpture with live audio
@@ -163,6 +180,11 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			y: p.y
 		}));
 	}
+	
+	// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
+	// These constraints persist through twist, compression, height changes, etc.
+	// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
+	basePoints = applyConstraints(basePoints, uiStore.constraintMode);
 	
 	// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
 	// NOT here in the geometry, to avoid double-scaling (heightScale²)
@@ -260,8 +282,81 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		}
 	});
 
+	// DIRECTIVE 3: Capture mesh colors before recording stops
+	// When glaze recording ends, extract the actual painted colors from the geometry
+	function captureAndSaveGlazeColors(): void {
+		if (meshRef && meshRef.geometry && meshRef.geometry.attributes.color) {
+			const colorAttr = meshRef.geometry.attributes.color;
+			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
+				// Extract the actual colors from the geometry buffer
+				const savedColors = Array.from(colorAttr.array);
+				console.log(`🎨 [SCULPTURE] Capturing ${savedColors.length / 3} vertex colors from geometry`);
+				// Save them to the sculpture store
+				updateSculptureColors(new Float32Array(savedColors));
+			}
+		}
+	}
+
+	// DIRECTIVE 3: Monitor recording state changes to save colors
+	// When glaze mode recording transitions from 'recording' to 'processing', capture colors
+	$effect(() => {
+		const state = recordingStore.state;
+		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		
+		// When recording just stopped (state changed to 'processing') and we were glazing
+		if (state === 'processing' && isGlazeMode) {
+			// Defer to next frame to ensure geometry is stable
+			setTimeout(() => {
+				captureAndSaveGlazeColors();
+			}, 0);
+		}
+	});
+
 	// Update geometry in render loop for live audio modulation
 	useTask(() => {
+		// DIRECTIVE 2: Voice Links - Apply audio modulation to parameters
+		if (recordingStore.state === 'recording' && sculpture) {
+			const frame = analysisStore.latestFrame;
+			if (frame) {
+				// Apply voice link automation if any links are active
+				const hasActiveLinks = voiceLinksStore.twist === 'pitch' || voiceLinksStore.roughness === 'timbre';
+				
+				if (hasActiveLinks) {
+					// Create a copy of the sculpture with modulated parameters
+					let modulated = sculpture;
+					
+					// DIRECTIVE 2A: Twist Link (Pitch) - Map pitch to twist
+					if (voiceLinksStore.twist === 'pitch' && frame.pitch > 0) {
+						const voiceTwist = pitchToTwist(frame.pitch);
+						modulated = {
+							...modulated,
+							deformation: {
+								...modulated.deformation,
+								twist: voiceTwist
+							}
+						};
+					}
+					
+					// DIRECTIVE 2B: Roughness Link (Timbre) - Map spectralCentroid to roughness
+					if (voiceLinksStore.roughness === 'timbre') {
+						const voiceRoughness = timbreToRoughness(frame.timbre.spectralCentroid);
+						modulated = {
+							...modulated,
+							surface: {
+								...modulated.surface,
+								textureRoughness: voiceRoughness
+							}
+						};
+					}
+					
+					// Update the sculpture with voice-modulated parameters
+					if (modulated !== sculpture) {
+						setCurrentSculpture(modulated);
+					}
+				}
+			}
+		}
+		
 		if (recordingStore.state === 'recording') {
 			const frames = getCapturedFrames();
 			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
@@ -498,18 +593,19 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				/>
 				{:else}
 					<!-- Ceramic: Physical Material (transmission, clearcoat) -->
-					<!-- DIRECTIVE 2B: Enable vertex colors for glazing -->
+					<!-- DIRECTIVE 2: Fix Material Priority - use vertex colors if available, otherwise base color -->
+					{@const hasVertexColors = (sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') || (recordingStore.state === 'recording' && (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					<T.MeshPhysicalMaterial
 						transmission={sculpture.surface.glazeTransmission * 0.8} 
 						thickness={0.5}
 						roughness={sculpture.surface.textureRoughness}
 						clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
 						clearcoatRoughness={0.1}
-						color={materialColor}
+						color={hasVertexColors ? 'white' : materialColor}
 						metalness={0.1}
 						ior={1.5}
 						envMapIntensity={1.0}
-						vertexColors={(sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') || (recordingStore.state === 'recording' && (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
+						vertexColors={hasVertexColors}
 					/>
 				{/if}
 			</T.Mesh>

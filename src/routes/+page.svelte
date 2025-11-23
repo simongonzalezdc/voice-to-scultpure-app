@@ -14,10 +14,11 @@
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
 	import { uiStore, startOnboarding, togglePanel, toggleOrientation, setOrientation, setToolMode } from '$lib/stores/uiStore.svelte';
-	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
-	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore, getCapturedFrames, hasCapturedFrames } from '$lib/stores/recording.svelte';
-	import { analysisStore } from '$lib/stores/analysisStore.svelte';
+import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
+import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+import { recordingStore, getCapturedFrames, hasCapturedFrames } from '$lib/stores/recording.svelte';
+import { analysisStore } from '$lib/stores/analysisStore.svelte';
+import NewProjectModal from '$lib/components/modals/NewProjectModal.svelte';
 	import type { SculptureDefinition } from '$lib/types';
 import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 import { applyDeformation, createSculptureFromFrames } from '$lib/engine/physicsMapping';
@@ -450,8 +451,11 @@ import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 			</div>
 		{/if}
 		
-		<!-- Tutorial overlay (always rendered, but only visible when active) -->
-		<Tutorial />
+	<!-- Tutorial overlay (always rendered, but only visible when active) -->
+	<Tutorial />
+	
+	<!-- DIRECTIVE 1: New Project Modal (auto-triggers when no project) -->
+	<NewProjectModal />
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">

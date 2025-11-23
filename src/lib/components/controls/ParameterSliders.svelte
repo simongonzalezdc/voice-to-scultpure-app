@@ -9,10 +9,13 @@ import { uiStore, setSculptMode, setSculptZone } from '$lib/stores/uiStore.svelt
 import { applyDeformation } from '$lib/engine/physicsMapping';
 import type { SculptureDefinition } from '$lib/types';
 import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
+import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
+import type { ConstraintMode } from '$lib/engine/constraints';
+import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
 
 	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
-	let compression = $state(0); // Range: -0.5 (stretch) to 0.5 (squash)
+	let verticalStretch = $state(0); // Range: -0.5 (stretch) to 0.5 (squash) - RENAMED: was "compression" to avoid audio confusion
 	let roughness = $state(0.5);
 	let glaze = $state(0.3);
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
@@ -20,6 +23,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 	let zoneMin = $state(0.0);
 	let zoneMax = $state(1.0);
+	let constraintMode = $derived(uiStore.constraintMode); // DIRECTIVE: Constraints in Design tab
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
@@ -30,7 +34,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		if (sculpture && !isDragging) {
 			height = sculpture.physical.height;
 			twist = sculpture.deformation.twist;
-			compression = sculpture.deformation.compression;
+			verticalStretch = sculpture.deformation.compression;
 			roughness = sculpture.surface.textureRoughness;
 			glaze = sculpture.surface.glazeTransmission;
 			materialType = sculpture.surface.materialType ?? 'ceramic';
@@ -68,7 +72,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		if (!previewSculpture) return;
 		const deformed = applyDeformation(previewSculpture.radiusCurve, {
 			twist: twist,
-			compression: compression,
+			compression: verticalStretch,
 			taper: 0
 		});
 		setGhostSculpture({
@@ -83,7 +87,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			},
 			deformation: {
 				twist,
-				compression,
+				compression: verticalStretch,
 				taper: 0
 			},
 			physical: {
@@ -99,27 +103,27 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			// Commit changes - DIRECTIVE 1: Non-destructive! Never overwrite radiusCurve
 			// FIX: Do NOT apply deformation to radiusCurve here. 
 			// The Sculpture component handles that visually based on the deformation params.
-			setCurrentSculpture({
-				...previewSculpture,
-				// radiusCurve: previewSculpture.radiusCurve, // Keep original!
-				surface: {
-					...previewSculpture.surface,
-					textureRoughness: roughness,
-					glazeTransmission: glaze,
-					materialType: materialType,
-					baseColor: baseColor
-				},
-				deformation: {
-					twist,
-					compression,
-					taper: 0
-				},
-				physical: {
-					...previewSculpture.physical,
-					height: height, // DIRECTIVE 4: Include height in committed changes
-					sculptMode: sculptMode
-				}
-			});
+		setCurrentSculpture({
+			...previewSculpture,
+			// radiusCurve: previewSculpture.radiusCurve, // Keep original!
+			surface: {
+				...previewSculpture.surface,
+				textureRoughness: roughness,
+				glazeTransmission: glaze,
+				materialType: materialType,
+				baseColor: baseColor
+			},
+			deformation: {
+				twist,
+				compression: verticalStretch,
+				taper: 0
+			},
+			physical: {
+				...previewSculpture.physical,
+				height: height, // DIRECTIVE 4: Include height in committed changes
+				sculptMode: sculptMode
+			}
+		});
 		}
 		isDragging = false;
 		clearGhostSculpture();
@@ -134,7 +138,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		// Access slider values to create reactive dependencies
 		const currentHeight = height;
 		const currentTwist = twist;
-		const currentCompression = compression;
+		const currentVerticalStretch = verticalStretch;
 		const currentRoughness = roughness;
 		const currentGlaze = glaze;
 		
@@ -145,7 +149,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		
 		const deformed = applyDeformation(previewSculpture.radiusCurve, {
 			twist: currentTwist,
-			compression: currentCompression,
+			compression: currentVerticalStretch,
 			taper: 0
 		});
 
@@ -161,7 +165,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			},
 			deformation: {
 				twist: currentTwist,
-				compression: currentCompression,
+				compression: currentVerticalStretch,
 				taper: 0
 			},
 			physical: {
@@ -182,6 +186,13 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			}
 		};
 		setCurrentSculpture(updated);
+	}
+	
+	// DIRECTIVE: Handle constraint mode changes in Design tab
+	// Constraints apply immediately and persist through all subsequent deformations
+	function handleConstraintModeChange(mode: ConstraintMode) {
+		uiStore.constraintMode = mode;
+		console.log(`🏺 [CONSTRAINT] Mode changed to "${mode}" - constraints now apply to all shapes!`);
 	}
 
 	function handleColorChange() {
@@ -223,33 +234,48 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			</div>
 		</div>
 
-		<!-- Twist Slider -->
-		<div>
-			<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Twists the form around its vertical axis (multiple rotations possible)">
-				Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
-			</label>
-			<input
-				id="twist-slider"
-				type="range"
-				min="-5"
-				max="5"
-				step="0.01"
-				bind:value={twist}
-				class="w-full"
-				onpointerdown={handlePointerDown}
-				onpointerup={handlePointerUp}
-			/>
-			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span>-5 turns</span>
-				<span>+5 turns</span>
-			</div>
+	<!-- Twist Slider - DIRECTIVE 1: With Voice Link -->
+	<div>
+		<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Twists the form around its vertical axis (multiple rotations possible)">
+			Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
+			<!-- DIRECTIVE 1: Voice Link Button for Twist -->
+			<button
+				class="ml-auto p-1 rounded transition-colors {voiceLinksStore.twist === 'pitch'
+					? 'bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30'
+					: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
+				onclick={() => toggleVoiceLink('twist')}
+				title="{voiceLinksStore.twist === 'pitch' ? '🎤 Twist linked to PITCH (click to unlink)' : '🔗 Link Twist to PITCH (hands-free control)'}"
+				disabled={voiceLinksStore.twist === 'pitch'}
+			>
+				<span class="text-xs font-bold">⛓️</span>
+			</button>
+			<span class="text-xs text-subtle opacity-50">ⓘ</span>
+		</label>
+		<input
+			id="twist-slider"
+			type="range"
+			min="-5"
+			max="5"
+			step="0.01"
+			bind:value={twist}
+			disabled={voiceLinksStore.twist === 'pitch'}
+			class="w-full disabled:opacity-60 disabled:cursor-not-allowed"
+			onpointerdown={handlePointerDown}
+			onpointerup={handlePointerUp}
+		/>
+		<div class="flex justify-between text-xs text-secondary mt-1">
+			<span>-5 turns</span>
+			<span>+5 turns</span>
+			{#if voiceLinksStore.twist === 'pitch'}
+				<span class="text-brand-primary font-semibold">🎤 Pitch Control</span>
+			{/if}
 		</div>
+	</div>
 
 		<!-- Compression Slider -->
 		<div>
-			<label for="compression-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Extreme deformation: Super Stretch to Pancake">
-				Compression: {compression.toFixed(2)}
+			<label for="compression-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Squash or stretch the sculpture vertically. -0.5 = Super Stretch | 0 = Normal | 0.5 = Pancake">
+				Vertical Stretch: {verticalStretch.toFixed(2)}
 				<span class="text-xs text-subtle opacity-50">ⓘ</span>
 			</label>
 			<input
@@ -258,7 +284,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				min="-2.0"
 				max="0.95"
 				step="0.01"
-				bind:value={compression}
+				bind:value={verticalStretch}
 				class="w-full"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
@@ -269,28 +295,43 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			</div>
 		</div>
 
-		<!-- Resolution Slider (Formerly Roughness) -->
-		<div>
-			<label for="roughness-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Controls geometry resolution. Left = Low Poly/Blocky, Right = Smooth/Round">
-				Resolution: {roughness.toFixed(2)}
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
-			</label>
-			<input
-				id="roughness-slider"
-				type="range"
-				min="0"
-				max="1"
-				step="0.01"
-				bind:value={roughness}
-				class="w-full"
-				onpointerdown={handlePointerDown}
-				onpointerup={handlePointerUp}
-			/>
-			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span>Low Poly</span>
-				<span>Smooth</span>
-			</div>
+	<!-- Resolution Slider (Formerly Roughness) - DIRECTIVE 1: With Voice Link -->
+	<div>
+		<label for="roughness-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2" title="Controls geometry resolution. Left = Low Poly/Blocky, Right = Smooth/Round">
+			Resolution: {roughness.toFixed(2)}
+			<!-- DIRECTIVE 1: Voice Link Button for Roughness/Timbre -->
+			<button
+				class="ml-auto p-1 rounded transition-colors {voiceLinksStore.roughness === 'timbre'
+					? 'bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30'
+					: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
+				onclick={() => toggleVoiceLink('roughness')}
+				title="{voiceLinksStore.roughness === 'timbre' ? '🎤 Roughness linked to TIMBRE (click to unlink)' : '🔗 Link Roughness to TIMBRE (hands-free control)'}"
+				disabled={voiceLinksStore.roughness === 'timbre'}
+			>
+				<span class="text-xs font-bold">⛓️</span>
+			</button>
+			<span class="text-xs text-subtle opacity-50">ⓘ</span>
+		</label>
+		<input
+			id="roughness-slider"
+			type="range"
+			min="0"
+			max="1"
+			step="0.01"
+			bind:value={roughness}
+			disabled={voiceLinksStore.roughness === 'timbre'}
+			class="w-full disabled:opacity-60 disabled:cursor-not-allowed"
+			onpointerdown={handlePointerDown}
+			onpointerup={handlePointerUp}
+		/>
+		<div class="flex justify-between text-xs text-secondary mt-1">
+			<span>Low Poly</span>
+			<span>Smooth</span>
+			{#if voiceLinksStore.roughness === 'timbre'}
+				<span class="text-brand-primary font-semibold">🎤 Timbre Control</span>
+			{/if}
 		</div>
+	</div>
 
 		<!-- Glaze Slider -->
 		<div>
@@ -376,6 +417,56 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				<span>Active Zone</span>
 				<span>🔒 Locked</span>
 			</div>
+		</div>
+
+		<!-- DIRECTIVE: Fabrication Constraints (Persistent) -->
+		<!-- These constraints apply immediately and persist through ALL deformations -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold mb-2 text-secondary">Fabrication Constraints</h3>
+			<p class="text-xs text-secondary opacity-75 mb-3">
+				Physical constraints that persist through all slider adjustments. Ensures manufacturable shapes.
+			</p>
+			
+			<div class="flex gap-2 mb-4">
+				<button 
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode === 'digital' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => handleConstraintModeChange('digital')}
+					title="Full creative freedom - may produce impossible shapes"
+				>
+					🪄 Digital
+				</button>
+				<button 
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode === 'ceramic' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => handleConstraintModeChange('ceramic')}
+					title="Pottery wheel physics: hand access, smooth clay, stable base"
+				>
+					🏺 Ceramic
+				</button>
+				<button 
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode === '3d_print' ? 'bg-brand-primary border-brand-primary text-white' : 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => handleConstraintModeChange('3d_print')}
+					title="FDM printer constraints: 60° overhangs, solid contiguous geometry"
+				>
+					🖨️ 3D Print
+				</button>
+			</div>
+			
+			<!-- Constraint Info -->
+			<div class="surface-panel-alt p-2 rounded text-xs text-secondary mb-3">
+				{getConstraintDescription(constraintMode)}
+			</div>
+			
+			<!-- Ceramic-specific info -->
+			{#if constraintMode === 'ceramic'}
+				<div class="p-2 rounded bg-[#2a1a1a] border border-[#8f3e48] text-xs">
+					<p class="text-[#e0a090] font-medium mb-1">🏺 Persistent Constraints:</p>
+					<ul class="text-[#d0908a] space-y-0.5 list-disc list-inside text-xs">
+						<li>Min Width: 70mm (hand access)</li>
+						<li>Clay Smoothing: Audio jitter → smooth flow</li>
+						<li>Apply on EVERY slide change - guaranteed viable vessels!</li>
+					</ul>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Sculpt Mode Selection -->

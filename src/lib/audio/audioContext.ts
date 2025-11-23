@@ -10,6 +10,7 @@ let visualizerPollInterval: number | null = null;
 let gainNode: GainNode | null = null; // Directive 2: Keep graph alive
 let inputGainNode: GainNode | null = null; // Mic sensitivity boost
 let sourceNode: MediaStreamAudioSourceNode | null = null; // Track the mic source node
+let dynamicsCompressor: DynamicsCompressorNode | null = null; // DIRECTIVE 3: Normalize volume for consistent shapes
 const MIC_SENSITIVITY_MULTIPLIER = 3.0; // Increase mic sensitivity (1.0 = normal, 3.0 = 3x boost)
 
 // CRITICAL FIX: Volume smoothing to prevent jitter
@@ -52,6 +53,16 @@ export async function initializeAudioContext(
 	// Create input gain node for mic sensitivity boost
 	inputGainNode = audioContext.createGain();
 	inputGainNode.gain.value = MIC_SENSITIVITY_MULTIPLIER; // Boost mic input
+
+	// DIRECTIVE 3: Create DynamicsCompressorNode to normalize volume
+	// This reduces jittery shapes and makes thickness mapping consistent
+	// Chain: Source -> Compressor -> Worklet -> Destination
+	dynamicsCompressor = audioContext.createDynamicsCompressor();
+	dynamicsCompressor.threshold.value = -50; // Very sensitive to all input
+	dynamicsCompressor.knee.value = 40; // Smooth compression curve
+	dynamicsCompressor.ratio.value = 12; // Heavy compression (12:1)
+	dynamicsCompressor.attack.value = 0; // Instant response
+	dynamicsCompressor.release.value = 0.25; // 250ms release for smoothness
 
 	// Directive 2: Keep the graph alive - Connect to destination (muted)
 	gainNode = audioContext.createGain();
@@ -100,7 +111,7 @@ export async function startMicrophoneCapture(deviceId?: string): Promise<MediaSt
 }
 
 export function connectMicrophoneToWorklet(stream: MediaStream): void {
-	if (!audioContext || !workletNode || !analyserNode || !inputGainNode) {
+	if (!audioContext || !workletNode || !analyserNode || !inputGainNode || !dynamicsCompressor) {
 		throw new Error('Audio context not initialized');
 	}
 
@@ -113,17 +124,19 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 	// Create and track the source node
 	sourceNode = audioContext.createMediaStreamSource(stream);
 	
-	// Connect source through input gain node for sensitivity boost
+	// DIRECTIVE 3: Connect audio chain for volume normalization
+	// Chain: Source -> Input Gain -> Compressor -> Worklet & Analyser
 	sourceNode.connect(inputGainNode);
+	inputGainNode.connect(dynamicsCompressor);
 	
-	// Connect amplified signal to both worklet (for recording) and analyser (for visualizer bypass)
-	inputGainNode.connect(workletNode);
-	inputGainNode.connect(analyserNode); // Directive 1: Parallel connection for direct feedback
+	// Connect compressed signal to both worklet (for recording) and analyser (for visualizer bypass)
+	dynamicsCompressor.connect(workletNode);
+	dynamicsCompressor.connect(analyserNode); // Directive 1: Parallel connection for direct feedback
 
 	// Start the visualizer bypass polling
 	startVisualizerBypass();
 	
-	console.log('🎤 [AUDIO] Microphone connected to worklet - ready to record');
+	console.log('🎤 [AUDIO] Microphone connected to worklet with dynamics compression - ready to record');
 }
 
 // Directive 1: Visualizer Bypass - Direct mic level calculation
@@ -225,6 +238,10 @@ export function resetAudioContext(): void {
 	if (sourceNode) {
 		sourceNode.disconnect();
 		sourceNode = null;
+	}
+	if (dynamicsCompressor) {
+		dynamicsCompressor.disconnect();
+		dynamicsCompressor = null;
 	}
 	if (workletNode) {
 		workletNode.disconnect();

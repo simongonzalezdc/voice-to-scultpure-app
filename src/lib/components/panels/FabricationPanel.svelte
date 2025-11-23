@@ -220,22 +220,37 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 							{getConstraintIcon('3d_print')} 3D Print
 						</button>
 					</div>
-					<!-- Constraint Description -->
-					<div class="surface-panel-alt p-3 rounded">
-						<p class="text-xs text-secondary leading-relaxed">
-							{constraintDescription}
-						</p>
-					</div>
+				<!-- Constraint Description -->
+				<div class="surface-panel-alt p-3 rounded">
+					<p class="text-xs text-secondary leading-relaxed">
+						{constraintDescription}
+					</p>
 				</div>
 				
-				<!-- Live Preview Hint -->
-				{#if sculptureStore.currentSculpture}
-					<div class="mt-2 surface-panel-alt p-2 rounded">
-						<p class="text-xs text-brand-primary font-medium">
-							💡 Switch modes above to see your sculpture adapt in real-time!
+				<!-- DIRECTIVE 3: Ceramic Constraints Info -->
+				{#if constraintMode === 'ceramic'}
+					<div class="mt-3 p-2 rounded bg-[#2a1a1a] border border-[#8f3e48]">
+						<p class="text-xs text-[#e0a090] font-medium mb-1">
+							🏺 Active Constraints:
 						</p>
+						<ul class="text-xs text-[#d0908a] space-y-0.5 list-disc list-inside">
+							<li>Min Width: 70mm (hand access)</li>
+							<li>Clay Smoothing: Jitter → Flow</li>
+							<li>Max Overhang: 45°</li>
+							<li>Stable Base: 1.5x wider</li>
+						</ul>
 					</div>
 				{/if}
+			</div>
+			
+			<!-- Live Preview Hint -->
+			{#if sculptureStore.currentSculpture}
+				<div class="mt-2 surface-panel-alt p-2 rounded">
+					<p class="text-xs text-brand-primary font-medium">
+						💡 Switch modes above to see your sculpture adapt in real-time!
+					</p>
+				</div>
+			{/if}
 			</div>
 
 			<!-- View Settings (Pottery Mode) -->
