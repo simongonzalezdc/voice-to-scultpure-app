@@ -17,6 +17,7 @@
 	import { analysisStore as analysis } from '$lib/stores/analysisStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+	import { Mic, Circle, Palette, Hand, MoveVertical, Orbit } from 'lucide-svelte';
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
@@ -224,11 +225,11 @@
 		aria-live="polite"
 	>
 		{#if uiStore.workspace === 'glaze' && recordingStore.state === 'idle'}
-			<span aria-hidden="true">🎨</span>
+			<Palette size={18} />
 		{:else if uiStore.workspace === 'force' && recordingStore.state === 'idle'}
-			<span aria-hidden="true">🖐️</span>
+			<Hand size={18} />
 		{:else if recordingStore.state === 'idle'}
-			<span aria-hidden="true">🔴</span>
+			<Circle size={18} fill="currentColor" />
 		{/if}
 		{getButtonText()}
 	</button>

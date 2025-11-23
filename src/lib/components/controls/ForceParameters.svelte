@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { Info } from 'lucide-svelte';
 	
 	let damping = $state(uiStore.forceParams.damping);
 	let hardness = $state(uiStore.forceParams.hardness);
@@ -25,7 +26,7 @@
 				title="Controls how quickly the deformation stops"
 			>
 				Damping: {damping.toFixed(2)}
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="damping-slider"
@@ -50,7 +51,7 @@
 				title="Controls resistance to deformation"
 			>
 				Hardness: {hardness.toFixed(2)}
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="hardness-slider"

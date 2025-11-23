@@ -1,33 +1,34 @@
 <script lang="ts">
 	import { uiStore, togglePanel, toggleOrientation, openPanel } from '$lib/stores/uiStore.svelte';
+	import { Folder, Bot, MoveVertical, Orbit, Settings, HelpCircle, Gem } from 'lucide-svelte';
 
 	// Tool definitions
 	const tools = $derived([
 		{
 			id: 'projectList',
 			label: 'Library',
-			icon: '📁',
+			icon: Folder,
 			action: () => togglePanel('projectList'),
 			active: uiStore.panels.projectList
 		},
 		{
 			id: 'aiPanel',
 			label: 'AI Assistant',
-			icon: '🤖',
+			icon: Bot,
 			action: () => togglePanel('aiPanel'),
 			active: uiStore.panels.aiPanel
 		},
 		{
 			id: 'orientation',
 			label: uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe',
-			icon: uiStore.orientation === 'vertical' ? '⊶' : '↺',
+			icon: uiStore.orientation === 'vertical' ? MoveVertical : Orbit,
 			action: () => toggleOrientation(),
 			active: false // Toggle state, not a panel
 		},
 		{
 			id: 'settings',
 			label: 'Settings',
-			icon: '⚙️',
+			icon: Settings,
 			action: () => togglePanel('settings'),
 			active: uiStore.panels.settings
 		}
@@ -38,7 +39,9 @@
 	class="flex flex-col items-center w-16 bg-panel border-r border-subtle py-4 gap-4 z-toolbar"
 >
 	<!-- Logo / Home -->
-	<div class="w-10 h-10 flex items-center justify-center text-2xl mb-4">🏺</div>
+	<div class="w-10 h-10 flex items-center justify-center text-brand-primary mb-4">
+		<Gem size={28} />
+	</div>
 
 	<!-- Tools -->
 	<div class="flex flex-col gap-2 w-full px-2">
@@ -51,7 +54,7 @@
 				title={tool.label}
 				aria-label={tool.label}
 			>
-				<span class="text-xl">{tool.icon}</span>
+				<tool.icon size={20} />
 			</button>
 		{/each}
 	</div>
@@ -65,7 +68,7 @@
 		aria-label="Keyboard Shortcuts (Shift+?)"
 		onclick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true }))}
 	>
-		?
+		<HelpCircle size={20} />
 	</button>
 </div>
 

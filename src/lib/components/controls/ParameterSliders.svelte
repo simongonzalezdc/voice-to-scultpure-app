@@ -12,6 +12,7 @@
 	import { getConstraintDescription } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
+	import { Info, Cylinder, Circle, Box, FileText, Link, Mic, Lock, Sparkles, Wand, Printer } from 'lucide-svelte';
 
 	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
@@ -252,7 +253,7 @@
 					onclick={() => handleBaseShapeChange('lathe')}
 					title="Vase (Lathe)"
 				>
-					🏺 Vase
+					<span class="flex items-center gap-2"><Cylinder size={16} /> Vase</span>
 				</button>
 				<button
 					type="button"
@@ -262,7 +263,7 @@
 					onclick={() => handleBaseShapeChange('sphere')}
 					title="Sphere"
 				>
-					🔮 Sphere
+					<span class="flex items-center gap-2"><Circle size={16} /> Sphere</span>
 				</button>
 				<button
 					type="button"
@@ -272,7 +273,7 @@
 					onclick={() => handleBaseShapeChange('cube')}
 					title="Block (Cube)"
 				>
-					🧊 Block
+					<span class="flex items-center gap-2"><Box size={16} /> Block</span>
 				</button>
 				<button
 					type="button"
@@ -282,7 +283,7 @@
 					onclick={() => handleBaseShapeChange('plane')}
 					title="Plane"
 				>
-					📜 Plane
+					<span class="flex items-center gap-2"><FileText size={16} /> Plane</span>
 				</button>
 			</div>
 		</div>
@@ -295,7 +296,7 @@
 				title="Adjusts the physical height of the sculpture (10mm to 1000mm = 1 meter)"
 			>
 				Height: {height.toFixed(0)}mm
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="height-slider"
@@ -333,9 +334,9 @@
 						: '🔗 Link Twist to PITCH (hands-free control)'}
 					disabled={voiceLinksStore.twist === 'pitch'}
 				>
-					<span class="text-xs font-bold">⛓️</span>
+					<Link size={14} class={voiceLinksStore.twist === 'pitch' ? 'opacity-100' : 'opacity-50'} />
 				</button>
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="twist-slider"
@@ -353,7 +354,7 @@
 				<span>-5 turns</span>
 				<span>+5 turns</span>
 				{#if voiceLinksStore.twist === 'pitch'}
-					<span class="text-brand-primary font-semibold">🎤 Pitch Control</span>
+					<span class="text-brand-primary font-semibold flex items-center gap-1"><Mic size={12} /> Pitch Control</span>
 				{/if}
 			</div>
 		</div>
@@ -366,7 +367,7 @@
 				title="Squash or stretch the sculpture vertically. -0.5 = Super Stretch | 0 = Normal | 0.5 = Pancake"
 			>
 				Vertical Stretch: {verticalStretch.toFixed(2)}
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="compression-slider"
@@ -404,9 +405,9 @@
 						: '🔗 Link Roughness to TIMBRE (hands-free control)'}
 					disabled={voiceLinksStore.roughness === 'timbre'}
 				>
-					<span class="text-xs font-bold">⛓️</span>
+					<Link size={14} class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100' : 'opacity-50'} />
 				</button>
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="roughness-slider"
@@ -424,7 +425,7 @@
 				<span>Low Poly</span>
 				<span>Smooth</span>
 				{#if voiceLinksStore.roughness === 'timbre'}
-					<span class="text-brand-primary font-semibold">🎤 Timbre Control</span>
+					<span class="text-brand-primary font-semibold flex items-center gap-1"><Mic size={12} /> Timbre Control</span>
 				{/if}
 			</div>
 		</div>
@@ -437,7 +438,7 @@
 				title="Controls how glass-like or clay-like the surface appears"
 			>
 				Glaze: {glaze.toFixed(2)}
-				<span class="text-xs text-subtle opacity-50">ⓘ</span>
+				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
 			<input
 				id="glaze-slider"
@@ -461,8 +462,8 @@
 			</p>
 			{#if sculptureStore.currentSculpture}
 				<div class="mb-3 surface-panel-alt p-2 rounded">
-					<p class="text-xs text-brand-primary font-medium">
-						✨ Live Preview: Move sliders to see zones dim in real-time!
+					<p class="text-xs text-brand-primary font-medium flex items-center gap-1">
+						<Sparkles size={12} /> Live Preview: Move sliders to see zones dim in real-time!
 					</p>
 				</div>
 			{/if}
@@ -522,9 +523,9 @@
 			</div>
 
 			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span>🔒 Locked</span>
+				<span class="flex items-center gap-1"><Lock size={10} /> Locked</span>
 				<span>Active Zone</span>
-				<span>🔒 Locked</span>
+				<span class="flex items-center gap-1"><Lock size={10} /> Locked</span>
 			</div>
 		</div>
 
@@ -546,7 +547,7 @@
 					onclick={() => handleConstraintModeChange('digital')}
 					title="Full creative freedom - may produce impossible shapes"
 				>
-					🪄 Digital
+					<span class="flex items-center justify-center gap-2"><Wand size={16} /> Digital</span>
 				</button>
 				<button
 					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode ===
@@ -556,7 +557,7 @@
 					onclick={() => handleConstraintModeChange('ceramic')}
 					title="Pottery wheel physics: hand access, smooth clay, stable base"
 				>
-					🏺 Ceramic
+					<span class="flex items-center justify-center gap-2"><Cylinder size={16} /> Ceramic</span>
 				</button>
 				<button
 					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode ===
@@ -566,7 +567,7 @@
 					onclick={() => handleConstraintModeChange('3d_print')}
 					title="FDM printer constraints: 60° overhangs, solid contiguous geometry"
 				>
-					🖨️ 3D Print
+					<span class="flex items-center justify-center gap-2"><Printer size={16} /> 3D Print</span>
 				</button>
 			</div>
 
@@ -578,7 +579,7 @@
 			<!-- Ceramic-specific info -->
 			{#if constraintMode === 'ceramic'}
 				<div class="p-2 rounded bg-[#2a1a1a] border border-[#8f3e48] text-xs">
-					<p class="text-[#e0a090] font-medium mb-1">🏺 Persistent Constraints:</p>
+					<p class="text-[#e0a090] font-medium mb-1 flex items-center gap-1"><Cylinder size={12} /> Persistent Constraints:</p>
 					<ul class="text-[#d0908a] space-y-0.5 list-disc list-inside text-xs">
 						<li>Min Width: 70mm (hand access)</li>
 						<li>Clay Smoothing: Audio jitter → smooth flow</li>
@@ -593,8 +594,8 @@
 			<h3 class="text-sm font-semibold mb-2 text-secondary">Sculpt Mode</h3>
 			{#if sculptureStore.currentSculpture}
 				<div class="mb-3 surface-panel-alt p-2 rounded">
-					<p class="text-xs text-brand-primary font-medium">
-						🔄 Live Preview: Toggle between Add/Subtract to see instant shape changes!
+					<p class="text-xs text-brand-primary font-medium flex items-center gap-1">
+						<Sparkles size={12} /> Live Preview: Toggle between Add/Subtract to see instant shape changes!
 					</p>
 				</div>
 			{/if}

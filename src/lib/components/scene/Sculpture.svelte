@@ -21,6 +21,7 @@
 		IcosahedronGeometry,
 		BoxGeometry,
 		PlaneGeometry,
+		CylinderGeometry,
 		BufferGeometry,
 		Raycaster,
 		MeshBasicMaterial,
@@ -243,47 +244,57 @@
 	// Helper function to create geometry from sculpture data
 	// DIRECTIVE 1: NEVER destructively modify sculpture.radiusCurve
 	// DIRECTIVE 2: Support multiple base shapes for Sonic Force mode
-	function createGeometryFromSculpture(sculpture: SculptureDefinition): BufferGeometry | null {
+	// DIRECTIVE 2: Safe Cylinder Fallback - NEVER return null, always return valid geometry
+	function createGeometryFromSculpture(sculpture: SculptureDefinition): BufferGeometry {
 		const baseShape = sculpture.baseShape || 'lathe';
 		
-		// Handle non-lathe shapes
-		if (baseShape !== 'lathe') {
-			const height = sculpture.physical.height || 150;
-			const heightInUnits = height / 150; // Normalize to 0-2 range (matching lathe)
-			const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
-			
-			switch (baseShape) {
-				case 'sphere': {
-					// Sphere: IcosahedronGeometry with high detail for smooth sculpting
-					const radius = heightInUnits / 2; // Sphere radius = half height
-					const detail = 40; // High detail for smooth sculpting
-					return new IcosahedronGeometry(radius, detail);
+		// DIRECTIVE 2: Wrap entire function in try-catch with fallback cylinder
+		try {
+			// Handle non-lathe shapes
+			if (baseShape !== 'lathe') {
+				const height = sculpture.physical.height || 150;
+				const heightInUnits = height / 150; // Normalize to 0-2 range (matching lathe)
+				const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+				
+				switch (baseShape) {
+					case 'sphere': {
+						// Sphere: IcosahedronGeometry with high detail for smooth sculpting
+						const radius = heightInUnits / 2; // Sphere radius = half height
+						const detail = 40; // High detail for smooth sculpting
+						const geom = new IcosahedronGeometry(radius, detail);
+						// Validate geometry
+						if (!geom || !geom.attributes.position) throw new Error('Invalid sphere geometry');
+						return geom;
+					}
+					case 'cube': {
+						// Cube: BoxGeometry with high segments to act like a solid block
+						const size = heightInUnits;
+						const segments = 64; // High segments for smooth sculpting
+						const geom = new BoxGeometry(size, size, size, segments, segments, segments);
+						if (!geom || !geom.attributes.position) throw new Error('Invalid cube geometry');
+						return geom;
+					}
+					case 'plane': {
+						// Plane: PlaneGeometry with high segments
+						const size = heightInUnits * 2; // Plane extends wider
+						const geom = new PlaneGeometry(size, size, 128, 128);
+						if (!geom || !geom.attributes.position) throw new Error('Invalid plane geometry');
+						return geom;
+					}
+					default:
+						throw new Error(`Unknown base shape: ${baseShape}`);
 				}
-				case 'cube': {
-					// Cube: BoxGeometry with high segments to act like a solid block
-					const size = heightInUnits;
-					const segments = 64; // High segments for smooth sculpting
-					return new BoxGeometry(size, size, size, segments, segments, segments);
-				}
-				case 'plane': {
-					// Plane: PlaneGeometry with high segments
-					const size = heightInUnits * 2; // Plane extends wider
-					return new PlaneGeometry(size, size, 128, 128);
-				}
-				default:
-					return null;
 			}
-		}
-		
-		// LATHE SHAPE: Original logic
-		// Safety check
-		if (
-			!sculpture.radiusCurve ||
-			!Array.isArray(sculpture.radiusCurve) ||
-			sculpture.radiusCurve.length === 0
-		) {
-			return null;
-		}
+			
+			// LATHE SHAPE: Original logic
+			// Safety check
+			if (
+				!sculpture.radiusCurve ||
+				!Array.isArray(sculpture.radiusCurve) ||
+				sculpture.radiusCurve.length === 0
+			) {
+				throw new Error('Invalid radiusCurve');
+			}
 
 		// 1. START WITH BASE - Create a copy, never overwrite original
 		// DIRECTIVE 1: NaN Guard - Sanitize all points before processing
@@ -369,7 +380,13 @@
 		// Note: Material update happens in the template, geometry update happens here
 
 		if (basePoints.length < 2) {
-			return null;
+			throw new Error('Not enough points after processing');
+		}
+
+		// DIRECTIVE 2: Validate points for NaN before geometry creation
+		const hasNaN = basePoints.some(p => isNaN(p.x) || isNaN(p.y));
+		if (hasNaN) {
+			throw new Error('NaN detected in points');
 		}
 
 		// 6. Generate Geometry from final deformed + modulated points
@@ -377,9 +394,21 @@
 		// Use dynamic segments count for Low Poly effect
 		const geometry = new LatheGeometry(vectors, segments);
 
+		// DIRECTIVE 2: Validate geometry after creation
+		if (!geometry || !geometry.attributes.position) {
+			throw new Error('Geometry generation returned invalid geometry');
+		}
+
+		// Check for NaN in positions
+		const positions = geometry.attributes.position;
+		const posArray = positions.array as Float32Array;
+		const hasNaNInGeometry = Array.from(posArray).some((v) => !Number.isFinite(v) || Number.isNaN(v));
+		if (hasNaNInGeometry) {
+			throw new Error('NaN detected in geometry positions');
+		}
+
 		// DIRECTIVE 2B: Initialize vertex colors if saved colors exist or in glaze mode
 		if (geometry.attributes.position) {
-			const positions = geometry.attributes.position;
 			const vertexCount = positions.count;
 
 			// Check if sculpture has saved vertex colors
@@ -429,7 +458,18 @@
 			applyVertexTwist(geometry, sculpture.deformation.twist);
 		}
 
+		// Recalculate normals for proper lighting
+		geometry.computeVertexNormals();
+
 		return geometry;
+		} catch (e) {
+			// DIRECTIVE 2: Safe Cylinder Fallback - ensure user always sees something
+			console.warn('⚠️ [SCULPTURE] Geometry Generation Failed:', e);
+			// Fallback: A simple Cylinder so we know the Renderer is alive (Red Flag)
+			const fallbackCylinder = new CylinderGeometry(0.5, 0.5, 1, 32);
+			fallbackCylinder.computeVertexNormals();
+			return fallbackCylinder;
+		}
 	}
 
 	// LIVE PREVIEW: Create geometry immediately when any relevant state changes
@@ -473,19 +513,25 @@
 		const zoneMin = uiStore.sculptZone.min;
 		const zoneMax = uiStore.sculptZone.max;
 
-		const newGeom = createGeometryFromSculpture(currentSculpture);
-		if (newGeom) {
+		// DIRECTIVE 2: Safe Cylinder Fallback is now handled inside createGeometryFromSculpture
+		// Function now NEVER returns null - always returns valid geometry (fallback cylinder if needed)
+		const geometryToRender = createGeometryFromSculpture(currentSculpture);
+		
+		if (geometryToRender && meshRef) {
 			// DIRECTIVE 2: Apply zone visualization if zone is restricted
 			// Show zone dimming when zone sliders are being adjusted
 			const zoneIsRestricted = zoneMin > 0 || zoneMax < 1;
 
-			if (zoneIsRestricted) {
-				applyZoneVisualization(newGeom, zoneMin, zoneMax);
+			if (zoneIsRestricted && currentSculpture.baseShape === 'lathe') {
+				applyZoneVisualization(geometryToRender, zoneMin, zoneMax);
 			}
 
 			const oldGeom = meshRef.geometry;
-			meshRef.geometry = newGeom;
+			meshRef.geometry = geometryToRender;
 			if (oldGeom) oldGeom.dispose();
+			
+			// Recalculate normals for lighting
+			geometryToRender.computeVertexNormals();
 		}
 	});
 
@@ -854,7 +900,22 @@
 
 	// Parent Rig Transform Values
 	// Height scaling: Normalize to 150mm reference height
-	let heightScale = $derived(sculpture?.physical.height ? sculpture.physical.height / 150 : 1);
+	// DIRECTIVE 3: Validate height scale to prevent NaN or 0
+	let heightScale = $derived.by(() => {
+		const height = sculpture?.physical.height;
+		// DIRECTIVE 3: Enhanced validation - ensure height is valid and positive
+		if (!height || height <= 0 || !Number.isFinite(height) || Number.isNaN(height)) {
+			console.warn('⚠️ [SCULPTURE] Invalid height, using safe default:', height);
+			return 1.0; // Safe default
+		}
+		const scale = height / 150;
+		// DIRECTIVE 3: Ensure scale is valid, finite, and reasonable (prevent collapse)
+		if (!Number.isFinite(scale) || Number.isNaN(scale) || scale <= 0 || scale > 10) {
+			console.warn('⚠️ [SCULPTURE] Invalid height scale, using safe default:', scale);
+			return 1.0; // Safe default (prevent scale collapse)
+		}
+		return scale;
+	});
 
 	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
 	// Smooth rotation animation for Pottery ↔ Lathe toggle using spring for fluidity
@@ -884,8 +945,9 @@
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
 		<!-- Main Sculpture (Always visible when sculpture exists) -->
+		<!-- DIRECTIVE 1: Disable frustum culling to prevent invisible mesh when bounding box is invalid -->
 		{#if sculpture}
-			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
+			<T.Mesh bind:ref={meshRef} castShadow receiveShadow frustumCulled={false}>
 				<!-- DIRECTIVE 3: Material Optimization
 				     Threlte's <T.MeshPhysicalMaterial> uses Svelte's reactivity system.
 				     Materials are NOT recreated on every frame - only props are updated when they change.
@@ -932,8 +994,9 @@
 		<!-- Ghost Mesh - Now sibling to Main Mesh, shares parent scale/rotation -->
 		<!-- DIRECTIVE 1 FIX: Ghost is now inside parent rig with main mesh (no more matcha whisk!) -->
 		<!-- DIRECTIVE 3 FIX: Ghost material now subtle - transparent, low opacity, wireframe blueprint style -->
+		<!-- DIRECTIVE 1: Disable frustum culling to prevent invisible mesh when bounding box is invalid -->
 		{#if sculptureStore.ghostSculpture}
-			<T.Mesh bind:ref={ghostMeshRef}>
+			<T.Mesh bind:ref={ghostMeshRef} frustumCulled={false}>
 				<T.MeshPhysicalMaterial
 					color={ghostMaterialColor}
 					opacity={0.15}

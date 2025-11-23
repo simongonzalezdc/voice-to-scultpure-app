@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { uiStore, setWorkspace, type Workspace } from '$lib/stores/uiStore.svelte';
+	import { Hammer, Hand, Palette, Download } from 'lucide-svelte';
 
-	const workspaces: { id: Workspace; label: string; icon: string }[] = [
-		{ id: 'sculpt', label: 'Sculpt', icon: '🗿' },
-		{ id: 'force', label: 'Force', icon: '🖐️' },
-		{ id: 'glaze', label: 'Glaze', icon: '🎨' },
-		{ id: 'export', label: 'Export', icon: '📤' }
+	const workspaces: { id: Workspace; label: string; icon: any }[] = [
+		{ id: 'sculpt', label: 'Sculpt', icon: Hammer },
+		{ id: 'force', label: 'Force', icon: Hand },
+		{ id: 'glaze', label: 'Glaze', icon: Palette },
+		{ id: 'export', label: 'Export', icon: Download }
 	];
 </script>
 
@@ -20,7 +21,7 @@
 			aria-selected={uiStore.workspace === ws.id}
 			role="tab"
 		>
-			<span>{ws.icon}</span>
+			<ws.icon size={16} />
 			<span>{ws.label}</span>
 		</button>
 	{/each}

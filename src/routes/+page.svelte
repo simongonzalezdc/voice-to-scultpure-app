@@ -39,6 +39,7 @@
 	import { applyDeformation, createSculptureFromFrames } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
+	import { Mic, MoveVertical, Orbit, Hammer, Palette } from 'lucide-svelte';
 
 	// Gatekeeper: Check if user has completed calibration
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -354,13 +355,19 @@
 						>
 							<!-- Mic Level Indicator -->
 							<div class="flex items-center gap-1.5 whitespace-nowrap">
-								<span class="text-[#666]">🎙️</span>
+								<span class="text-[#666]"><Mic size={14} /></span>
 								<span>{Math.round(analysisStore.micLevel * 100)}%</span>
 							</div>
 
 							<!-- Orientation Badge -->
 							<div class="flex items-center gap-1.5 whitespace-nowrap">
-								<span class="text-[#666]">{uiStore.orientation === 'vertical' ? '⊶' : '↺'}</span>
+								<span class="text-[#666]">
+									{#if uiStore.orientation === 'vertical'}
+										<MoveVertical size={14} />
+									{:else}
+										<Orbit size={14} />
+									{/if}
+								</span>
 								<span>{uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe'}</span>
 							</div>
 
@@ -390,11 +397,11 @@
 						</div>
 
 						<!-- Status Bar (Right) - Context-Aware Legend -->
-						<div class="text-xs text-[#888] whitespace-nowrap">
+						<div class="text-xs text-[#888] whitespace-nowrap flex items-center gap-2">
 							{#if uiStore.workspace === 'sculpt'}
-								🔨 Pitch: Twist | Vol: Thickness | Attack: Cut
+								<span class="flex items-center gap-1"><Hammer size={12} /> Pitch: Twist | Vol: Thickness | Attack: Cut</span>
 							{:else if uiStore.workspace === 'glaze'}
-								🎨 Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss
+								<span class="flex items-center gap-1"><Palette size={12} /> Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss</span>
 							{:else}
 								FPS: 60 | GPU: Ready
 							{/if}
