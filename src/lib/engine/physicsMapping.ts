@@ -1,8 +1,19 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 import { Color } from 'three';
 import { applyConstraints, type ConstraintMode } from './constraints';
+import {
+	SCULPTURE_BASE_RADIUS,
+	SCULPTURE_MAX_RADIUS,
+	SCULPTURE_MIN_RADIUS,
+	SCULPTURE_SENSITIVITY,
+	GEOMETRY_MAX_POINTS,
+	NOISE_FLOOR_DEFAULT,
+	SILENCE_THRESHOLD_MULTIPLIER,
+	TIMBRE_MIN_HZ,
+	TIMBRE_MAX_HZ
+} from '$lib/config/constants';
 
-// Geometric design constants
+// Geometric design constants (legacy - now using constants.ts)
 const BASE_RADIUS = 0.5;
 
 function createHourglass(): LathePoint[] {
@@ -29,22 +40,20 @@ export function generateLathe(
 	if (!frames.length) return createHourglass();
 
 	// NOISE GATE LOGIC
-	// Get noise floor from profile, default to 0.05 if not set
+	// Get noise floor from profile, default from constants
 	// RMS values below this are considered silence/background noise
-	const noiseFloor = profile?.energyRange?.min || 0.02;
-	const silenceThreshold = noiseFloor * 1.5; // Add 50% safety margin
+	const noiseFloor = profile?.energyRange?.min || NOISE_FLOOR_DEFAULT;
+	const silenceThreshold = noiseFloor * SILENCE_THRESHOLD_MULTIPLIER;
 
-	// 2. Resample: Limit to 200 points max (High Res)
-	const maxPoints = 200;
-	const samplingRate = Math.ceil(frames.length / maxPoints);
+	// 2. Resample: Limit to max points (High Res)
+	const samplingRate = Math.ceil(frames.length / GEOMETRY_MAX_POINTS);
 	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
 
-	// Constants for radius calculation
-	// DIRECTIVE 3: AMPLIFIED for visibility
-	const BASE_RADIUS = 0.2;
-	const MAX_RADIUS = 1.5; // Standard block size for subtractive mode
-	const SENSITIVITY = 3.5; // AMPLIFIED: was 2.0, now 3.5 (75% increase)
-	const MIN_RADIUS = 0.05; // AMPLIFIED: Allow deeper cuts (was 0.1)
+	// Constants for radius calculation (using centralized constants)
+	const BASE_RADIUS = SCULPTURE_BASE_RADIUS;
+	const MAX_RADIUS = SCULPTURE_MAX_RADIUS;
+	const SENSITIVITY = SCULPTURE_SENSITIVITY;
+	const MIN_RADIUS = SCULPTURE_MIN_RADIUS;
 
 	// Track previous frame for attack detection
 	let previousFrame: AnalysisFrame | null = null;

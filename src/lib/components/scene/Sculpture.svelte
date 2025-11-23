@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import { sculptureStore, setCurrentSculpture, updateSculptureColors } from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -281,6 +281,22 @@
 			return;
 		}
 
+		// DIRECTIVE 1: Capture glaze colors BEFORE geometry disposal
+		// When recording stops in glaze mode, extract colors from the mesh before recreating geometry
+		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		const wasRecording = recordingStore.state === 'processing'; // Just transitioned from recording
+		
+		if (isGlazeMode && wasRecording && meshRef.geometry && meshRef.geometry.attributes.color) {
+			const colorAttr = meshRef.geometry.attributes.color;
+			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
+				// Extract the actual painted colors from the geometry buffer BEFORE disposal
+				const savedColors = Array.from(colorAttr.array);
+				// Save them to the sculpture store
+				updateSculptureColors(new Float32Array(savedColors));
+				console.log(`🎨 [SCULPTURE] Captured ${savedColors.length / 3} vertex colors before geometry recreation`);
+			}
+		}
+
 		// Access reactive dependencies to trigger on their changes
 		const currentSculpture = sculpture;
 		const zoneMin = uiStore.sculptZone.min;
@@ -302,34 +318,8 @@
 		}
 	});
 
-	// DIRECTIVE 3: Capture mesh colors before recording stops
-	// When glaze recording ends, extract the actual painted colors from the geometry
-	function captureAndSaveGlazeColors(): void {
-		if (meshRef && meshRef.geometry && meshRef.geometry.attributes.color) {
-			const colorAttr = meshRef.geometry.attributes.color;
-			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
-				// Extract the actual colors from the geometry buffer
-				const savedColors = Array.from(colorAttr.array);
-				// Save them to the sculpture store
-				updateSculptureColors(new Float32Array(savedColors));
-			}
-		}
-	}
-
-	// DIRECTIVE 3: Monitor recording state changes to save colors
-	// When glaze mode recording transitions from 'recording' to 'processing', capture colors
-	$effect(() => {
-		const state = recordingStore.state;
-		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-
-		// When recording just stopped (state changed to 'processing') and we were glazing
-		if (state === 'processing' && isGlazeMode) {
-			// Defer to next frame to ensure geometry is stable
-			setTimeout(() => {
-				captureAndSaveGlazeColors();
-			}, 0);
-		}
-	});
+	// DIRECTIVE 1: Colors are now captured in the geometry recreation effect above
+	// This ensures colors are saved BEFORE geometry disposal
 
 	// Update geometry in render loop for live audio modulation
 	useTask(() => {
@@ -619,6 +609,12 @@
 		<!-- Main Sculpture (Visible during glaze mode recording, hidden during sculpt mode recording) -->
 		{#if sculpture && (recordingStore.state !== 'recording' || uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint')}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
+				<!-- DIRECTIVE 3: Material Optimization
+				     Threlte's <T.MeshPhysicalMaterial> uses Svelte's reactivity system.
+				     Materials are NOT recreated on every frame - only props are updated when they change.
+				     This prevents GPU thrashing and ensures efficient rendering.
+				     The material instance persists and Three.js updates properties reactively.
+				-->
 				<!-- Material Switching -->
 				{#if isPlastic}
 					<!-- Plastic: Physical Material (tuned for visibility - semi-matte, less glare) -->

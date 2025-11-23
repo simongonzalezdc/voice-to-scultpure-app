@@ -1,3 +1,10 @@
+import {
+	MIC_SENSITIVITY_MULTIPLIER,
+	SMOOTHING_FACTOR,
+	SIGNAL_THRESHOLD,
+	AUDIO_SAMPLE_RATE
+} from '$lib/config/constants';
+
 let audioContext: AudioContext | null = null;
 let workletNode: AudioWorkletNode | null = null;
 let mediaStream: MediaStream | null = null;
@@ -11,18 +18,16 @@ let gainNode: GainNode | null = null; // Directive 2: Keep graph alive
 let inputGainNode: GainNode | null = null; // Mic sensitivity boost
 let sourceNode: MediaStreamAudioSourceNode | null = null; // Track the mic source node
 let dynamicsCompressor: DynamicsCompressorNode | null = null; // DIRECTIVE 3: Normalize volume for consistent shapes
-const MIC_SENSITIVITY_MULTIPLIER = 3.0; // Increase mic sensitivity (1.0 = normal, 3.0 = 3x boost)
 
 // CRITICAL FIX: Volume smoothing to prevent jitter
 let smoothedMicLevel = 0;
-const SMOOTHING_FACTOR = 0.15; // Lower = smoother (0.1-0.3 is good range)
 
 // Store module reference (imported once, not in polling loop)
 let analysisStoreModule: typeof import('$lib/stores/analysisStore.svelte') | null = null;
 
 export async function initializeAudioContext(
 	ringBuffer: SharedArrayBuffer,
-	sampleRate: number = 44100
+	sampleRate: number = AUDIO_SAMPLE_RATE
 ): Promise<AudioWorkletNode> {
 	if (initialized && audioContext && workletNode) {
 		return workletNode;
@@ -176,7 +181,6 @@ export async function startVisualizerBypass(): Promise<void> {
 
 		// DIRECTIVE 3: Add signal threshold for pitch detection
 		// Don't guess pitch for silence (prevents false positives from noise)
-		const SIGNAL_THRESHOLD = 0.02; // Lowered from 0.05 for more sensitivity
 		if (smoothedMicLevel < SIGNAL_THRESHOLD) {
 			// Too quiet - just update mic level with smoothed value
 			analysisStoreModule.updateMicLevel(smoothedMicLevel);

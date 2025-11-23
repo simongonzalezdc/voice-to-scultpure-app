@@ -5,18 +5,25 @@
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { getAudioContext, startVisualizerBypass } from '$lib/audio/audioContext';
 	import { Color } from 'three';
+	import {
+		NOISE_GATE_THRESHOLD,
+		MIN_PITCH_HZ,
+		MAX_PITCH_HZ,
+		MIN_PITCH_HZ_THRESHOLD,
+		MIN_ENERGY_FOR_PITCH
+	} from '$lib/config/constants';
 
 	// Live monitoring: Reactive color based on voice input (no recording needed)
 	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
 
 	// DIRECTIVE 2: Improved Noise Gate & Non-Linear Curve
 	// Crush background noise (TV, fans, etc.) and make it usable
-	const NOISE_FLOOR = 0.15; // Ignore anything below 15% (was 10%)
+	// Uses centralized constants from config/constants.ts
 
 	let rawEnergy = $derived(analysisStore.micLevel);
 	let liveEnergy = $derived.by(() => {
 		// 1. Noise Gate (Crush background noise)
-		const gatedEnergy = Math.max(0, rawEnergy - NOISE_FLOOR);
+		const gatedEnergy = Math.max(0, rawEnergy - NOISE_GATE_THRESHOLD);
 
 		// 2. Non-Linear Curve (Make it usable)
 		// Input 0.2 -> Output 0.05 (Faint)
@@ -28,10 +35,7 @@
 
 	// DIRECTIVE 2: Pitch Safety - Persist hue state to lock last valid color
 	// Prevents flashing Red when pitch detection fails
-	const MIN_HZ = 80;
-	const MAX_HZ = 600;
-	const MIN_PITCH_HZ = 50; // Minimum valid pitch (below this is noise)
-	const MIN_ENERGY_FOR_PITCH = 0.05; // Need at least 5% energy to trust pitch
+	// Uses centralized constants from config/constants.ts
 
 	let hue = $state(0); // Persist state (not derived)
 
@@ -41,11 +45,11 @@
 		const currentEnergy = liveEnergy;
 
 		// Only update hue if we have sufficient energy AND valid pitch
-		if (currentEnergy > MIN_ENERGY_FOR_PITCH && detectedPitch > MIN_PITCH_HZ) {
-			// Map 80Hz-600Hz to 0-360 Hue
+		if (currentEnergy > MIN_ENERGY_FOR_PITCH && detectedPitch > MIN_PITCH_HZ_THRESHOLD) {
+			// Map MIN_PITCH_HZ-MAX_PITCH_HZ to 0-360 Hue
 			const normalizedPitch = Math.max(
 				0,
-				Math.min(1, (detectedPitch - MIN_HZ) / (MAX_HZ - MIN_HZ))
+				Math.min(1, (detectedPitch - MIN_PITCH_HZ) / (MAX_PITCH_HZ - MIN_PITCH_HZ))
 			);
 			hue = normalizedPitch * 360;
 		}
@@ -253,9 +257,9 @@
 				<div class="text-[#4ade80]">
 					🎵 Pitch: <span class="text-white font-bold">{livePitch.toFixed(0)}Hz</span>
 					<span class="text-[#888]">
-						({livePitch < MIN_HZ
+						({livePitch < MIN_PITCH_HZ
 							? 'Low'
-							: livePitch > MAX_HZ
+							: livePitch > MAX_PITCH_HZ
 								? 'High'
 								: livePitch < 150
 									? 'Red'

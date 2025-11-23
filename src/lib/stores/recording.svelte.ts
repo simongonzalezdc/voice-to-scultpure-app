@@ -93,32 +93,18 @@ export function stopRecording(): void {
 			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
 
 			if (isGlazeMode) {
-				// DIRECTIVE 3: GLAZE MODE - Extract colors from mesh geometry before state resets
+				// DIRECTIVE 1: GLAZE MODE - Colors are now captured in Sculpture.svelte
+				// The $effect() in Sculpture.svelte will extract colors from the mesh geometry
+				// BEFORE geometry disposal when state transitions to 'processing'
 				if (!sculptureStore.currentSculpture) {
 					console.warn(
 						'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
 					);
 				} else {
-					// CRITICAL: We need access to the mesh to extract the actual painted colors
-					// This is a limitation of the current architecture - the mesh exists in Sculpture.svelte
-					// For now, we'll regenerate the glaze colors from frames (same algorithm as during painting)
 					console.log(
-						`🎨 [RECORDING] Persisting glaze colors from ${capturedFrames.length} frames...`
+						`🎨 [RECORDING] Glaze recording stopped - colors will be captured from mesh geometry`
 					);
-
-					// Create a deep copy to avoid reactivity issues
-					const frames = JSON.parse(JSON.stringify(capturedFrames));
-
-					// Generate glaze colors using the exact same algorithm as useTask
-					const glazeColors = generateGlaze(frames, uiStore.activeGlaze);
-
-					// Store the colors in a temporary location so Sculpture.svelte can extract them
-					// DIRECTIVE 3: When recording stops, we need to save the actual mesh colors
-					// For now, use the regenerated colors (deterministic but not pixel-perfect)
-					updateSculptureColors(glazeColors);
-					console.log(
-						`✅ [RECORDING] Glaze colors persisted (${glazeColors.length / 3} sampled colors from ${capturedFrames.length} frames)`
-					);
+					// Colors will be saved by Sculpture.svelte's $effect() when geometry is recreated
 				}
 			} else {
 				// SCULPT MODE: Create new sculpture from frames
