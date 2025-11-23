@@ -100,7 +100,9 @@
 							class="w-12 h-12 object-cover rounded border border-subtle"
 						/>
 					{:else}
-						<div class="w-12 h-12 bg-bg-panel-alt rounded border border-subtle flex items-center justify-center">
+						<div
+							class="w-12 h-12 bg-bg-panel-alt rounded border border-subtle flex items-center justify-center"
+						>
 							<span class="text-xs text-muted">No preview</span>
 						</div>
 					{/if}

@@ -29,23 +29,23 @@
 	// Calculate current height based on recording progress
 	// Get the number of frames captured (current index)
 	let currentIndex = $derived(getCapturedFrames().length);
-	
+
 	// Get sculpture height scale (normalized to 150mm reference)
 	let heightScale = $derived(
-		sculptureStore.currentSculpture?.physical.height 
-			? sculptureStore.currentSculpture.physical.height / 150 
+		sculptureStore.currentSculpture?.physical.height
+			? sculptureStore.currentSculpture.physical.height / 150
 			: 1.0
 	);
-	
+
 	// Estimate current height: assume ~60 frames per second, max recording ~5 seconds = 300 frames
 	// Normalize currentIndex to 0-1, then multiply by heightScale
 	let currentHeight = $derived((currentIndex / 300) * heightScale);
-	
+
 	// Position ring at forming edge based on orientation
 	let ringPosition = $derived(
-		uiStore.orientation === 'vertical' 
-			? [0, currentHeight, 0]  // Pottery: Y-axis
-			: [currentHeight, 0, 0]    // Lathe: X-axis
+		uiStore.orientation === 'vertical'
+			? [0, currentHeight, 0] // Pottery: Y-axis
+			: [currentHeight, 0, 0] // Lathe: X-axis
 	);
 
 	// Visibility check: only show during active recording

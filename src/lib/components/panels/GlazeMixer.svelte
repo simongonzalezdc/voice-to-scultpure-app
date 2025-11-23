@@ -8,22 +8,22 @@
 
 	// Live monitoring: Reactive color based on voice input (no recording needed)
 	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
-	
+
 	// DIRECTIVE 2: Improved Noise Gate & Non-Linear Curve
 	// Crush background noise (TV, fans, etc.) and make it usable
 	const NOISE_FLOOR = 0.15; // Ignore anything below 15% (was 10%)
-	
+
 	let rawEnergy = $derived(analysisStore.micLevel);
 	let liveEnergy = $derived.by(() => {
 		// 1. Noise Gate (Crush background noise)
 		const gatedEnergy = Math.max(0, rawEnergy - NOISE_FLOOR);
-		
+
 		// 2. Non-Linear Curve (Make it usable)
 		// Input 0.2 -> Output 0.05 (Faint)
 		// Input 0.8 -> Output 1.0 (Vivid)
 		return Math.min(1.0, Math.pow(gatedEnergy, 2) * 3.0);
 	});
-	
+
 	let liveTimbre = $derived(analysisStore.latestFrame?.timbre?.spectralCentroid || 0);
 
 	// DIRECTIVE 2: Pitch Safety - Persist hue state to lock last valid color
@@ -32,18 +32,21 @@
 	const MAX_HZ = 600;
 	const MIN_PITCH_HZ = 50; // Minimum valid pitch (below this is noise)
 	const MIN_ENERGY_FOR_PITCH = 0.05; // Need at least 5% energy to trust pitch
-	
+
 	let hue = $state(0); // Persist state (not derived)
-	
+
 	// Update hue only when we have valid pitch + energy
 	$effect(() => {
 		const detectedPitch = analysisStore.latestFrame?.pitch || 0;
 		const currentEnergy = liveEnergy;
-		
+
 		// Only update hue if we have sufficient energy AND valid pitch
 		if (currentEnergy > MIN_ENERGY_FOR_PITCH && detectedPitch > MIN_PITCH_HZ) {
 			// Map 80Hz-600Hz to 0-360 Hue
-			const normalizedPitch = Math.max(0, Math.min(1, (detectedPitch - MIN_HZ) / (MAX_HZ - MIN_HZ)));
+			const normalizedPitch = Math.max(
+				0,
+				Math.min(1, (detectedPitch - MIN_HZ) / (MAX_HZ - MIN_HZ))
+			);
 			hue = normalizedPitch * 360;
 		}
 		// Otherwise, keep the last valid hue (don't reset to 0)
@@ -51,15 +54,13 @@
 
 	// DIRECTIVE 2: Remap Volume to Saturation & Lightness (NOT Opacity)
 	// Quiet = Greyish (low saturation), Loud = Vibrant (high saturation)
-	let saturation = $derived(50 + (liveEnergy * 50)); // 50% to 100%
-	let lightness = $derived(30 + (liveEnergy * 40));  // 30% (Dark) to 70% (Bright)
+	let saturation = $derived(50 + liveEnergy * 50); // 50% to 100%
+	let lightness = $derived(30 + liveEnergy * 40); // 30% (Dark) to 70% (Bright)
 
 	// Map Timbre to Roughness
 	// Smooth timbre = Gloss (low roughness), Rough timbre = Matte (high roughness)
 	let roughness = $derived(
-		liveTimbre === 0 
-			? 0.5 
-			: 1 - Math.max(0, Math.min(1, (liveTimbre - 1000) / (5000 - 1000))) // Invert: bright = glossy, dark = matte
+		liveTimbre === 0 ? 0.5 : 1 - Math.max(0, Math.min(1, (liveTimbre - 1000) / (5000 - 1000))) // Invert: bright = glossy, dark = matte
 	);
 
 	// Convert HSL to hex for preview
@@ -70,35 +71,39 @@
 
 	// Reactive preview color (HSL format for smooth transitions)
 	// DIRECTIVE 2: Use dynamic saturation instead of fixed 100%
-	let previewColorHSL = $derived(`hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`);
+	let previewColorHSL = $derived(
+		`hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`
+	);
 	let previewColorHex = $derived(hslToHex(hue, saturation, lightness));
 
 	// Audio context state check
 	let audioContextState = $state<'suspended' | 'running' | 'closed' | 'unknown'>('unknown');
 	let needsInitialization = $state(true);
-	let showActivateButton = $derived(audioContextState === 'suspended' || audioContextState === 'unknown');
+	let showActivateButton = $derived(
+		audioContextState === 'suspended' || audioContextState === 'unknown'
+	);
 
 	onMount(() => {
 		console.log('[GLAZE MIXER] Mounted - initializing audio monitoring');
-		
+
 		// Check audio context state on mount
 		const checkAudioContext = async () => {
 			const ctx = getAudioContext();
-			
+
 			if (!ctx) {
 				// No audio context yet - user needs to record first OR we need to initialize
 				audioContextState = 'unknown';
 				return;
 			}
-			
+
 			const previousState = audioContextState;
 			audioContextState = ctx.state as 'suspended' | 'running' | 'closed';
-			
+
 			// If state changed, log it
 			if (previousState !== audioContextState) {
 				console.log(`[GLAZE MIXER] Audio context state: ${previousState} → ${audioContextState}`);
 			}
-			
+
 			// If suspended, try to resume
 			if (ctx.state === 'suspended') {
 				try {
@@ -109,7 +114,7 @@
 					console.warn('[GLAZE MIXER] Failed to resume audio context:', err);
 				}
 			}
-			
+
 			// CRITICAL FIX: Always try to start visualizer bypass if context is running
 			if (ctx.state === 'running') {
 				try {
@@ -140,19 +145,23 @@
 	async function handleActivateMic() {
 		console.log('[GLAZE MIXER] User clicked activate mic button');
 		const ctx = getAudioContext();
-		
+
 		if (!ctx) {
-			console.warn('[GLAZE MIXER] No audio context - user needs to record first to initialize audio pipeline');
-			alert('Please click the Record button at least once to initialize the microphone, then return to the Glaze Mixer.');
+			console.warn(
+				'[GLAZE MIXER] No audio context - user needs to record first to initialize audio pipeline'
+			);
+			alert(
+				'Please click the Record button at least once to initialize the microphone, then return to the Glaze Mixer.'
+			);
 			return;
 		}
-		
+
 		if (ctx.state === 'suspended') {
 			try {
 				await ctx.resume();
 				audioContextState = 'running';
 				console.log('[GLAZE MIXER] Audio context resumed by user action');
-				
+
 				// Start visualizer bypass
 				await startVisualizerBypass();
 				console.log('[GLAZE MIXER] Visualizer bypass started by user action');
@@ -168,7 +177,7 @@
 	function handleSaveGlaze() {
 		// Capture current color and roughness
 		setActiveGlaze(previewColorHex, roughness);
-		
+
 		// Visual feedback flash
 		saveFlash = true;
 		setTimeout(() => {
@@ -185,7 +194,9 @@
 	<div class="space-y-4">
 		<!-- Preview Sphere -->
 		<div class="flex justify-center mb-4 relative">
-			<div class="w-48 h-48 rounded-full border-2 border-[#4a4a4a] overflow-hidden bg-[#1a1a1a] relative">
+			<div
+				class="w-48 h-48 rounded-full border-2 border-[#4a4a4a] overflow-hidden bg-[#1a1a1a] relative"
+			>
 				<Canvas>
 					<T.PerspectiveCamera makeDefault position={[0, 0, 3]} fov={50} />
 					<T.AmbientLight intensity={0.5} />
@@ -194,17 +205,19 @@
 						<T.SphereGeometry args={[1, 32, 32]} />
 						<T.MeshPhysicalMaterial
 							color={previewColorHex}
-							roughness={roughness}
+							{roughness}
 							metalness={0.1}
 							clearcoat={1 - roughness}
 							clearcoatRoughness={roughness * 0.5}
 						/>
 					</T.Mesh>
 				</Canvas>
-				
+
 				<!-- Tap to Activate Mic Overlay -->
 				{#if showActivateButton}
-					<div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-full z-10 p-4">
+					<div
+						class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-full z-10 p-4"
+					>
 						<button
 							class="px-4 py-2 bg-[#7c3aed] hover:bg-[#8b5cf6] text-white rounded text-sm font-medium mb-2"
 							type="button"
@@ -221,10 +234,12 @@
 						</p>
 					</div>
 				{/if}
-				
+
 				<!-- Save Flash Feedback -->
 				{#if saveFlash}
-					<div class="absolute inset-0 flex items-center justify-center bg-green-500/50 rounded-full z-10 pointer-events-none animate-pulse">
+					<div
+						class="absolute inset-0 flex items-center justify-center bg-green-500/50 rounded-full z-10 pointer-events-none animate-pulse"
+					>
 						<span class="text-white font-bold text-lg">✓ Glaze Captured!</span>
 					</div>
 				{/if}
@@ -238,12 +253,23 @@
 				<div class="text-[#4ade80]">
 					🎵 Pitch: <span class="text-white font-bold">{livePitch.toFixed(0)}Hz</span>
 					<span class="text-[#888]">
-						({livePitch < MIN_HZ ? 'Low' : livePitch > MAX_HZ ? 'High' : 
-							livePitch < 150 ? 'Red' : livePitch < 300 ? 'Yellow' : livePitch < 450 ? 'Green' : 'Purple'})
+						({livePitch < MIN_HZ
+							? 'Low'
+							: livePitch > MAX_HZ
+								? 'High'
+								: livePitch < 150
+									? 'Red'
+									: livePitch < 300
+										? 'Yellow'
+										: livePitch < 450
+											? 'Green'
+											: 'Purple'})
 					</span>
 				</div>
 			{:else}
-				<div class="text-[#ef4444]">🎵 Pitch: <span class="text-white font-bold">0Hz</span> (Not detected)</div>
+				<div class="text-[#ef4444]">
+					🎵 Pitch: <span class="text-white font-bold">0Hz</span> (Not detected)
+				</div>
 			{/if}
 			{#if liveEnergy > 0}
 				<div class="text-[#60a5fa]">
@@ -256,10 +282,14 @@
 					</span>
 				</div>
 			{:else}
-				<div class="text-[#ef4444]">🔊 Vol: <span class="text-white font-bold">0%</span> (Silent)</div>
+				<div class="text-[#ef4444]">
+					🔊 Vol: <span class="text-white font-bold">0%</span> (Silent)
+				</div>
 			{/if}
 			<div class="text-[#a78bfa]">
-				🌬️ Timbre: <span class="text-white font-bold">{liveTimbre > 0 ? liveTimbre.toFixed(0) : 'N/A'}</span>
+				🌬️ Timbre: <span class="text-white font-bold"
+					>{liveTimbre > 0 ? liveTimbre.toFixed(0) : 'N/A'}</span
+				>
 				<span class="text-[#888]">→ Roughness: {roughness.toFixed(2)}</span>
 			</div>
 		</div>
@@ -294,25 +324,20 @@
 		</div>
 
 		<!-- Save Button -->
-		<button
-			class="button-primary px-4 py-2 w-full text-sm"
-			type="button"
-			onclick={handleSaveGlaze}
-		>
+		<button class="button-primary px-4 py-2 w-full text-sm" type="button" onclick={handleSaveGlaze}>
 			Save Glaze
 		</button>
 
 		<p class="text-xs text-[#888] mt-2">
-			<strong>How it works:</strong> Pitch (80-600Hz) controls hue (red→purple), volume controls saturation & brightness 
-			(quiet=grey, loud=vivid), timbre controls texture (smooth=glossy, rough=matte). 
-			Click "Save Glaze" to lock the current color.
+			<strong>How it works:</strong> Pitch (80-600Hz) controls hue (red→purple), volume controls saturation
+			& brightness (quiet=grey, loud=vivid), timbre controls texture (smooth=glossy, rough=matte). Click
+			"Save Glaze" to lock the current color.
 		</p>
-		
+
 		<div class="mt-3 p-2 bg-[#1a1a1a] border border-[#333] rounded text-xs text-[#aaa]">
-			💡 <strong class="text-[#888]">Tip:</strong> Your microphone stays active for continuous live monitoring. 
-			The colors update in real-time as you hum or speak! Once you record at least once, 
-			this mixer will work even when not actively recording.
+			💡 <strong class="text-[#888]">Tip:</strong> Your microphone stays active for continuous live monitoring.
+			The colors update in real-time as you hum or speak! Once you record at least once, this mixer will
+			work even when not actively recording.
 		</div>
 	</div>
 </div>
-

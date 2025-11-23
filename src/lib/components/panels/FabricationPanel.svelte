@@ -11,7 +11,9 @@
 	// Get current sculpture or create defaults
 	let physicalHeight = $derived(sculptureStore.currentSculpture?.physical.height ?? 150);
 	let physicalUnits = $derived(sculptureStore.currentSculpture?.physical.units ?? 'mm');
-	let wallThickness = $derived(sculptureStore.currentSculpture?.physical.wallThickness ?? undefined);
+	let wallThickness = $derived(
+		sculptureStore.currentSculpture?.physical.wallThickness ?? undefined
+	);
 	let materialType = $derived(sculptureStore.currentSculpture?.surface.materialType ?? 'ceramic');
 	let baseColor = $derived(sculptureStore.currentSculpture?.surface.baseColor ?? '#E0C9A6');
 
@@ -55,7 +57,10 @@
 		if (!sculptureStore.currentSculpture) return;
 		const updated: SculptureDefinition = {
 			...sculptureStore.currentSculpture,
-			physical: { ...sculptureStore.currentSculpture.physical, wallThickness: editingWallThickness > 0 ? editingWallThickness : undefined }
+			physical: {
+				...sculptureStore.currentSculpture.physical,
+				wallThickness: editingWallThickness > 0 ? editingWallThickness : undefined
+			}
 		};
 		setCurrentSculpture(updated);
 	}
@@ -77,7 +82,6 @@
 		};
 		setCurrentSculpture(updated);
 	}
-
 
 	function handleExportBlueprint() {
 		const sculpture = sculptureStore.currentSculpture;
@@ -106,7 +110,7 @@
 		try {
 			// Apply current deformation parameters before export
 			const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
-			
+
 			// Create a temporary sculpture with deformed curve for export
 			const exportSculpture: SculptureDefinition = {
 				...sculpture,
@@ -138,9 +142,9 @@
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-import { uiStore, closePanel, setConstraintMode } from '$lib/stores/uiStore.svelte';
-import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-import type { ConstraintMode } from '$lib/engine/constraints';
+	import { uiStore, closePanel, setConstraintMode } from '$lib/stores/uiStore.svelte';
+	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
+	import type { ConstraintMode } from '$lib/engine/constraints';
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);
@@ -170,7 +174,7 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 <div class="surface-panel p-6 rounded-lg max-w-md w-full">
 	<div class="flex items-center justify-between mb-4">
 		<h2 class="text-2xl font-bold">Fabrication & Export</h2>
-		<button 
+		<button
 			onclick={handleClose}
 			class="text-secondary hover:text-primary transition-colors text-xl"
 			title="Close panel (or press Escape)"
@@ -180,7 +184,9 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 	</div>
 
 	{#if !sculptureStore.currentSculpture}
-		<p class="text-secondary mb-4">No sculpture loaded. Generate a test mesh or record audio first.</p>
+		<p class="text-secondary mb-4">
+			No sculpture loaded. Generate a test mesh or record audio first.
+		</p>
 	{:else}
 		<div class="space-y-4">
 			<!-- Physics Constraints -->
@@ -191,8 +197,8 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 					<div class="grid grid-cols-3 gap-2">
 						<button
 							type="button"
-							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'digital' 
-								? 'bg-brand-primary text-white' 
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'digital'
+								? 'bg-brand-primary text-white'
 								: 'surface-panel-alt text-secondary hover:text-primary'}"
 							onclick={() => handleConstraintModeChange('digital')}
 							title={getConstraintDescription('digital')}
@@ -201,8 +207,8 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 						</button>
 						<button
 							type="button"
-							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'ceramic' 
-								? 'bg-brand-primary text-white' 
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'ceramic'
+								? 'bg-brand-primary text-white'
 								: 'surface-panel-alt text-secondary hover:text-primary'}"
 							onclick={() => handleConstraintModeChange('ceramic')}
 							title={getConstraintDescription('ceramic')}
@@ -211,8 +217,8 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 						</button>
 						<button
 							type="button"
-							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === '3d_print' 
-								? 'bg-brand-primary text-white' 
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === '3d_print'
+								? 'bg-brand-primary text-white'
 								: 'surface-panel-alt text-secondary hover:text-primary'}"
 							onclick={() => handleConstraintModeChange('3d_print')}
 							title={getConstraintDescription('3d_print')}
@@ -220,37 +226,35 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 							{getConstraintIcon('3d_print')} 3D Print
 						</button>
 					</div>
-				<!-- Constraint Description -->
-				<div class="surface-panel-alt p-3 rounded">
-					<p class="text-xs text-secondary leading-relaxed">
-						{constraintDescription}
-					</p>
-				</div>
-				
-				<!-- DIRECTIVE 3: Ceramic Constraints Info -->
-				{#if constraintMode === 'ceramic'}
-					<div class="mt-3 p-2 rounded bg-[#2a1a1a] border border-[#8f3e48]">
-						<p class="text-xs text-[#e0a090] font-medium mb-1">
-							🏺 Active Constraints:
+					<!-- Constraint Description -->
+					<div class="surface-panel-alt p-3 rounded">
+						<p class="text-xs text-secondary leading-relaxed">
+							{constraintDescription}
 						</p>
-						<ul class="text-xs text-[#d0908a] space-y-0.5 list-disc list-inside">
-							<li>Min Width: 70mm (hand access)</li>
-							<li>Clay Smoothing: Jitter → Flow</li>
-							<li>Max Overhang: 45°</li>
-							<li>Stable Base: 1.5x wider</li>
-						</ul>
+					</div>
+
+					<!-- DIRECTIVE 3: Ceramic Constraints Info -->
+					{#if constraintMode === 'ceramic'}
+						<div class="mt-3 p-2 rounded bg-[#2a1a1a] border border-[#8f3e48]">
+							<p class="text-xs text-[#e0a090] font-medium mb-1">🏺 Active Constraints:</p>
+							<ul class="text-xs text-[#d0908a] space-y-0.5 list-disc list-inside">
+								<li>Min Width: 70mm (hand access)</li>
+								<li>Clay Smoothing: Jitter → Flow</li>
+								<li>Max Overhang: 45°</li>
+								<li>Stable Base: 1.5x wider</li>
+							</ul>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Live Preview Hint -->
+				{#if sculptureStore.currentSculpture}
+					<div class="mt-2 surface-panel-alt p-2 rounded">
+						<p class="text-xs text-brand-primary font-medium">
+							💡 Switch modes above to see your sculpture adapt in real-time!
+						</p>
 					</div>
 				{/if}
-			</div>
-			
-			<!-- Live Preview Hint -->
-			{#if sculptureStore.currentSculpture}
-				<div class="mt-2 surface-panel-alt p-2 rounded">
-					<p class="text-xs text-brand-primary font-medium">
-						💡 Switch modes above to see your sculpture adapt in real-time!
-					</p>
-				</div>
-			{/if}
 			</div>
 
 			<!-- View Settings (Pottery Mode) -->
@@ -298,9 +302,7 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 						<option value="inch">inch</option>
 					</select>
 				</div>
-				<p class="text-xs text-secondary mt-1">
-					Default: 150mm (mug/small vase size)
-				</p>
+				<p class="text-xs text-secondary mt-1">Default: 150mm (mug/small vase size)</p>
 			</div>
 
 			<!-- Wall Thickness -->
@@ -327,11 +329,7 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 			<!-- Scale Reference Toggle -->
 			<div>
 				<label class="flex items-center gap-2 cursor-pointer">
-					<input
-						type="checkbox"
-						bind:checked={showScaleReference}
-						class="w-4 h-4"
-					/>
+					<input type="checkbox" bind:checked={showScaleReference} class="w-4 h-4" />
 					<span class="text-sm text-secondary">Show Scale Reference (Soda Can/Ruler)</span>
 				</label>
 				<p class="text-xs text-secondary mt-1 ml-6">
@@ -341,7 +339,7 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 
 			<div class="border-t border-subtle pt-4">
 				<h3 class="text-sm font-semibold mb-3">Export</h3>
-				
+
 				<div class="space-y-2">
 					<!-- STL Export (3D Printing) -->
 					<button
@@ -379,4 +377,3 @@ import type { ConstraintMode } from '$lib/engine/constraints';
 		</div>
 	{/if}
 </div>
-

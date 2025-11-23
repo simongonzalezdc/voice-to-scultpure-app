@@ -1,18 +1,18 @@
 <script lang="ts">
-import { T } from '@threlte/core';
-import { Grid, ContactShadows } from '@threlte/extras';
-import Sculpture from './Sculpture.svelte';
-import AnalysisVisualizer from './AnalysisVisualizer.svelte';
-import OrbitControls from './OrbitControls.svelte';
-import GhostMachines from './GhostMachines.svelte';
-import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-import { uiStore } from '$lib/stores/uiStore.svelte';
-	
+	import { T } from '@threlte/core';
+	import { Grid, ContactShadows } from '@threlte/extras';
+	import Sculpture from './Sculpture.svelte';
+	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
+	import OrbitControls from './OrbitControls.svelte';
+	import GhostMachines from './GhostMachines.svelte';
+	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
+
 	// PHASE 2.1: Wire ViewportControls to Scene
 	// Lighting controls - Derived from global UI store
 	let lightAngle = $derived(uiStore.view.lightingAngle);
-	
+
 	// Zoom control via viewport controls - map zoom (0.5-3.0) to camera FOV (20-80)
 	// Higher zoom = lower FOV (more zoomed in), Lower zoom = higher FOV (more zoomed out)
 	let cameraFOV = $derived(80 - (uiStore.view.zoom - 0.5) * 30);
@@ -34,9 +34,9 @@ import { uiStore } from '$lib/stores/uiStore.svelte';
 
 <T.AmbientLight intensity={0.3} />
 
-<OrbitControls 
-	enableDamping 
-	dampingFactor={0.05} 
+<OrbitControls
+	enableDamping
+	dampingFactor={0.05}
 	maxPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.1 : Math.PI}
 	minPolarAngle={appSettings.viewMode?.potteryMode ? Math.PI / 2.5 : 0}
 />

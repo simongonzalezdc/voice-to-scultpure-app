@@ -3,6 +3,7 @@
 ## Pre-Flight Checklist
 
 ### Environment Verification
+
 - [ ] Browser: Chrome/Edge (for SharedArrayBuffer support)
 - [ ] Dev server running (`npm run dev`)
 - [ ] Microphone connected and working
@@ -13,9 +14,11 @@
 ## Phase 1: Initial Load & Gatekeeper Test
 
 ### Test 1.1: First-Time User Flow
+
 **Expected:** Tutorial should block access to studio
 
 **Actions:**
+
 1. Clear browser localStorage (or use incognito mode)
 2. Navigate to `http://localhost:5173`
 3. **Verify:**
@@ -30,7 +33,9 @@
 ## Phase 2: Calibration Flow Test
 
 ### Test 2.1: Microphone Permission
+
 **Actions:**
+
 1. Click "Get Started" on welcome screen
 2. Click "Next" on mic-permission step
 3. **Verify:**
@@ -38,7 +43,9 @@
    - [ ] After allowing, tutorial advances to calibration step
 
 ### Test 2.2: Calibration Recording
+
 **Actions:**
+
 1. On calibration step, click "Start Calibration"
 2. **During 5-second countdown:**
    - [ ] Countdown timer displays (5, 4, 3, 2, 1)
@@ -56,7 +63,9 @@
    - [ ] DebugOverlay shows calibration ranges (e.g., "Pitch: 80-400Hz")
 
 ### Test 2.3: Calibration Persistence
+
 **Actions:**
+
 1. Complete calibration (reach "first-recording" step)
 2. Refresh the page (F5)
 3. **Verify:**
@@ -71,7 +80,9 @@
 ## Phase 3: Audio Pipeline Verification
 
 ### Test 3.1: AudioContext State
+
 **Actions:**
+
 1. Click "Record" button in Transport component
 2. **Verify:**
    - [ ] DebugOverlay shows "AudioContext: running" (green badge)
@@ -85,7 +96,9 @@
    - [ ] Ring visualizer disappears
 
 ### Test 3.2: Real-Time Audio Feedback
+
 **Actions:**
+
 1. Start recording
 2. **Perform these vocal tests:**
    - [ ] **Hum a low note** (80-150 Hz)
@@ -109,7 +122,9 @@
 ## Phase 4: Sculpture Generation Test
 
 ### Test 4.1: First Recording
+
 **Actions:**
+
 1. Complete tutorial (click through to "Finish")
 2. Click "Record" button
 3. **Record for 3-5 seconds:**
@@ -125,7 +140,9 @@
    - [ ] Sculpture geometry matches recorded audio characteristics
 
 ### Test 4.2: Sculpture Characteristics
+
 **Actions:**
+
 1. Record a new sculpture with:
    - **Low, steady hum** (constant pitch, low energy)
 2. **Verify:**
@@ -143,7 +160,9 @@
 ## Phase 5: Parameter Controls Test
 
 ### Test 5.1: Real-Time Parameter Updates
+
 **Actions:**
+
 1. Ensure a sculpture is visible
 2. **Drag "Twist" slider:**
    - [ ] Ghost sculpture (wireframe) appears immediately
@@ -168,7 +187,9 @@
    - [ ] Changes persist
 
 ### Test 5.2: Parameter Persistence
+
 **Actions:**
+
 1. Adjust parameters to specific values
 2. Record a new sculpture
 3. **Verify:**
@@ -180,7 +201,9 @@
 ## Phase 6: Error Handling & Edge Cases
 
 ### Test 6.1: No Microphone Access
+
 **Actions:**
+
 1. Block microphone permission in browser
 2. Try to start calibration
 3. **Verify:**
@@ -189,7 +212,9 @@
    - [ ] User can retry
 
 ### Test 6.2: Silent Recording
+
 **Actions:**
+
 1. Start recording
 2. Stay completely silent
 3. Stop recording
@@ -199,7 +224,9 @@
    - [ ] DebugOverlay shows appropriate values
 
 ### Test 6.3: Very Short Recording
+
 **Actions:**
+
 1. Start recording
 2. Stop immediately (< 0.5 seconds)
 3. **Verify:**
@@ -211,7 +238,9 @@
 ## Phase 7: Performance Verification
 
 ### Test 7.1: Vertex Count Monitoring
+
 **Actions:**
+
 1. Record a long audio sample (10+ seconds)
 2. **Verify:**
    - [ ] DebugOverlay shows vertex count
@@ -219,7 +248,9 @@
    - [ ] No performance degradation
 
 ### Test 7.2: Multiple Recordings
+
 **Actions:**
+
 1. Record 3-5 sculptures in succession
 2. **Verify:**
    - [ ] No memory leaks (check browser DevTools Memory tab)
@@ -231,6 +262,7 @@
 ## Success Criteria
 
 ### Critical (Must Pass)
+
 - [ ] Calibration flow completes successfully
 - [ ] Calibration persists across page reloads
 - [ ] Audio pipeline shows real-time feedback
@@ -239,12 +271,14 @@
 - [ ] No crashes or console errors
 
 ### Important (Should Pass)
+
 - [ ] Ring visualizer responds to all vocal inputs
 - [ ] Pitch detection works for various frequencies
 - [ ] DebugOverlay shows accurate telemetry
 - [ ] Gatekeeper prevents access without calibration
 
 ### Nice-to-Have
+
 - [ ] Smooth visual transitions
 - [ ] Accurate pitch detection for musical notes
 - [ ] Sculpture geometry reflects audio characteristics
@@ -275,11 +309,11 @@
 
 ## Test Environment Notes
 
-- **Browser:** ________________
-- **OS:** ________________
-- **Microphone:** ________________
-- **Date:** ________________
-- **Tester:** ________________
+- **Browser:** ******\_\_\_\_******
+- **OS:** ******\_\_\_\_******
+- **Microphone:** ******\_\_\_\_******
+- **Date:** ******\_\_\_\_******
+- **Tester:** ******\_\_\_\_******
 
 ---
 
@@ -290,4 +324,3 @@
 3. Record a short video of the ring visualizer responding
 4. Check browser console for any warnings/errors
 5. Verify localStorage contains calibration data
-

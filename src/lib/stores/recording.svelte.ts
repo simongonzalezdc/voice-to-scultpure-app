@@ -1,8 +1,12 @@
-import { setCurrentSculpture, sculptureStore, updateSculptureColors } from './sculptureStore.svelte';
-	import { resetAnalysis } from './analysisStore.svelte';
-	import { createSculptureFromFrames, generateGlaze } from '$lib/engine/physicsMapping';
-	import { appSettings } from './appSettingsStore.svelte';
-	import { uiStore } from './uiStore.svelte';
+import {
+	setCurrentSculpture,
+	sculptureStore,
+	updateSculptureColors
+} from './sculptureStore.svelte';
+import { resetAnalysis } from './analysisStore.svelte';
+import { createSculptureFromFrames, generateGlaze } from '$lib/engine/physicsMapping';
+import { appSettings } from './appSettingsStore.svelte';
+import { uiStore } from './uiStore.svelte';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -53,12 +57,12 @@ export function hasCapturedFrames(): boolean {
  */
 export function startRecording(): void {
 	const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-	
+
 	// Clear frames array (prepare for new recording)
 	capturedFrames = [];
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
-	
+
 	if (isGlazeMode) {
 		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
 	} else {
@@ -87,28 +91,34 @@ export function stopRecording(): void {
 	try {
 		if (capturedFrames.length > 0) {
 			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-			
+
 			if (isGlazeMode) {
 				// DIRECTIVE 3: GLAZE MODE - Extract colors from mesh geometry before state resets
 				if (!sculptureStore.currentSculpture) {
-					console.warn('⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.');
+					console.warn(
+						'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
+					);
 				} else {
 					// CRITICAL: We need access to the mesh to extract the actual painted colors
 					// This is a limitation of the current architecture - the mesh exists in Sculpture.svelte
 					// For now, we'll regenerate the glaze colors from frames (same algorithm as during painting)
-					console.log(`🎨 [RECORDING] Persisting glaze colors from ${capturedFrames.length} frames...`);
-					
+					console.log(
+						`🎨 [RECORDING] Persisting glaze colors from ${capturedFrames.length} frames...`
+					);
+
 					// Create a deep copy to avoid reactivity issues
 					const frames = JSON.parse(JSON.stringify(capturedFrames));
-					
+
 					// Generate glaze colors using the exact same algorithm as useTask
 					const glazeColors = generateGlaze(frames, uiStore.activeGlaze);
-					
+
 					// Store the colors in a temporary location so Sculpture.svelte can extract them
 					// DIRECTIVE 3: When recording stops, we need to save the actual mesh colors
 					// For now, use the regenerated colors (deterministic but not pixel-perfect)
 					updateSculptureColors(glazeColors);
-					console.log(`✅ [RECORDING] Glaze colors persisted (${glazeColors.length / 3} sampled colors from ${capturedFrames.length} frames)`);
+					console.log(
+						`✅ [RECORDING] Glaze colors persisted (${glazeColors.length / 3} sampled colors from ${capturedFrames.length} frames)`
+					);
 				}
 			} else {
 				// SCULPT MODE: Create new sculpture from frames
@@ -118,23 +128,24 @@ export function stopRecording(): void {
 				// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
 				const mode =
 					sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-				
+
 				// DIRECTIVE 4: Pass zone parameter if zone is restricted
-				const zone = (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1) 
-					? uiStore.sculptZone 
-					: undefined;
-				
+				const zone =
+					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
+
 				// Pass constraint mode for fabrication constraints
 				const sculpture = createSculptureFromFrames(
-					frames, 
-					appSettings.userProfile, 
-					undefined, 
-					mode, 
+					frames,
+					appSettings.userProfile,
+					undefined,
+					mode,
 					zone,
 					uiStore.constraintMode
 				);
 				setCurrentSculpture(sculpture);
-				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''} [constraints: ${uiStore.constraintMode}]`);
+				console.log(
+					`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''} [constraints: ${uiStore.constraintMode}]`
+				);
 			}
 		} else {
 			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');
@@ -153,7 +164,9 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 		capturedFrames.push(frame);
 		// Log every 60 frames (~1 second at 60fps)
 		if (capturedFrames.length % 60 === 0) {
-			console.log(`📊 [RECORDING] Captured ${capturedFrames.length} frames (${(capturedFrames.length / 60).toFixed(1)}s)`);
+			console.log(
+				`📊 [RECORDING] Captured ${capturedFrames.length} frames (${(capturedFrames.length / 60).toFixed(1)}s)`
+			);
 		}
 	}
 }

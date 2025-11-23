@@ -3,6 +3,7 @@
 ## What Was Done
 
 ### 1. Architecture Verification ✅
+
 The recording pipeline is **correctly architected**:
 
 ```
@@ -16,6 +17,7 @@ AudioWorklet → Ring Buffer → Analysis Worker → Transport Callback → Reco
 Added comprehensive logging at **every stage** of the data flow:
 
 #### **Analysis Worker** (`analysis.worker.ts`)
+
 - 🚀 Start message with frame counter reset
 - 🔬 First frame analyzed notification
 - 🔬 Progress every 60 frames (~1 second)
@@ -23,14 +25,17 @@ Added comprehensive logging at **every stage** of the data flow:
 - ⚠️ Warning if no audio data in ring buffer
 
 #### **Worker Client** (`analysisWorkerClient.ts`)
+
 - ▶️ Start message
 - 🔊 First frame received notification
 - ⏹️ Stop message with processed frame count
 
 #### **Transport Component** (`Transport.svelte`)
+
 - 🎯 First frame received in callback
 
 #### **Recording Store** (`recording.svelte.ts`)
+
 - 🎙️ Recording started (frames reset)
 - 📊 Progress every 60 frames captured
 - 🛑 Stop with total frames captured
@@ -43,12 +48,15 @@ Added comprehensive logging at **every stage** of the data flow:
 ## How to Test
 
 ### Step 1: Open Browser Console
+
 Open DevTools Console (Cmd+Option+J on Mac, F12 on Windows/Linux)
 
 ### Step 2: Start Recording
+
 Click the **"Record"** button
 
 **Expected Console Output:**
+
 ```
 🎙️ [RECORDING] Started - frames reset to 0
 ▶️ [WORKER] Starting analysis worker
@@ -62,12 +70,15 @@ Click the **"Record"** button
 ```
 
 ### Step 3: Speak or Make Sound
+
 Make some noise into your microphone for 3-5 seconds.
 
 ### Step 4: Stop Recording
+
 Click the **"Stop"** button
 
 **Expected Console Output:**
+
 ```
 ⏹️ [WORKER] Stopping analysis worker (processed XXX frames)
 🛑 [ANALYSIS WORKER] Stopping (sent XXX frames total)
@@ -81,6 +92,7 @@ Click the **"Stop"** button
 ## Success Criteria
 
 ### ✅ GOOD: Recording is Working
+
 - `frames captured` should be **> 100** after a few seconds
 - Frame count should roughly match: `60 frames × seconds of recording`
 - Sculpture should have `points.length > 0`
@@ -88,12 +100,14 @@ Click the **"Stop"** button
 ### ❌ BAD: Recording is Broken
 
 #### Scenario A: No Frames at All
+
 ```
 🛑 [RECORDING] Stopped - Total frames captured: 0
 ⚠️ [RECORDING] No frames captured! Sculpture will be empty.
 ```
 
 **Possible Causes:**
+
 1. Analysis worker not sending frames (missing "🔬" logs)
 2. Ring buffer not receiving audio data (missing "⚠️ No audio data" warning)
 3. AudioWorklet not writing to ring buffer
@@ -101,6 +115,7 @@ Click the **"Stop"** button
 **Next Steps:** Check `audioContext.ts` and `recorder.worklet.js`
 
 #### Scenario B: Worker Running but No Audio Data
+
 ```
 🚀 [ANALYSIS WORKER] Starting analysis loop
 ⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet
@@ -108,6 +123,7 @@ Click the **"Stop"** button
 ```
 
 **Possible Causes:**
+
 1. Microphone not capturing audio
 2. AudioWorklet not writing to shared buffer
 3. Ring buffer implementation issue
@@ -115,6 +131,7 @@ Click the **"Stop"** button
 **Next Steps:** Check microphone permissions and AudioWorklet
 
 #### Scenario C: Frames Captured but Sculpture Empty
+
 ```
 🛑 [RECORDING] Stopped - Total frames captured: 180
 ✨ [RECORDING] Processing 180 frames into sculpture...
@@ -122,6 +139,7 @@ Click the **"Stop"** button
 ```
 
 **Possible Causes:**
+
 1. `createSculptureFromFrames()` not generating geometry
 2. Physics mapping logic broken
 
@@ -145,4 +163,3 @@ Based on the console output, we'll know exactly where the data flow breaks:
 - `src/lib/audio/analysisWorkerClient.ts` - Worker client with frame tracking
 - `src/lib/workers/analysis.worker.ts` - Analysis worker with detailed logging
 - `src/lib/components/controls/Transport.svelte` - Transport callback logging
-

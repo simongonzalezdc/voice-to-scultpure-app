@@ -1,6 +1,7 @@
 # Phase 4: Visual Enhancements & Color System
 
 ## Overview
+
 This phase implements advanced color controls, improved live visualization, contextual wireframe skeletons, and fixes lathe rotation mechanics.
 
 ---
@@ -12,6 +13,7 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/types.ts`, `src/lib/components/scene/Sculpture.svelte`, `src/lib/components/controls/ParameterSliders.svelte`
 
 **Requirements:**
+
 - Add `glazeColor?: string` to `SculptureSurface` interface (hex color, default: `#FFFFFF` for clear glaze)
 - Ceramic material should blend between `baseColor` (clay) and `glazeColor` based on `glazeTransmission`
 - When `glazeTransmission` is 0, show only `baseColor`
@@ -20,6 +22,7 @@ This phase implements advanced color controls, improved live visualization, cont
 - Update `materialColor` derived value in `Sculpture.svelte` to use glaze color blending
 
 **UI Implementation:**
+
 - Add "Glaze Color" picker in `ParameterSliders.svelte` (only visible when `materialType === 'ceramic'`)
 - Position below "Base Color" picker
 - Label: "Glaze Color" with tooltip: "Color of the glaze layer (visible when glaze transmission > 0)"
@@ -27,6 +30,7 @@ This phase implements advanced color controls, improved live visualization, cont
 - Sync with sculpture state and update on change
 
 **Material Rendering:**
+
 - Update ceramic `MeshPhysicalMaterial` to use blended color
 - Maintain transmission/clearcoat properties for glass-like glaze effect
 - Ensure glaze color is visible through transmission
@@ -38,11 +42,13 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/Sculpture.svelte`, `src/lib/components/controls/ParameterSliders.svelte`
 
 **Requirements:**
+
 - Plastic material already uses `baseColor` - verify it's working correctly
 - Ensure color picker updates plastic material in real-time
 - No additional changes needed if current implementation works
 
 **Verification:**
+
 - Test that plastic color changes immediately when baseColor is modified
 - Ensure color persists across recording sessions
 
@@ -55,11 +61,13 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/AnalysisVisualizer.svelte`, `src/lib/components/scene/Sculpture.svelte`
 
 **Current Issue:**
+
 - Ring visualizer appears above the forming shape (`position={[0, 1.5, 0]}`)
 - Creates confusion about what's being visualized
 - Doesn't match the final sculpture appearance
 
 **Requirements:**
+
 - **Reposition Visualization:** Move ring to align with the sculpture's forming position
   - For Pottery (Vertical): Position at `y = sculptureHeight * heightScale` (top of forming sculpture)
   - For Lathe (Horizontal): Position at `x = sculptureLength` (end of forming sculpture)
@@ -77,6 +85,7 @@ This phase implements advanced color controls, improved live visualization, cont
   - Using a wireframe overlay on the live mesh to show "active zone"
 
 **Implementation Options:**
+
 1. **Option A (Recommended):** Position ring at the forming edge of the sculpture
    - Calculate position based on current recording progress
    - Ring follows the "growing" edge of the sculpture
@@ -88,6 +97,7 @@ This phase implements advanced color controls, improved live visualization, cont
    - More seamless visual experience
 
 **Code Changes:**
+
 - Update `AnalysisVisualizer.svelte` to:
   - Read `uiStore.orientation` for positioning logic
   - Calculate dynamic position based on sculpture state
@@ -101,12 +111,14 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/AnalysisVisualizer.svelte`
 
 **Requirements:**
+
 - Remove confusing floating ring above sculpture
 - Position visualization at the actual forming edge
 - Ensure visualization doesn't occlude the sculpture
 - Make it clear that visualization represents the "active growth zone"
 
 **Visual Design:**
+
 - Consider using a semi-transparent torus/ring that sits at the forming edge
 - Add subtle animation (pulse/glow) to indicate active recording
 - Use color gradient from center (active) to edges (fading)
@@ -121,6 +133,7 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/MainScene.svelte` or new component `src/lib/components/scene/PotteryWheelSkeleton.svelte`
 
 **Requirements:**
+
 - Create wireframe skeleton of a pottery wheel
 - Only visible when `uiStore.orientation === 'vertical'`
 - Position at origin (0, 0, 0) - the sculpture sits on top
@@ -133,36 +146,38 @@ This phase implements advanced color controls, improved live visualization, cont
   - Opacity: 0.3-0.5
 
 **Implementation:**
+
 - Create new component `PotteryWheelSkeleton.svelte`
 - Use Three.js primitives: `CircleGeometry`, `CylinderGeometry`
 - Apply wireframe material
 - Conditionally render based on orientation
 
 **Code Structure:**
+
 ```svelte
 <script lang="ts">
-  import { T } from '@threlte/core';
-  import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { T } from '@threlte/core';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
 </script>
 
 {#if uiStore.orientation === 'vertical'}
-  <T.Group position={[0, 0, 0]}>
-    <!-- Base plate -->
-    <T.Mesh rotation={[-Math.PI / 2, 0, 0]}>
-      <T.CircleGeometry args={[1.5, 32]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-    <!-- Central axis -->
-    <T.Mesh>
-      <T.CylinderGeometry args={[0.02, 0.02, 0.3, 8]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-    <!-- Wheel surface -->
-    <T.Mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <T.CircleGeometry args={[1.5, 32]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-  </T.Group>
+	<T.Group position={[0, 0, 0]}>
+		<!-- Base plate -->
+		<T.Mesh rotation={[-Math.PI / 2, 0, 0]}>
+			<T.CircleGeometry args={[1.5, 32]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+		<!-- Central axis -->
+		<T.Mesh>
+			<T.CylinderGeometry args={[0.02, 0.02, 0.3, 8]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+		<!-- Wheel surface -->
+		<T.Mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+			<T.CircleGeometry args={[1.5, 32]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+	</T.Group>
 {/if}
 ```
 
@@ -173,6 +188,7 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/MainScene.svelte` or new component `src/lib/components/scene/LatheSkeleton.svelte`
 
 **Requirements:**
+
 - Create wireframe skeleton of a horizontal lathe (rotisserie style)
 - Only visible when `uiStore.orientation === 'horizontal'`
 - **Critical:** Two-ended design (like slow-roasted pig rotisserie)
@@ -184,41 +200,43 @@ This phase implements advanced color controls, improved live visualization, cont
 - Use same wireframe styling as pottery wheel
 
 **Implementation:**
+
 - Create new component `LatheSkeleton.svelte`
 - Position axis at origin (0, 0, 0) - sculpture rotates around this
 - Ensure axis aligns with sculpture's rotation pivot
 - Design should clearly show the "two-ended" rotisserie structure
 
 **Code Structure:**
+
 ```svelte
 <script lang="ts">
-  import { T } from '@threlte/core';
-  import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { T } from '@threlte/core';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
 </script>
 
 {#if uiStore.orientation === 'horizontal'}
-  <T.Group position={[0, 0, 0]}>
-    <!-- Left support post -->
-    <T.Mesh position={[-2, 0.5, 0]}>
-      <T.CylinderGeometry args={[0.05, 0.05, 2, 8]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-    <!-- Right support post -->
-    <T.Mesh position={[2, 0.5, 0]}>
-      <T.CylinderGeometry args={[0.05, 0.05, 2, 8]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-    <!-- Horizontal axis rod (spinning axis) -->
-    <T.Mesh rotation={[0, 0, Math.PI / 2]}>
-      <T.CylinderGeometry args={[0.03, 0.03, 4, 8]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-    <!-- Base platform -->
-    <T.Mesh position={[0, -0.5, 0]} rotation={[0, 0, 0]}>
-      <T.BoxGeometry args={[4.5, 0.1, 0.5]} />
-      <T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
-    </T.Mesh>
-  </T.Group>
+	<T.Group position={[0, 0, 0]}>
+		<!-- Left support post -->
+		<T.Mesh position={[-2, 0.5, 0]}>
+			<T.CylinderGeometry args={[0.05, 0.05, 2, 8]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+		<!-- Right support post -->
+		<T.Mesh position={[2, 0.5, 0]}>
+			<T.CylinderGeometry args={[0.05, 0.05, 2, 8]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+		<!-- Horizontal axis rod (spinning axis) -->
+		<T.Mesh rotation={[0, 0, Math.PI / 2]}>
+			<T.CylinderGeometry args={[0.03, 0.03, 4, 8]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+		<!-- Base platform -->
+		<T.Mesh position={[0, -0.5, 0]} rotation={[0, 0, 0]}>
+			<T.BoxGeometry args={[4.5, 0.1, 0.5]} />
+			<T.MeshBasicMaterial wireframe color="#4a4a4a" transparent opacity={0.4} />
+		</T.Mesh>
+	</T.Group>
 {/if}
 ```
 
@@ -231,11 +249,13 @@ This phase implements advanced color controls, improved live visualization, cont
 **Target:** `src/lib/components/scene/Sculpture.svelte`
 
 **Current Issue:**
+
 - Lathe mode rotates around Z-axis, but should rotate around X-axis (horizontal)
 - Sculpture should spin like a rotisserie (horizontal axis rotation)
 - Material should be centered on the horizontal axis
 
 **Requirements:**
+
 - **Rotation Axis:** Change from `rotation={[0, 0, orientationRotation]}` to proper horizontal rotation
 - **Pottery (Vertical):** `rotation={[0, 0, 0]}` - no rotation, sits on wheel
 - **Lathe (Horizontal):** `rotation={[orientationRotation, 0, 0]}` - rotate around X-axis
@@ -243,6 +263,7 @@ This phase implements advanced color controls, improved live visualization, cont
 - **Position:** Sculpture should be centered on the lathe axis, not floating
 
 **Implementation:**
+
 - Update `orientationRotation` calculation:
   - Vertical: `0` (no rotation)
   - Horizontal: `Math.PI / 2` (90 degrees around X-axis to lay flat)
@@ -251,6 +272,7 @@ This phase implements advanced color controls, improved live visualization, cont
 - Ensure base of sculpture aligns with lathe axis
 
 **Code Changes:**
+
 ```svelte
 // Current (WRONG):
 let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0);
@@ -262,6 +284,7 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 ```
 
 **Verification:**
+
 - When switching to Lathe mode, sculpture should:
   - Rotate 90 degrees around X-axis (lay flat horizontally)
   - Sit centered on the lathe axis (y=0)
@@ -273,6 +296,7 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 ## Implementation Checklist
 
 ### Phase 1: Color System
+
 - [ ] Add `glazeColor` to `SculptureSurface` interface
 - [ ] Update ceramic material color blending logic
 - [ ] Add Glaze Color picker to ParameterSliders UI
@@ -280,6 +304,7 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 - [ ] Verify plastic color system works correctly
 
 ### Phase 2: Live Visualization
+
 - [ ] Reposition AnalysisVisualizer ring to forming edge
 - [ ] Calculate dynamic position based on orientation and sculpture state
 - [ ] Match visualization color/style with live mesh
@@ -287,6 +312,7 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 - [ ] Ensure visualization doesn't occlude sculpture
 
 ### Phase 3: Wireframe Skeletons
+
 - [ ] Create PotteryWheelSkeleton component
 - [ ] Create LatheSkeleton component (two-ended rotisserie)
 - [ ] Add skeletons to MainScene with conditional rendering
@@ -294,6 +320,7 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 - [ ] Verify skeletons align with sculpture position
 
 ### Phase 4: Lathe Rotation Fix
+
 - [ ] Change rotation axis from Z to X
 - [ ] Update orientationRotation calculation
 - [ ] Verify sculpture sits on lathe axis
@@ -342,4 +369,3 @@ let orientationRotation = $derived(uiStore.orientation === 'horizontal' ? Math.P
 - Skeletons are visual guides only - they don't affect physics or rendering
 - Color system should maintain backward compatibility (defaults for existing sculptures)
 - Live visualization should enhance, not distract from, the sculpting experience
-

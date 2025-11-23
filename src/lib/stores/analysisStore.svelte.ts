@@ -29,7 +29,7 @@ export function updateAnalysisFrame(frame: AnalysisFrame): void {
 			// Smooth subsequent pitches
 			smoothedPitch = smoothedPitch + PITCH_SMOOTHING * (frame.pitch - smoothedPitch);
 		}
-		
+
 		// Create new frame with smoothed pitch
 		analysisStore.latestFrame = {
 			...frame,
@@ -40,7 +40,7 @@ export function updateAnalysisFrame(frame: AnalysisFrame): void {
 		smoothedPitch = 0;
 		analysisStore.latestFrame = frame;
 	}
-	
+
 	// Update mic level from frame energy
 	analysisStore.micLevel = frame.energy;
 }

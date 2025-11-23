@@ -1,7 +1,7 @@
 /**
  * Fabrication Constraint Engine
  * Applies physical manufacturing constraints to ensure producibility
- * 
+ *
  * @module constraints
  */
 
@@ -43,19 +43,19 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
 /**
  * Ceramic Mode: Pottery wheel physics
  * Ensures hand access, prevents collapse, maintains stability
- * 
+ *
  * DIRECTIVE 1: Harden constraints to prevent pinched necks
  * - MIN_RADIUS_MM = 35mm for practical hand access (1.5" radius / 3" opening)
  * - Structural smoothing via SMA to turn audio jitter into clay flow
  * - Topological safe mode: if too narrow overall, boost entire shape
  */
 function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
-	const constrained = curve.map(p => ({ ...p })); // Deep copy
-	
+	const constrained = curve.map((p) => ({ ...p })); // Deep copy
+
 	// DIRECTIVE 1A: Hand Access Floor (35mm = 1.5" radius)
 	const MIN_RADIUS_MM = 35;
 	const MIN_HAND_RADIUS = MIN_RADIUS_MM / 1000; // Convert to normalized units (~0.035)
-	
+
 	const MAX_OVERHANG_ANGLE = 45; // degrees
 	const BASE_STABILITY_RATIO = 1.5; // Base should be 1.5x wider than average
 
@@ -64,7 +64,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const topThreshold = 0.95; // Top 5% exempt
 	for (let i = 0; i < constrained.length; i++) {
 		const normalizedHeight = constrained[i].y;
-		
+
 		// Allow rim to close (top 5%)
 		if (normalizedHeight < topThreshold) {
 			// HARDENED: Enforce stricter minimum radius for hand access
@@ -78,24 +78,24 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// Smooth audio jitter into clay flow using a 7-point moving average
 	const SMOOTH_WINDOW = 7;
 	const smoothed: LathePoint[] = [];
-	
+
 	for (let i = 0; i < constrained.length; i++) {
 		const start = Math.max(0, i - Math.floor(SMOOTH_WINDOW / 2));
 		const end = Math.min(constrained.length, i + Math.floor(SMOOTH_WINDOW / 2) + 1);
-		
+
 		let sumRadius = 0;
 		let count = 0;
 		for (let j = start; j < end; j++) {
 			sumRadius += constrained[j].x;
 			count++;
 		}
-		
+
 		smoothed.push({
 			x: sumRadius / count, // Average radius
-			y: constrained[i].y   // Keep original height
+			y: constrained[i].y // Keep original height
 		});
 	}
-	
+
 	// Copy smoothed values back
 	for (let i = 0; i < smoothed.length; i++) {
 		constrained[i] = smoothed[i];
@@ -106,17 +106,17 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 1; i < constrained.length; i++) {
 		const prevPoint = constrained[i - 1];
 		const currPoint = constrained[i];
-		
+
 		const dy = Math.abs(currPoint.y - prevPoint.y);
 		const dx = currPoint.x - prevPoint.x;
-		
+
 		// If growing outward (dx > 0), check angle
 		if (dx > 0 && dy > 0) {
 			const angle = Math.atan(dx / dy) * (180 / Math.PI);
-			
+
 			if (angle > MAX_OVERHANG_ANGLE) {
 				// Clamp to max overhang angle
-				const maxDx = dy * Math.tan(MAX_OVERHANG_ANGLE * Math.PI / 180);
+				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
 				constrained[i].x = prevPoint.x + maxDx;
 			}
 		}
@@ -125,13 +125,15 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// DIRECTIVE 2: Topological Safe Mode
 	// If shape is too narrow overall (below hand access), boost entire shape outward
 	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
-	const minDetectedRadius = Math.min(...constrained.map(p => p.x));
-	
+	const minDetectedRadius = Math.min(...constrained.map((p) => p.x));
+
 	if (averageRadius < MIN_HAND_RADIUS || minDetectedRadius < MIN_HAND_RADIUS / 2) {
 		// Boost entire shape to ensure it forms a viable vessel
 		const boostAmount = Math.max(0, MIN_HAND_RADIUS - averageRadius);
-		console.log(`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`);
-		
+		console.log(
+			`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`
+		);
+
 		for (let i = 0; i < constrained.length; i++) {
 			constrained[i].x += boostAmount;
 		}
@@ -141,7 +143,10 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// Bottom 10% should be wider than average radius
 	const baseThreshold = 0.1;
 	const updatedAverageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
-	const minBaseRadius = Math.max(updatedAverageRadius * BASE_STABILITY_RATIO, MIN_HAND_RADIUS * 1.2);
+	const minBaseRadius = Math.max(
+		updatedAverageRadius * BASE_STABILITY_RATIO,
+		MIN_HAND_RADIUS * 1.2
+	);
 
 	for (let i = 0; i < constrained.length; i++) {
 		if (constrained[i].y < baseThreshold) {
@@ -160,7 +165,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
  * Prevents excessive overhangs, ensures contiguous geometry
  */
 function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
-	const constrained = curve.map(p => ({ ...p })); // Deep copy
+	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 	const MAX_OVERHANG_ANGLE = 60; // degrees (FDM typical: 45-60°)
 	const MIN_RADIUS = 0.001; // 1mm minimum (prevents zero-radius gaps)
 	const LAYER_HEIGHT = 0.0002; // 0.2mm typical layer height
@@ -170,26 +175,26 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 1; i < constrained.length; i++) {
 		const prevPoint = constrained[i - 1];
 		const currPoint = constrained[i];
-		
+
 		const dy = Math.abs(currPoint.y - prevPoint.y);
 		const dx = currPoint.x - prevPoint.x;
-		
+
 		// If growing outward, check overhang angle
 		if (dx > 0 && dy > 0) {
 			// Calculate angle from vertical
 			const angle = Math.atan(dx / dy) * (180 / Math.PI);
-			
+
 			if (angle > MAX_OVERHANG_ANGLE) {
 				// Clamp to max printable overhang
-				const maxDx = dy * Math.tan(MAX_OVERHANG_ANGLE * Math.PI / 180);
+				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
 				constrained[i].x = prevPoint.x + maxDx;
 			}
 		}
-		
+
 		// Inward slopes are fine (no support needed when printing)
 		// But we smooth sharp inward transitions to avoid bridging issues
 		if (dx < 0) {
-			const maxNegativeDx = -dy * Math.tan(75 * Math.PI / 180); // Allow steep inward
+			const maxNegativeDx = -dy * Math.tan((75 * Math.PI) / 180); // Allow steep inward
 			if (dx < maxNegativeDx) {
 				constrained[i].x = prevPoint.x + maxNegativeDx;
 			}
@@ -252,4 +257,3 @@ export function getConstraintIcon(mode: ConstraintMode): string {
 			return '📐';
 	}
 }
-

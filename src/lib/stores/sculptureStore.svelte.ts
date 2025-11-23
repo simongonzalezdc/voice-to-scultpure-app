@@ -40,7 +40,7 @@ export function updateSculptureColors(colors: Float32Array): void {
 		console.warn('⚠️ [SCULPTURE] Cannot update colors: no current sculpture');
 		return;
 	}
-	
+
 	// Store colors in sculpture definition for persistence
 	// Note: We'll need to add vertexColors to SculptureDefinition type
 	const updated: SculptureDefinition = {
@@ -48,7 +48,7 @@ export function updateSculptureColors(colors: Float32Array): void {
 		// Store colors as array for serialization
 		vertexColors: Array.from(colors)
 	};
-	
+
 	sculptureStore.currentSculpture = updated;
 	sculptureStore.geometryDirty = true;
 	console.log(`🎨 [SCULPTURE] Updated colors for ${colors.length / 3} vertices`);

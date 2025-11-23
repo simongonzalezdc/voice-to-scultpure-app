@@ -1,5 +1,12 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Color } from 'three';
+import {
+	LatheGeometry,
+	Vector2,
+	Mesh,
+	MeshPhysicalMaterial,
+	MeshStandardMaterial,
+	Color
+} from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { applyDeformation } from '$lib/engine/physicsMapping';
 
@@ -15,15 +22,15 @@ export async function exportSculptureToGLB(
 	try {
 		// Apply current deformation parameters before export
 		const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
-		
+
 		// Create geometry from deformed curve
-		const vectors = deformedCurve.map(p => new Vector2(p.x, p.y));
+		const vectors = deformedCurve.map((p) => new Vector2(p.x, p.y));
 		const geometry = new LatheGeometry(vectors, 32);
 
 		// Create material based on sculpture type
 		const isPlastic = sculpture.surface.materialType === 'plastic';
 		const baseColor = sculpture.surface.baseColor || (isPlastic ? '#3080ff' : '#E0C9A6');
-		
+
 		let material;
 		if (isPlastic) {
 			material = new MeshPhysicalMaterial({
@@ -38,7 +45,7 @@ export async function exportSculptureToGLB(
 			const glazeColor = sculpture.surface.glazeColor || '#FFFFFF';
 			// Blend base color with glaze color based on transmission
 			const blendedColor = blendColors(baseColor, glazeColor, sculpture.surface.glazeTransmission);
-			
+
 			material = new MeshPhysicalMaterial({
 				color: blendedColor,
 				transmission: sculpture.surface.glazeTransmission * 0.8,
@@ -77,7 +84,8 @@ export async function exportSculptureToGLB(
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
 		link.href = url;
-		link.download = filename || `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
+		link.download =
+			filename || `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -98,19 +106,18 @@ export async function exportSculptureToGLB(
 function blendColors(colorA: string, colorB: string, t: number): string {
 	const c1 = parseInt(colorA.slice(1), 16);
 	const c2 = parseInt(colorB.slice(1), 16);
-	
+
 	const r1 = (c1 >> 16) & 255;
 	const g1 = (c1 >> 8) & 255;
 	const b1 = c1 & 255;
-	
+
 	const r2 = (c2 >> 16) & 255;
 	const g2 = (c2 >> 8) & 255;
 	const b2 = c2 & 255;
-	
+
 	const r = Math.round(r1 + (r2 - r1) * t);
 	const g = Math.round(g1 + (g2 - g1) * t);
 	const b = Math.round(b1 + (b2 - b1) * t);
-	
-	return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-}
 
+	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}

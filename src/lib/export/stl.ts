@@ -39,23 +39,20 @@ export function lathePointsToSTL(sculpture: SculptureDefinition): string {
 
 			// Two triangles per segment
 			// Triangle 1: current1, current2, next1
-			triangles.push(createTriangle(
-				{x: x1, y: y1, z: z1},
-				{x: x2, y: y2, z: z2},
-				{x: x3, y: y3, z: z3}
-			));
+			triangles.push(
+				createTriangle({ x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 }, { x: x3, y: y3, z: z3 })
+			);
 
 			// Triangle 2: current2, next2, next1
-			triangles.push(createTriangle(
-				{x: x2, y: y2, z: z2},
-				{x: x4, y: y4, z: z4},
-				{x: x3, y: y3, z: z3}
-			));
+			triangles.push(
+				createTriangle({ x: x2, y: y2, z: z2 }, { x: x4, y: y4, z: z4 }, { x: x3, y: y3, z: z3 })
+			);
 		}
 	}
 
 	// Add top and bottom caps if the sculpture is closed
-	if (points[0].x < 0.01) { // Bottom cap
+	if (points[0].x < 0.01) {
+		// Bottom cap
 		const bottomY = points[0].y;
 		for (let j = 0; j < segments; j++) {
 			const angle1 = (j / segments) * Math.PI * 2;
@@ -66,16 +63,19 @@ export function lathePointsToSTL(sculpture: SculptureDefinition): string {
 			const x2 = Math.cos(angle2) * points[1].x;
 			const z2 = Math.sin(angle2) * points[1].x;
 
-			triangles.push(createTriangle(
-				{x: 0, y: bottomY, z: 0},
-				{x: x2, y: bottomY, z: z2},
-				{x: x1, y: bottomY, z: z1}
-			));
+			triangles.push(
+				createTriangle(
+					{ x: 0, y: bottomY, z: 0 },
+					{ x: x2, y: bottomY, z: z2 },
+					{ x: x1, y: bottomY, z: z1 }
+				)
+			);
 		}
 	}
 
 	const lastPoint = points[points.length - 1];
-	if (lastPoint.x < 0.01) { // Top cap
+	if (lastPoint.x < 0.01) {
+		// Top cap
 		const topY = lastPoint.y;
 		for (let j = 0; j < segments; j++) {
 			const angle1 = (j / segments) * Math.PI * 2;
@@ -86,11 +86,13 @@ export function lathePointsToSTL(sculpture: SculptureDefinition): string {
 			const x2 = Math.cos(angle2) * points[points.length - 2].x;
 			const z2 = Math.sin(angle2) * points[points.length - 2].x;
 
-			triangles.push(createTriangle(
-				{x: 0, y: topY, z: 0},
-				{x: x1, y: topY, z: z1},
-				{x: x2, y: topY, z: z2}
-			));
+			triangles.push(
+				createTriangle(
+					{ x: 0, y: topY, z: 0 },
+					{ x: x1, y: topY, z: z1 },
+					{ x: x2, y: topY, z: z2 }
+				)
+			);
 		}
 	}
 
@@ -101,7 +103,11 @@ endsolid sculpture`;
 	return stlContent;
 }
 
-function createTriangle(v1: {x: number, y: number, z: number}, v2: {x: number, y: number, z: number}, v3: {x: number, y: number, z: number}): string {
+function createTriangle(
+	v1: { x: number; y: number; z: number },
+	v2: { x: number; y: number; z: number },
+	v3: { x: number; y: number; z: number }
+): string {
 	// Calculate normal vector
 	const u = { x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z };
 	const v = { x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z };

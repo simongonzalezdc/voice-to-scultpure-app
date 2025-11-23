@@ -9,7 +9,7 @@
 
 	// Get sculpture height for lathe positioning
 	let sculptureHeight = $derived(
-		sculptureStore.currentSculpture?.physical.height 
+		sculptureStore.currentSculpture?.physical.height
 			? sculptureStore.currentSculpture.physical.height / 150 // Normalize to scene units
 			: 1.0 // Default 1 unit if no sculpture
 	);
@@ -33,8 +33,9 @@
 {:else if uiStore.orientation === 'horizontal'}
 	<!-- Lathe Mode: Two-Ended Rotisserie Design -->
 	<T.Group position={[0, 0, 0]}>
-		{@const targetX = sculptureHeight} <!-- Dynamic binding: tailstock slides with height -->
-		
+		{@const targetX = sculptureHeight}
+		<!-- Dynamic binding: tailstock slides with height -->
+
 		<!-- Headstock (Chuck): Cylinder at origin, rotated horizontally -->
 		<T.Group position={[0, 0, 0]}>
 			<T.Mesh rotation={[0, 0, Math.PI / 2]}>
@@ -73,4 +74,3 @@
 		</T.Mesh>
 	</T.Group>
 {/if}
-

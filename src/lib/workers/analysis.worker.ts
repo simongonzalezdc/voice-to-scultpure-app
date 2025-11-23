@@ -32,10 +32,7 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	}
 
 	// Extract features using stateless API with raw Float32Array
-	const features = Meyda.extract(
-		['rms', 'zcr', 'spectralCentroid'],
-		audioData
-	);
+	const features = Meyda.extract(['rms', 'zcr', 'spectralCentroid'], audioData);
 
 	if (!features) {
 		return null;
@@ -58,14 +55,14 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 
 function estimatePitch(audioData: Float32Array, sampleRate: number): number | null {
 	// IMPROVED autocorrelation with pre-processing for 512-sample buffer
-	
+
 	// Step 1: Pre-process - Remove DC offset and normalize
 	let sum = 0;
 	for (let i = 0; i < audioData.length; i++) {
 		sum += audioData[i];
 	}
 	const mean = sum / audioData.length;
-	
+
 	// Create centered signal
 	const centered = new Float32Array(audioData.length);
 	let maxAbs = 0;
@@ -73,14 +70,14 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 		centered[i] = audioData[i] - mean;
 		maxAbs = Math.max(maxAbs, Math.abs(centered[i]));
 	}
-	
+
 	// Normalize to prevent very quiet signals from failing
 	if (maxAbs > 0) {
 		for (let i = 0; i < centered.length; i++) {
 			centered[i] /= maxAbs;
 		}
 	}
-	
+
 	// Step 2: Autocorrelation with improved algorithm
 	const minPeriod = Math.floor(sampleRate / 800); // Max 800Hz
 	const maxPeriod = Math.min(
@@ -90,23 +87,22 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 
 	let maxCorrelation = -1;
 	let bestPeriod = 0;
-	
+
 	// Calculate autocorrelation with normalization
 	for (let period = minPeriod; period < maxPeriod; period++) {
 		let correlation = 0;
 		let energy1 = 0;
 		let energy2 = 0;
-		
+
 		for (let i = 0; i < centered.length - period; i++) {
 			correlation += centered[i] * centered[i + period];
 			energy1 += centered[i] * centered[i];
 			energy2 += centered[i + period] * centered[i + period];
 		}
-		
+
 		// Normalized correlation (prevents bias toward loud signals)
-		const normalizedCorr = energy1 > 0 && energy2 > 0 
-			? correlation / Math.sqrt(energy1 * energy2)
-			: 0;
+		const normalizedCorr =
+			energy1 > 0 && energy2 > 0 ? correlation / Math.sqrt(energy1 * energy2) : 0;
 
 		if (normalizedCorr > maxCorrelation) {
 			maxCorrelation = normalizedCorr;
@@ -117,14 +113,15 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 	// CRITICAL FIX: Much lower threshold for 512-sample buffer
 	// With proper normalization, correlation values are more reliable
 	const CORRELATION_THRESHOLD = 0.5; // Normalized correlation is 0-1 scale
-	
+
 	if (bestPeriod > 0 && maxCorrelation > CORRELATION_THRESHOLD) {
 		const pitch = sampleRate / bestPeriod;
-		
+
 		// Only accept human vocal range
 		if (pitch >= 60 && pitch <= 800) {
 			// Log successful pitch detection occasionally for debugging
-			if (Math.random() < 0.02) { // 2% of the time
+			if (Math.random() < 0.02) {
+				// 2% of the time
 				console.log(`[PITCH] ✓ ${pitch.toFixed(1)}Hz (correlation: ${maxCorrelation.toFixed(3)})`);
 			}
 			return pitch;
@@ -132,8 +129,11 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 	}
 
 	// Log failures occasionally to see why pitch isn't detected
-	if (Math.random() < 0.01) { // 1% of the time
-		console.log(`[PITCH] ✗ Failed - period: ${bestPeriod}, corr: ${maxCorrelation.toFixed(3)} (need > ${CORRELATION_THRESHOLD})`);
+	if (Math.random() < 0.01) {
+		// 1% of the time
+		console.log(
+			`[PITCH] ✗ Failed - period: ${bestPeriod}, corr: ${maxCorrelation.toFixed(3)} (need > ${CORRELATION_THRESHOLD})`
+		);
 	}
 
 	return null;
@@ -166,7 +166,7 @@ function processLoop(): void {
 	if (read > 0) {
 		// Create a properly sized buffer with only the read samples
 		const signal = buffer.subarray(0, read);
-		
+
 		// Analyze the frame using stateless Meyda extraction
 		const frame = analyzeFrame(signal);
 		if (frame) {
@@ -175,14 +175,18 @@ function processLoop(): void {
 				console.log('🔬 [ANALYSIS WORKER] First frame analyzed and sent');
 			} else if (framesSent % 60 === 0) {
 				// Log pitch detection success rate every 60 frames
-				console.log(`🔬 [ANALYSIS WORKER] ${framesSent} frames sent (${(framesSent / 60).toFixed(1)}s)`);
+				console.log(
+					`🔬 [ANALYSIS WORKER] ${framesSent} frames sent (${(framesSent / 60).toFixed(1)}s)`
+				);
 			}
-			
+
 			// Debug: Log pitch values occasionally
 			if (framesSent % 30 === 0 && frame.pitch > 0) {
-				console.log(`🎵 [PITCH DEBUG] ${frame.pitch.toFixed(1)}Hz detected (energy: ${frame.energy.toFixed(3)})`);
+				console.log(
+					`🎵 [PITCH DEBUG] ${frame.pitch.toFixed(1)}Hz detected (energy: ${frame.energy.toFixed(3)})`
+				);
 			}
-			
+
 			self.postMessage({
 				type: 'analysis-frame',
 				payload: frame

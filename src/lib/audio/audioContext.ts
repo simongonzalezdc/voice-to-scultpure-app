@@ -123,20 +123,18 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 
 	// Create and track the source node
 	sourceNode = audioContext.createMediaStreamSource(stream);
-	
+
 	// DIRECTIVE 3: Connect audio chain for volume normalization
 	// Chain: Source -> Input Gain -> Compressor -> Worklet & Analyser
 	sourceNode.connect(inputGainNode);
 	inputGainNode.connect(dynamicsCompressor);
-	
+
 	// Connect compressed signal to both worklet (for recording) and analyser (for visualizer bypass)
 	dynamicsCompressor.connect(workletNode);
 	dynamicsCompressor.connect(analyserNode); // Directive 1: Parallel connection for direct feedback
 
 	// Start the visualizer bypass polling
 	startVisualizerBypass();
-	
-	console.log('🎤 [AUDIO] Microphone connected to worklet with dynamics compression - ready to record');
 }
 
 // Directive 1: Visualizer Bypass - Direct mic level calculation
@@ -168,14 +166,14 @@ export async function startVisualizerBypass(): Promise<void> {
 			sum += normalized * normalized;
 		}
 		let rms = Math.sqrt(sum / analyserDataArray.length);
-		
+
 		// Apply sensitivity boost
 		rms = Math.min(1.0, rms * MIC_SENSITIVITY_MULTIPLIER);
-		
+
 		// CRITICAL FIX: Exponential Moving Average smoothing to prevent jitter
 		// This prevents wild 0-100 jumps by gradually following the signal
 		smoothedMicLevel = smoothedMicLevel + SMOOTHING_FACTOR * (rms - smoothedMicLevel);
-		
+
 		// DIRECTIVE 3: Add signal threshold for pitch detection
 		// Don't guess pitch for silence (prevents false positives from noise)
 		const SIGNAL_THRESHOLD = 0.02; // Lowered from 0.05 for more sensitivity
@@ -207,19 +205,19 @@ export function stopMicrophoneCapture(): void {
 	// even when not actively recording. The visualizer bypass is lightweight
 	// and provides essential real-time feedback.
 	// Only stop it on full audio context reset.
-	
+
 	// Disconnect source node
 	if (sourceNode) {
 		sourceNode.disconnect();
 		sourceNode = null;
 	}
-	
+
 	// Stop media stream tracks
 	if (mediaStream) {
 		mediaStream.getTracks().forEach((track) => track.stop());
 		mediaStream = null;
 	}
-	
+
 	console.log('🎤 [AUDIO] Microphone capture stopped');
 }
 
@@ -234,7 +232,7 @@ export function getWorkletNode(): AudioWorkletNode | null {
 export function resetAudioContext(): void {
 	stopMicrophoneCapture();
 	stopVisualizerBypass();
-	
+
 	if (sourceNode) {
 		sourceNode.disconnect();
 		sourceNode = null;
@@ -263,9 +261,7 @@ export function resetAudioContext(): void {
 		audioContext.close();
 		audioContext = null;
 	}
-	
+
 	analyserDataArray = null;
 	initialized = false;
-	
-	console.log('🔄 [AUDIO] Audio context fully reset');
 }

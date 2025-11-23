@@ -21,6 +21,7 @@
 **Goal:** Verify unlocked ranges allow radical deformations.
 
 ### Height Test
+
 1. Generate Test Mesh
 2. **Miniature:** Set height to `10mm`
    - ✅ Expected: Tiny 1cm sculpture (espresso cup size)
@@ -28,11 +29,13 @@
    - ✅ Expected: 1-meter tall sculpture (life-size vase)
 
 ### Twist Test
+
 4. **Extreme Spiral:** Set twist to `5.0`
    - ✅ Expected: 5 full rotations (extreme DNA helix)
    - Label should show `(1800°)`
 
 ### Compression Test
+
 5. **Super Stretch:** Set compression to `-2.0`
    - ✅ Expected: Stretched 3x taller (elongated)
 6. **Pancake:** Set compression to `0.95`
@@ -45,11 +48,13 @@
 **Goal:** Verify zone sculpting locks areas and only sculpts the active zone.
 
 ### Setup
+
 1. Generate Test Mesh (hourglass)
 2. Open Parameter Sliders
 3. Scroll to **"Sculpt Zone"** section
 
 ### Test A: Lock the Base, Sculpt the Rim
+
 4. Set sliders:
    - **Focus Bottom:** `70%`
    - **Focus Top:** `100%`
@@ -68,6 +73,7 @@
    - ✅ **Top 30% changed** (reflects your voice)
 
 ### Test B: Lock Everything Except Middle Band
+
 8. Set sliders:
    - **Focus Bottom:** `40%`
    - **Focus Top:** `60%`
@@ -110,41 +116,47 @@
 
 ## ✅ Success Checklist
 
-| Feature | Test | Pass? |
-|---------|------|-------|
-| Elastic Height | 1s recording = full vase | ⬜ |
-| Elastic Height | 10s recording = full vase (more detail) | ⬜ |
-| Height Slider | 10mm = tiny | ⬜ |
-| Height Slider | 1000mm = 1 meter | ⬜ |
-| Twist Slider | 5.0 = 5 full rotations | ⬜ |
-| Compression | -2.0 = super stretch | ⬜ |
-| Compression | 0.95 = pancake | ⬜ |
-| Zone Visual | Locked areas = dark gray | ⬜ |
-| **Zone Sculpting** | **Only active zone changes** | ⬜ |
-| Voice Loud | Dramatic radius changes | ⬜ |
-| Voice Attack | Deep chisel marks | ⬜ |
-| Voice Pitch | Wavy ripples | ⬜ |
+| Feature            | Test                                    | Pass? |
+| ------------------ | --------------------------------------- | ----- |
+| Elastic Height     | 1s recording = full vase                | ⬜    |
+| Elastic Height     | 10s recording = full vase (more detail) | ⬜    |
+| Height Slider      | 10mm = tiny                             | ⬜    |
+| Height Slider      | 1000mm = 1 meter                        | ⬜    |
+| Twist Slider       | 5.0 = 5 full rotations                  | ⬜    |
+| Compression        | -2.0 = super stretch                    | ⬜    |
+| Compression        | 0.95 = pancake                          | ⬜    |
+| Zone Visual        | Locked areas = dark gray                | ⬜    |
+| **Zone Sculpting** | **Only active zone changes**            | ⬜    |
+| Voice Loud         | Dramatic radius changes                 | ⬜    |
+| Voice Attack       | Deep chisel marks                       | ⬜    |
+| Voice Pitch        | Wavy ripples                            | ⬜    |
 
 ---
 
 ## 🐛 If Something Doesn't Work
 
 ### Zone Sculpting Not Working?
-**Symptoms:** 
+
+**Symptoms:**
+
 - Recording affects entire sculpture despite zone restriction
 - Zone dimming doesn't show up
 
 **Checks:**
+
 1. Open Console (Cmd+Option+J)
 2. Look for zone logging: `"zone: 70%-100%"`
 3. Verify zone is actually restricted (sliders moved from 0-100%)
 4. Make sure you're in **Recording** mode (not just viewing)
 
 ### Sliders Don't Go to Extreme Values?
+
 **Fix:** Clear cache and hard reload (Cmd+Shift+R)
 
 ### Voice Still Not Visible?
+
 **Check:**
+
 1. Microphone permissions granted
 2. Mic level bar showing activity
 3. Console shows "I HEAR YOU: [energy]" logs
@@ -154,4 +166,3 @@
 **Ready to test! 🚀**
 
 The most important test is **Test 3: Zone Sculpting** - this is the NEW feature that allows layer-by-layer sculpting.
-

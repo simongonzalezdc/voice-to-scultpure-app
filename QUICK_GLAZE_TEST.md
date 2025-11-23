@@ -74,16 +74,20 @@
 ## 🚨 Troubleshooting
 
 ### "Pitch always shows 0Hz"
+
 **Symptoms:**
+
 - Debug shows: `🎵 Pitch: 0Hz (Not detected)` (RED)
 - Even when singing clearly
 
 **Possible Causes:**
+
 1. Recording needs to be started first
 2. Analysis worker not running
 3. Pitch detection algorithm not triggering
 
 **Fix:**
+
 1. Try clicking "Record" button first to wake up audio
 2. Check browser console for errors
 3. Try refreshing page (Cmd+R)
@@ -91,16 +95,20 @@
 ---
 
 ### "Volume always 0%"
+
 **Symptoms:**
+
 - Debug shows: `🔊 Vol: 0% (Silent)` (RED)
 - Even when speaking
 
 **Possible Causes:**
+
 1. Microphone permissions denied
 2. Audio context suspended
 3. Wrong microphone selected
 
 **Fix:**
+
 1. Click "🎤 Tap to Activate Mic" button if shown
 2. Check browser permissions (should see mic icon in address bar)
 3. Try speaking louder
@@ -108,15 +116,19 @@
 ---
 
 ### "Colors don't change"
+
 **Symptoms:**
+
 - Sphere stays one color
 - Debug shows values changing but color stuck
 
 **Possible Causes:**
+
 1. HSL conversion issue
 2. Material not reactive
 
 **Fix:**
+
 1. Refresh page
 2. Check browser console for errors
 
@@ -124,16 +136,16 @@
 
 ## ✅ Success Checklist
 
-| Feature | Working? |
-|---------|----------|
-| Low hum → Red sphere | ⬜ |
-| Mid singing → Yellow/Green sphere | ⬜ |
-| High singing → Blue/Purple sphere | ⬜ |
-| Quiet → Muted/grey colors | ⬜ |
-| Loud → Vivid/bright colors | ⬜ |
-| Debug shows real Hz values | ⬜ |
-| Debug shows volume % | ⬜ |
-| Pitch color name updates | ⬜ |
+| Feature                           | Working? |
+| --------------------------------- | -------- |
+| Low hum → Red sphere              | ⬜       |
+| Mid singing → Yellow/Green sphere | ⬜       |
+| High singing → Blue/Purple sphere | ⬜       |
+| Quiet → Muted/grey colors         | ⬜       |
+| Loud → Vivid/bright colors        | ⬜       |
+| Debug shows real Hz values        | ⬜       |
+| Debug shows volume %              | ⬜       |
+| Pitch color name updates          | ⬜       |
 
 ---
 
@@ -141,19 +153,18 @@
 
 Use this to verify your pitch:
 
-| Your Voice | Frequency | Color | Debug Text |
-|------------|-----------|-------|------------|
-| **Deep Bass** | 80-100Hz | 🔴 Dark Red | "Red" |
-| **Low Male** | 100-150Hz | 🔴 Red | "Red" |
-| **Male Speaking** | 150-250Hz | 🟡 Orange-Yellow | "Yellow" |
-| **Female Speaking** | 250-350Hz | 🟢 Yellow-Green | "Yellow/Green" |
-| **Female Singing** | 350-450Hz | 🔵 Cyan-Blue | "Green/Blue" |
-| **High Female** | 450-550Hz | 🟣 Blue-Purple | "Purple" |
-| **Soprano** | 550-600Hz | 🟣 Purple | "Purple" |
+| Your Voice          | Frequency | Color            | Debug Text     |
+| ------------------- | --------- | ---------------- | -------------- |
+| **Deep Bass**       | 80-100Hz  | 🔴 Dark Red      | "Red"          |
+| **Low Male**        | 100-150Hz | 🔴 Red           | "Red"          |
+| **Male Speaking**   | 150-250Hz | 🟡 Orange-Yellow | "Yellow"       |
+| **Female Speaking** | 250-350Hz | 🟢 Yellow-Green  | "Yellow/Green" |
+| **Female Singing**  | 350-450Hz | 🔵 Cyan-Blue     | "Green/Blue"   |
+| **High Female**     | 450-550Hz | 🟣 Blue-Purple   | "Purple"       |
+| **Soprano**         | 550-600Hz | 🟣 Purple        | "Purple"       |
 
 ---
 
 **Ready to test! 🚀**
 
 The debug panel is your friend - it tells you EXACTLY what the system is detecting!
-

@@ -27,24 +27,28 @@ src/lib/__tests__/
 ## Running Tests
 
 ### All Tests
+
 ```bash
 npm run test
 # Runs: npm run test:unit && npm run test:integration
 ```
 
 ### Unit Tests Only
+
 ```bash
 npm run test:unit
 # Runs Vitest for all .test.ts files
 ```
 
 ### E2E Tests Only
+
 ```bash
 npm run test:integration
 # Runs Playwright tests
 ```
 
 ### Watch Mode (Development)
+
 ```bash
 npm run test:unit -- --watch
 # or
@@ -52,24 +56,28 @@ npx vitest --watch
 ```
 
 ### E2E Tests with UI
+
 ```bash
 npx playwright test --ui
 # Opens Playwright Inspector for interactive debugging
 ```
 
 ### Single Test File
+
 ```bash
 npx vitest src/lib/__tests__/constraints.test.ts
 npx playwright test tests/e2e/studio-flow.spec.ts
 ```
 
 ### Specific Browser (E2E)
+
 ```bash
 npx playwright test --project=chromium
 npx playwright test --project=firefox
 ```
 
 ### View E2E Report
+
 ```bash
 npx playwright show-report
 # Opens HTML report of test results with screenshots/videos
@@ -79,31 +87,33 @@ npx playwright show-report
 
 ### Unit Tests Coverage
 
-| Module | Tests | Coverage |
-|--------|-------|----------|
-| `stores/uiStore.svelte.ts` | 12 | Panel toggles, tool modes, constraint modes |
-| `stores/recording.svelte.ts` | 5 | State management, frame handling |
-| `stores/voiceLinksStore.svelte.ts` | 8 | Voice link toggles, pitch/timbre mapping |
-| `engine/constraints.ts` | 18 | All 3 constraint modes + edge cases |
-| `engine/physicsMapping.ts` | 3 | Lathe generation, deformation |
-| Total | **46** | Core state + physics logic |
+| Module                             | Tests  | Coverage                                    |
+| ---------------------------------- | ------ | ------------------------------------------- |
+| `stores/uiStore.svelte.ts`         | 12     | Panel toggles, tool modes, constraint modes |
+| `stores/recording.svelte.ts`       | 5      | State management, frame handling            |
+| `stores/voiceLinksStore.svelte.ts` | 8      | Voice link toggles, pitch/timbre mapping    |
+| `engine/constraints.ts`            | 18     | All 3 constraint modes + edge cases         |
+| `engine/physicsMapping.ts`         | 3      | Lathe generation, deformation               |
+| Total                              | **46** | Core state + physics logic                  |
 
 ### E2E Test Coverage
 
-| Flow | Tests | Features |
-|------|-------|----------|
-| Application Load | 2 | Initialization, header/canvas presence |
-| Project Creation | 2 | Modal display, project setup |
-| Panel Interactions | 4 | Design, Fabrication, Settings toggles |
-| Constraint Switching | 4 | Digital, Ceramic, 3D Print modes |
-| Transport Controls | 2 | Record/Stop buttons, state tracking |
-| Window Events | 2 | Resize responsiveness, state persistence |
-| Total | **16** | Main user workflows |
+| Flow                 | Tests  | Features                                 |
+| -------------------- | ------ | ---------------------------------------- |
+| Application Load     | 2      | Initialization, header/canvas presence   |
+| Project Creation     | 2      | Modal display, project setup             |
+| Panel Interactions   | 4      | Design, Fabrication, Settings toggles    |
+| Constraint Switching | 4      | Digital, Ceramic, 3D Print modes         |
+| Transport Controls   | 2      | Record/Stop buttons, state tracking      |
+| Window Events        | 2      | Resize responsiveness, state persistence |
+| Total                | **16** | Main user workflows                      |
 
 ## Test Specifications
 
 ### Unit Test: Ceramic Constraints
+
 Tests the hardened ceramic constraint logic:
+
 - ✅ Hand Access Floor (minimum radius enforcement)
 - ✅ Structural Smoothing (SMA filter)
 - ✅ Topological Safe Mode (shape boost)
@@ -111,14 +121,18 @@ Tests the hardened ceramic constraint logic:
 - ✅ Base Stability (wide foundation)
 
 ### Unit Test: Voice Links
+
 Tests hands-free voice control mapping:
+
 - ✅ Pitch → Twist (80-400 Hz range)
 - ✅ Timbre → Roughness (1000-8000 Hz spectral centroid)
 - ✅ Toggle activation/deactivation
 - ✅ Range clamping and boundary conditions
 
 ### E2E Test: Studio Flow
+
 Tests complete user journey:
+
 1. ✅ App loads successfully
 2. ✅ New Project Modal appears (if no project)
 3. ✅ Can create project with ceramic constraints
@@ -130,44 +144,46 @@ Tests complete user journey:
 ## Writing New Tests
 
 ### Unit Test Template
+
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('Feature Name', () => {
-  beforeEach(() => {
-    // Setup
-  });
+	beforeEach(() => {
+		// Setup
+	});
 
-  it('should do something specific', () => {
-    const result = myFunction();
-    expect(result).toBe(expected);
-  });
+	it('should do something specific', () => {
+		const result = myFunction();
+		expect(result).toBe(expected);
+	});
 
-  it('should handle edge case', () => {
-    expect(() => myFunction(invalid)).toThrow();
-  });
+	it('should handle edge case', () => {
+		expect(() => myFunction(invalid)).toThrow();
+	});
 });
 ```
 
 ### E2E Test Template
+
 ```typescript
 import { test, expect } from '@playwright/test';
 
 test.describe('Feature Name', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-  });
+	test.beforeEach(async ({ page }) => {
+		await page.goto('/');
+	});
 
-  test('should perform user action', async ({ page }) => {
-    // Find element
-    const button = page.locator('button:has-text("Action")');
-    
-    // Interact
-    await button.click();
-    
-    // Assert result
-    await expect(page.locator('text=Success')).toBeVisible();
-  });
+	test('should perform user action', async ({ page }) => {
+		// Find element
+		const button = page.locator('button:has-text("Action")');
+
+		// Interact
+		await button.click();
+
+		// Assert result
+		await expect(page.locator('text=Success')).toBeVisible();
+	});
 });
 ```
 
@@ -185,6 +201,7 @@ Tests are configured for continuous integration:
 ```
 
 ### CI Configuration
+
 - Unit tests: Run on every commit
 - E2E tests: Run before release builds
 - Retries: 2 attempts on CI
@@ -193,6 +210,7 @@ Tests are configured for continuous integration:
 ## Debugging Tests
 
 ### Debug Unit Tests
+
 ```bash
 # With Node Inspector
 node --inspect-brk ./node_modules/vitest/vitest.mjs run
@@ -201,12 +219,14 @@ node --inspect-brk ./node_modules/vitest/vitest.mjs run
 ```
 
 ### Debug E2E Tests
+
 ```bash
 # With Playwright Inspector
 PWDEBUG=1 npx playwright test tests/e2e/studio-flow.spec.ts
 ```
 
 ### View Test Output
+
 ```bash
 # Verbose mode
 npm run test:unit -- --reporter=verbose
@@ -216,7 +236,9 @@ npm run test:unit -- --coverage
 ```
 
 ### Screenshots on Failure
+
 E2E tests automatically capture:
+
 - Screenshots of failed assertions
 - Videos of entire test run
 - Network request logs
@@ -226,29 +248,33 @@ Located in: `./test-results/` after `playwright test --ui`
 
 ## Performance
 
-| Suite | Time | Notes |
-|-------|------|-------|
-| Unit Tests | ~2s | Fast, can be run frequently |
-| E2E Tests | ~30s | Includes server startup |
-| Full Suite | ~35s | Complete validation |
+| Suite      | Time | Notes                       |
+| ---------- | ---- | --------------------------- |
+| Unit Tests | ~2s  | Fast, can be run frequently |
+| E2E Tests  | ~30s | Includes server startup     |
+| Full Suite | ~35s | Complete validation         |
 
 ## Troubleshooting
 
 ### Unit Tests Fail with "Cannot find module"
+
 - Ensure dependencies are installed: `npm install`
 - Clear cache: `rm -rf node_modules/.vitest`
 
 ### E2E Tests Timeout
+
 - Check dev server is running: `npm run dev`
 - Increase timeout: `test.setTimeout(30000)`
 - Check network: Some tests may fail offline
 
 ### Import Resolution Errors
+
 - Run `npm run check` to validate TypeScript
 - Verify alias paths in `tsconfig.json`
 - Clear `.svelte-kit` directory: `rm -rf .svelte-kit && npm run dev`
 
 ### Flaky Tests
+
 - E2E tests retry twice on CI
 - Add explicit waits for dynamic content
 - Use `waitForLoadState('networkidle')`
@@ -271,10 +297,10 @@ Located in: `./test-results/` after `playwright test --ui`
 ## Continuous Improvement
 
 Tests should grow with the codebase:
+
 - Add tests for new features
 - Update tests when behavior changes
 - Remove tests for deprecated features
 - Refactor tests as patterns emerge
 
 Target coverage: **80%+ for critical paths**
-

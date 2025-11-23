@@ -31,26 +31,26 @@ Successfully implemented a **Physics Constraints System** that ensures generated
 ```typescript
 export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
 
-export function applyConstraints(
-  curve: LathePoint[], 
-  mode: ConstraintMode
-): LathePoint[]
+export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): LathePoint[];
 ```
 
 #### Three Constraint Modes
 
 ##### 1. 🪄 Digital (None)
+
 - **Logic:** Zero constraints - returns curve unchanged
 - **Use Case:** Maximum creative freedom, impossible geometries allowed
 - **Status:** Fully implemented
 
 ##### 2. 🏺 Ceramic (Pottery Wheel Physics)
+
 - **Rule A: Hand Access** - Minimum radius 40mm (except top 5% rim)
 - **Rule B: Gravity/Slump** - Max overhang angle 45° to prevent collapse
 - **Rule C: Base Stability** - Bottom 10% must be 1.5x wider than average
 - **Status:** Fully implemented with safety margins
 
 ##### 3. 🖨️ 3D Print (FDM Slicer Logic)
+
 - **Rule A: Overhang Constraints** - Max 60° overhang (no excessive supports)
 - **Rule B: Contiguous Geometry** - 1mm minimum radius, no gaps
 - **Rule C: Bed Adhesion** - 10mm minimum first layer radius
@@ -59,8 +59,8 @@ export function applyConstraints(
 #### Helper Functions
 
 ```typescript
-export function getConstraintDescription(mode: ConstraintMode): string
-export function getConstraintIcon(mode: ConstraintMode): string
+export function getConstraintDescription(mode: ConstraintMode): string;
+export function getConstraintIcon(mode: ConstraintMode): string;
 ```
 
 ---
@@ -73,9 +73,9 @@ export function getConstraintIcon(mode: ConstraintMode): string
 
 ```svelte
 <div class="grid grid-cols-3 gap-2">
-  <button>🪄 Digital</button>
-  <button>🏺 Ceramic</button>
-  <button>🖨️ 3D Print</button>
+	<button>🪄 Digital</button>
+	<button>🏺 Ceramic</button>
+	<button>🖨️ 3D Print</button>
 </div>
 ```
 
@@ -89,10 +89,11 @@ export function getConstraintIcon(mode: ConstraintMode): string
 **File Modified:** `src/lib/stores/uiStore.svelte.ts`
 
 Added:
+
 ```typescript
 constraintMode: 'digital' | 'ceramic' | '3d_print'; // Default: 'digital'
 
-export function setConstraintMode(mode: ConstraintMode): void
+export function setConstraintMode(mode: ConstraintMode): void;
 ```
 
 ---
@@ -105,15 +106,16 @@ export function setConstraintMode(mode: ConstraintMode): void
 
 ```typescript
 export function generateLathe(
-  frames: AnalysisFrame[], 
-  profile?: UserProfile,
-  mode: 'additive' | 'subtractive' = 'additive',
-  zone?: { min: number; max: number },
-  constraintMode: ConstraintMode = 'digital' // NEW PARAMETER
-): LathePoint[]
+	frames: AnalysisFrame[],
+	profile?: UserProfile,
+	mode: 'additive' | 'subtractive' = 'additive',
+	zone?: { min: number; max: number },
+	constraintMode: ConstraintMode = 'digital' // NEW PARAMETER
+): LathePoint[];
 ```
 
 **Logic:**
+
 1. Generate raw curve from audio analysis (unchanged)
 2. **NEW:** Apply fabrication constraints before return
 3. Return sanitized, manufacturable curve
@@ -169,6 +171,7 @@ Added `constraintMode` parameter and passed to `generateLathe()`.
 ### Real-Time Snapping
 
 When a constraint is active, users see the shape **instantly snap** to valid geometry during:
+
 - **Live recording** (real-time preview in viewport)
 - **Sculpture finalization** (when stopping recording)
 
@@ -176,7 +179,7 @@ When a constraint is active, users see the shape **instantly snap** to valid geo
 
 ```
 🏺 Ceramic Mode Active:
-"Pottery wheel physics: ensures hand access (40mm min), 
+"Pottery wheel physics: ensures hand access (40mm min),
 prevents collapse (45° max overhang), stable base."
 ```
 
@@ -293,7 +296,7 @@ prevents collapse (45° max overhang), stable base."
 ✅ **UI:** Live constraint description  
 ✅ **Pipeline:** Constraints applied in `generateLathe()` before return  
 ✅ **Real-Time:** Constraints visible during live recording  
-✅ **Non-Destructive:** Original frames preserved  
+✅ **Non-Destructive:** Original frames preserved
 
 ---
 
@@ -313,4 +316,3 @@ The Fabrication Constraints system is **production-ready** and adds a critical "
 **Report Generated:** November 23, 2025  
 **Status:** ✅ All directives complete and tested  
 **Ready for:** User acceptance testing
-

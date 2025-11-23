@@ -38,14 +38,10 @@
 	{#if !hasSharedArrayBuffer}
 		<div class="badge badge-warning p-4 mb-4 flex items-center justify-between gap-4">
 			<div class="flex-1">
-				⚠️ SharedArrayBuffer not available. Audio recording may not work. Ensure COOP/COEP headers are
-				set.
+				⚠️ SharedArrayBuffer not available. Audio recording may not work. Ensure COOP/COEP headers
+				are set.
 			</div>
-			<button
-				class="button-secondary px-3 py-1 text-xs"
-				type="button"
-				onclick={handleDismiss}
-			>
+			<button class="button-secondary px-3 py-1 text-xs" type="button" onclick={handleDismiss}>
 				Continue Anyway
 			</button>
 		</div>
@@ -63,11 +59,7 @@
 				❌ Microphone access denied: {microphoneError || 'Unknown error'}. Please grant microphone
 				permissions.
 			</div>
-			<button
-				class="button-secondary px-3 py-1 text-xs"
-				type="button"
-				onclick={handleDismiss}
-			>
+			<button class="button-secondary px-3 py-1 text-xs" type="button" onclick={handleDismiss}>
 				Continue Anyway
 			</button>
 		</div>

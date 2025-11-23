@@ -10,6 +10,7 @@
 ## Problem Description
 
 ### User-Reported Symptoms
+
 - Microphone activates briefly when opening Glaze Mixer
 - Audio works for "a couple seconds" then stops/mutes
 - User has to click something multiple times to reactivate
@@ -20,12 +21,13 @@
 Found **two critical architectural issues** in the audio lifecycle:
 
 #### Issue #1: Visualizer Bypass Killed on Recording Stop
+
 **Location:** `src/lib/audio/audioContext.ts` line 165
 
 ```typescript
 export function stopMicrophoneCapture(): void {
-    stopVisualizerBypass(); // ❌ KILLS live monitoring!
-    // ...
+	stopVisualizerBypass(); // ❌ KILLS live monitoring!
+	// ...
 }
 ```
 
@@ -36,13 +38,14 @@ export function stopMicrophoneCapture(): void {
 ---
 
 #### Issue #2: Microphone Closed Completely on Recording Stop
+
 **Location:** `src/lib/components/controls/Transport.svelte` line 116
 
 ```typescript
 async function stopRecordingFlow() {
-    workerClient?.stop();
-    stopMicrophoneCapture(); // ❌ Closes mic completely!
-    stopRecording();
+	workerClient?.stop();
+	stopMicrophoneCapture(); // ❌ Closes mic completely!
+	stopRecording();
 }
 ```
 
@@ -56,9 +59,9 @@ async function stopRecordingFlow() {
 
 The bug revealed a **fundamental architectural mismatch**:
 
-| Component | Audio Lifecycle Expectation |
-|-----------|----------------------------|
-| **Recording (Transport)** | Start mic → Record → **Stop mic** (done) |
+| Component                        | Audio Lifecycle Expectation                                   |
+| -------------------------------- | ------------------------------------------------------------- |
+| **Recording (Transport)**        | Start mic → Record → **Stop mic** (done)                      |
 | **Live Monitoring (GlazeMixer)** | Start mic → **Keep open indefinitely** for real-time feedback |
 
 Both components shared the same audio pipeline but had **conflicting lifecycle requirements**.
@@ -68,18 +71,19 @@ Both components shared the same audio pipeline but had **conflicting lifecycle r
 ## Solution Implemented
 
 ### Fix #1: Don't Stop Visualizer Bypass
+
 **File:** `src/lib/audio/audioContext.ts`
 
 ```typescript
 export function stopMicrophoneCapture(): void {
-    // ✅ REMOVED: stopVisualizerBypass()
-    // Keep visualizer bypass running for UI components (GlazeMixer, etc.)
-    // Only stop it on full audio context reset
-    
-    if (mediaStream) {
-        mediaStream.getTracks().forEach((track) => track.stop());
-        mediaStream = null;
-    }
+	// ✅ REMOVED: stopVisualizerBypass()
+	// Keep visualizer bypass running for UI components (GlazeMixer, etc.)
+	// Only stop it on full audio context reset
+
+	if (mediaStream) {
+		mediaStream.getTracks().forEach((track) => track.stop());
+		mediaStream = null;
+	}
 }
 ```
 
@@ -88,14 +92,15 @@ export function stopMicrophoneCapture(): void {
 ---
 
 ### Fix #2: Don't Close Microphone on Recording Stop
+
 **File:** `src/lib/components/controls/Transport.svelte`
 
 ```typescript
 async function stopRecordingFlow() {
-    workerClient?.stop();
-    // ✅ REMOVED: stopMicrophoneCapture()
-    // Keep mic open for live monitoring (GlazeMixer, visualizers, etc.)
-    stopRecording();
+	workerClient?.stop();
+	// ✅ REMOVED: stopMicrophoneCapture()
+	// Keep mic open for live monitoring (GlazeMixer, visualizers, etc.)
+	stopRecording();
 }
 ```
 
@@ -104,9 +109,11 @@ async function stopRecordingFlow() {
 ---
 
 ### Fix #3: Better GlazeMixer Initialization
+
 **File:** `src/lib/components/panels/GlazeMixer.svelte`
 
 **Changes:**
+
 1. **More frequent polling:** 500ms → 250ms for responsive UI
 2. **Better logging:** Console messages track audio state transitions
 3. **Continuous retry:** Always attempts to restart visualizer bypass if context is running
@@ -118,24 +125,26 @@ const interval = setInterval(checkAudioContext, 250); // was 500ms
 
 // Always try to start visualizer bypass if context is running
 if (ctx.state === 'running') {
-    await startVisualizerBypass(); // Idempotent - safe to call multiple times
+	await startVisualizerBypass(); // Idempotent - safe to call multiple times
 }
 ```
 
 ---
 
 ### Fix #4: Improved User Guidance
+
 **File:** `src/lib/components/panels/GlazeMixer.svelte`
 
 **Added:**
+
 - Clearer "Activate Microphone" button text
 - Context-aware help message ("Record once first to initialize audio" vs "Click to resume")
 - Tip box explaining mic stays active for live monitoring
 
 ```svelte
 <div class="mt-3 p-2 bg-[#1a1a1a] border border-[#333] rounded">
-    💡 Tip: Your microphone stays active for continuous live monitoring.
-    The colors update in real-time as you hum or speak!
+	💡 Tip: Your microphone stays active for continuous live monitoring. The colors update in
+	real-time as you hum or speak!
 </div>
 ```
 
@@ -144,12 +153,14 @@ if (ctx.state === 'running') {
 ## Testing Results
 
 ### Before Fix
+
 - ❌ GlazeMixer works for 2-3 seconds
 - ❌ Audio cuts out after recording stops
 - ❌ User has to click multiple times
 - ❌ Falls back to static color
 
 ### After Fix
+
 - ✅ GlazeMixer works continuously
 - ✅ Audio stays active after recording
 - ✅ Single click to activate (if needed)
@@ -160,6 +171,7 @@ if (ctx.state === 'running') {
 ## Test Protocol
 
 ### Test 1: First Time User (No Recording Yet)
+
 1. Open app (fresh start)
 2. Open GlazeMixer (press S key)
 3. **Expected:** "Activate Microphone" button shows
@@ -170,12 +182,14 @@ if (ctx.state === 'running') {
 8. **Expected:** ✅ Audio active, colors changing
 
 ### Test 2: After Recording Once
+
 1. Record for 3 seconds → Stop
 2. Open GlazeMixer
 3. Hum for 30 seconds continuously
 4. **Expected:** ✅ Colors change smoothly for entire 30 seconds (no cutouts)
 
 ### Test 3: Multiple Record/Stop Cycles
+
 1. Open GlazeMixer
 2. Record → Stop → Record → Stop (3 times)
 3. **Expected:** ✅ GlazeMixer continues working throughout all cycles
@@ -185,25 +199,30 @@ if (ctx.state === 'running') {
 ## Side Effects & Considerations
 
 ### Positive Side Effects
+
 ✅ **Better UX:** Mic stays open for live monitoring (feels more responsive)  
 ✅ **Consistent Feedback:** Real-time audio visualizations work everywhere  
-✅ **Fewer Clicks:** User doesn't have to re-enable mic constantly  
+✅ **Fewer Clicks:** User doesn't have to re-enable mic constantly
 
 ### Potential Concerns
 
 #### Privacy: Mic Stays Open
+
 **Concern:** Users might not realize mic is still listening after recording.
 
 **Mitigation:**
+
 - Mic indicator in browser shows red dot when active
 - Debug panel shows live audio values (transparency)
 - Added tip box explaining behavior
 - Only happens after user explicitly clicks Record (user consent)
 
 #### Performance: Continuous Audio Processing
+
 **Concern:** Visualizer bypass runs continuously (CPU usage?).
 
 **Analysis:**
+
 - Visualizer bypass is lightweight: just reads AnalyserNode data
 - Runs at 60fps (~16ms intervals)
 - No heavy DSP operations
@@ -216,14 +235,17 @@ if (ctx.state === 'running') {
 ## Files Modified
 
 ✅ **`src/lib/audio/audioContext.ts`**
+
 - Removed `stopVisualizerBypass()` call from `stopMicrophoneCapture()`
 - Added comments explaining lifecycle decision
 
 ✅ **`src/lib/components/controls/Transport.svelte`**
+
 - Removed `stopMicrophoneCapture()` call from `stopRecordingFlow()`
 - Mic now stays open after recording stops
 
 ✅ **`src/lib/components/panels/GlazeMixer.svelte`**
+
 - Faster polling (250ms)
 - Better logging
 - Improved error handling
@@ -231,6 +253,7 @@ if (ctx.state === 'running') {
 - Better activate button UX
 
 ### Linter Status
+
 ✅ **All files pass linting** (0 errors, 0 warnings)
 
 ---
@@ -238,33 +261,36 @@ if (ctx.state === 'running') {
 ## Future Enhancements
 
 ### Optional: Add "Close Microphone" Button
+
 For users concerned about privacy, add an explicit button:
+
 ```svelte
-<button onclick={closeAllAudio}>
-    🔇 Close Microphone
-</button>
+<button onclick={closeAllAudio}> 🔇 Close Microphone </button>
 ```
 
 Would call `stopMicrophoneCapture()` + `resetAudioContext()`.
 
 ### Optional: Auto-Close on Inactivity
+
 Close mic automatically after 5 minutes of no interaction:
+
 ```typescript
 let lastActivityTime = Date.now();
 setInterval(() => {
-    if (Date.now() - lastActivityTime > 300000) { // 5 min
-        stopMicrophoneCapture();
-    }
+	if (Date.now() - lastActivityTime > 300000) {
+		// 5 min
+		stopMicrophoneCapture();
+	}
 }, 60000);
 ```
 
 ### Optional: Mic Status Indicator
+
 Add global indicator showing mic is active:
+
 ```svelte
 {#if micIsActive}
-    <div class="fixed top-4 right-4 text-xs text-red-500">
-        🔴 Mic Active
-    </div>
+	<div class="fixed top-4 right-4 text-xs text-red-500">🔴 Mic Active</div>
 {/if}
 ```
 
@@ -285,4 +311,3 @@ Add global indicator showing mic is active:
 ---
 
 **End of Report**
-

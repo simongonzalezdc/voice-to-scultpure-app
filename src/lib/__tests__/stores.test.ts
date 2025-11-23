@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { recordingStore, addAnalysisFrame, resetRecording } from '../stores/recording.svelte';
 import { uiStore, togglePanel, setToolMode, setSculptMode } from '../stores/uiStore.svelte';
-import { voiceLinksStore, toggleVoiceLink, pitchToTwist, timbreToRoughness } from '../stores/voiceLinksStore.svelte';
+import {
+	voiceLinksStore,
+	toggleVoiceLink,
+	pitchToTwist,
+	timbreToRoughness
+} from '../stores/voiceLinksStore.svelte';
 import type { AnalysisFrame } from '../types';
 
 /**
  * Unit Tests: Store Logic
- * 
+ *
  * Tests reactive state management including:
  * - Recording state transitions
  * - UI panel toggles
@@ -77,7 +82,7 @@ describe('UI Store', () => {
 		const initialState = uiStore.panels.fabricationPanel;
 		togglePanel('fabricationPanel');
 		expect(uiStore.panels.fabricationPanel).toBe(!initialState);
-		
+
 		togglePanel('fabricationPanel');
 		expect(uiStore.panels.fabricationPanel).toBe(initialState);
 	});
@@ -258,4 +263,3 @@ describe('UI Store - Glaze Mode', () => {
 		expect(uiStore.activeGlaze.roughness).toBe(0.75);
 	});
 });
-

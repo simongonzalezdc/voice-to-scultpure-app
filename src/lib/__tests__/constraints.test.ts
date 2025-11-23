@@ -4,7 +4,7 @@ import type { LathePoint } from '../types';
 
 /**
  * Unit Tests: Fabrication Constraints
- * 
+ *
  * Tests constraint application for:
  * - Digital (no constraints)
  * - Ceramic (pottery wheel physics)
@@ -15,11 +15,11 @@ describe('Fabrication Constraints', () => {
 	const createTestCurve = (): LathePoint[] => {
 		// Create a simple cone-like profile
 		return [
-			{ x: 0.2, y: 0.0 },  // Base
+			{ x: 0.2, y: 0.0 }, // Base
 			{ x: 0.15, y: 0.25 },
 			{ x: 0.1, y: 0.5 },
 			{ x: 0.08, y: 0.75 },
-			{ x: 0.05, y: 1.0 }   // Tip
+			{ x: 0.05, y: 1.0 } // Tip
 		];
 	};
 
@@ -42,9 +42,9 @@ describe('Fabrication Constraints', () => {
 			];
 
 			const constrained = applyConstraints(curve, 'digital');
-			
+
 			// Digital allows thin points
-			const minRadius = Math.min(...constrained.map(p => p.x));
+			const minRadius = Math.min(...constrained.map((p) => p.x));
 			expect(minRadius).toBeLessThan(0.035); // Less than ceramic minimum
 		});
 	});
@@ -52,16 +52,16 @@ describe('Fabrication Constraints', () => {
 	describe('Ceramic Mode (Pottery Constraints)', () => {
 		it('should enforce minimum radius (hand access)', () => {
 			const curve: LathePoint[] = [
-				{ x: 0.01, y: 0.0 },  // Too thin
-				{ x: 0.01, y: 0.5 },  // Too thin
-				{ x: 0.01, y: 1.0 }   // Too thin (rim, can be thin)
+				{ x: 0.01, y: 0.0 }, // Too thin
+				{ x: 0.01, y: 0.5 }, // Too thin
+				{ x: 0.01, y: 1.0 } // Too thin (rim, can be thin)
 			];
 
 			const constrained = applyConstraints(curve, 'ceramic');
 
 			// Check that most points enforce minimum radius (except rim - top 5%)
 			const nonRimPoints = constrained.filter((p, i) => p.y < 0.95);
-			const minNonRimRadius = Math.min(...nonRimPoints.map(p => p.x));
+			const minNonRimRadius = Math.min(...nonRimPoints.map((p) => p.x));
 
 			expect(minNonRimRadius).toBeGreaterThanOrEqual(0.035); // 35mm minimum
 		});
@@ -69,8 +69,8 @@ describe('Fabrication Constraints', () => {
 		it('should allow thin rim (top 5%)', () => {
 			const curve: LathePoint[] = [
 				{ x: 0.05, y: 0.0 },
-				{ x: 0.05, y: 0.90 },
-				{ x: 0.01, y: 0.95 }  // Thin rim is allowed
+				{ x: 0.05, y: 0.9 },
+				{ x: 0.01, y: 0.95 } // Thin rim is allowed
 			];
 
 			const constrained = applyConstraints(curve, 'ceramic');
@@ -101,7 +101,7 @@ describe('Fabrication Constraints', () => {
 			// Create curve with steep overhang
 			const curve: LathePoint[] = [
 				{ x: 0.1, y: 0.0 },
-				{ x: 0.3, y: 0.1 },  // Steep outward angle
+				{ x: 0.3, y: 0.1 }, // Steep outward angle
 				{ x: 0.1, y: 1.0 }
 			];
 
@@ -149,7 +149,7 @@ describe('Fabrication Constraints', () => {
 		it('should limit overhang to 60 degrees', () => {
 			const curve: LathePoint[] = [
 				{ x: 0.1, y: 0.0 },
-				{ x: 0.3, y: 0.1 },  // Steep overhang
+				{ x: 0.3, y: 0.1 }, // Steep overhang
 				{ x: 0.1, y: 1.0 }
 			];
 
@@ -171,7 +171,7 @@ describe('Fabrication Constraints', () => {
 			const constrained = applyConstraints(curve, '3d_print');
 
 			// Should have minimum radius
-			const minRadius = Math.min(...constrained.map(p => p.x));
+			const minRadius = Math.min(...constrained.map((p) => p.x));
 			expect(minRadius).toBeGreaterThan(0.0001);
 			expect(minRadius).toBeGreaterThanOrEqual(0.001); // 1mm minimum
 		});
@@ -243,7 +243,7 @@ describe('Fabrication Constraints', () => {
 
 			const constrained = applyConstraints(curve, 'ceramic');
 			// Should enforce minimum or handle gracefully
-			const minRadius = Math.min(...constrained.map(p => p.x));
+			const minRadius = Math.min(...constrained.map((p) => p.x));
 			expect(minRadius).toBeGreaterThanOrEqual(0);
 		});
 	});
@@ -260,8 +260,8 @@ describe('Fabrication Constraints', () => {
 			const ceramic = applyConstraints(curve, 'ceramic');
 
 			// Digital keeps thin points, ceramic enforces minimum
-			const digitalMin = Math.min(...digital.map(p => p.x));
-			const ceramicMin = Math.min(...ceramic.filter(p => p.y < 0.95).map(p => p.x));
+			const digitalMin = Math.min(...digital.map((p) => p.x));
+			const ceramicMin = Math.min(...ceramic.filter((p) => p.y < 0.95).map((p) => p.x));
 
 			expect(ceramicMin).toBeGreaterThan(digitalMin);
 		});
@@ -277,4 +277,3 @@ describe('Fabrication Constraints', () => {
 		});
 	});
 });
-

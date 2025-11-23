@@ -89,6 +89,7 @@ npx playwright show-report
 ### Test Files
 
 **Unit Tests** (`src/lib/__tests__/`)
+
 - `stores.test.ts` - Recording, UI, and Voice Links store state management
 - `constraints.test.ts` - Fabrication constraint logic (ceramic, 3D print, digital modes)
 - `physicsMapping.test.ts` - Lathe geometry generation and deformation
@@ -96,6 +97,7 @@ npx playwright show-report
 - `svgExport.test.ts` - SVG export functionality
 
 **E2E Tests** (`tests/e2e/`)
+
 - `studio-flow.spec.ts` - Main studio workflow:
   - Application load and initialization
   - New project creation with modal
@@ -107,42 +109,45 @@ npx playwright show-report
 
 ### Test Coverage
 
-| Area | Coverage | Status |
-|------|----------|--------|
-| Store Logic | Recording, UI, Voice Links | ✅ Comprehensive |
-| Constraints | All 3 modes + edge cases | ✅ Comprehensive |
-| Physics | Lathe generation, deformation | ✅ Covered |
-| E2E Flow | Main user workflows | ✅ Core paths |
-| Audio | Ring buffer, analysis | ✅ Basic tests |
+| Area        | Coverage                      | Status           |
+| ----------- | ----------------------------- | ---------------- |
+| Store Logic | Recording, UI, Voice Links    | ✅ Comprehensive |
+| Constraints | All 3 modes + edge cases      | ✅ Comprehensive |
+| Physics     | Lathe generation, deformation | ✅ Covered       |
+| E2E Flow    | Main user workflows           | ✅ Core paths    |
+| Audio       | Ring buffer, analysis         | ✅ Basic tests   |
 
 ### Writing New Tests
 
 **Unit Test Pattern:**
+
 ```typescript
 import { describe, it, expect } from 'vitest';
 
 describe('Feature', () => {
-  it('should do something', () => {
-    const result = myFunction();
-    expect(result).toBe(expected);
-  });
+	it('should do something', () => {
+		const result = myFunction();
+		expect(result).toBe(expected);
+	});
 });
 ```
 
 **E2E Test Pattern:**
+
 ```typescript
 import { test, expect } from '@playwright/test';
 
 test('should interact with UI', async ({ page }) => {
-  await page.goto('/');
-  await page.click('button:has-text("Action")');
-  await expect(page.locator('text=Result')).toBeVisible();
+	await page.goto('/');
+	await page.click('button:has-text("Action")');
+	await expect(page.locator('text=Result')).toBeVisible();
 });
 ```
 
 ### CI/CD Integration
 
 Tests are configured to run in CI environments:
+
 - Unit tests run on every commit
 - E2E tests run in headless mode
 - Retries enabled for flaky tests

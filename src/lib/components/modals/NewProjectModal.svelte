@@ -8,7 +8,7 @@
 
 	// Modal state
 	let isOpen = $derived(!sculptureStore.currentSculpture); // Show when no project active
-	
+
 	// Form state
 	let height = $state(150); // Default 150mm
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
@@ -24,8 +24,8 @@
 		// Create 50 analysis frames of silence (quiet hum) to generate a smooth base shape
 		const frames: AnalysisFrame[] = Array.from({ length: 50 }, (_, i) => ({
 			time: i * 0.05,
-			pitch: 200 + Math.sin(i / 50 * Math.PI) * 50, // Slight pitch variation
-			energy: 0.15 + Math.sin(i / 50 * Math.PI) * 0.1, // Quiet breathing
+			pitch: 200 + Math.sin((i / 50) * Math.PI) * 50, // Slight pitch variation
+			energy: 0.15 + Math.sin((i / 50) * Math.PI) * 0.1, // Quiet breathing
 			timbre: {
 				spectralCentroid: 2000,
 				zcr: 0.1,
@@ -41,7 +41,7 @@
 	function handleCreateProject() {
 		// Create new sculpture with initial settings
 		const initialGeometry = createDefaultGeometry();
-		
+
 		const newSculpture = {
 			id: `sculpture-${Date.now()}`,
 			name: `New ${materialType === 'ceramic' ? 'Ceramic' : 'Plastic'} Sculpture`,
@@ -72,7 +72,14 @@
 		setCurrentSculpture(newSculpture);
 		uiStore.constraintMode = constraintMode;
 
-		console.log('✨ [NEW PROJECT] Created with height:', height, 'mm, material:', materialType, 'constraints:', constraintMode);
+		console.log(
+			'✨ [NEW PROJECT] Created with height:',
+			height,
+			'mm, material:',
+			materialType,
+			'constraints:',
+			constraintMode
+		);
 	}
 
 	function handleMaterialSelect(type: 'ceramic' | 'plastic') {
@@ -98,9 +105,7 @@
 			<div class="space-y-5">
 				<!-- Target Height -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2">
-						📏 Target Height
-					</label>
+					<label class="block text-sm font-semibold text-secondary mb-2"> 📏 Target Height </label>
 					<div class="flex gap-2 items-center">
 						<input
 							type="range"
@@ -121,12 +126,11 @@
 
 				<!-- Material Selection -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2">
-						🎨 Material
-					</label>
+					<label class="block text-sm font-semibold text-secondary mb-2"> 🎨 Material </label>
 					<div class="flex gap-2">
 						<button
-							class="flex-1 py-3 px-4 rounded border-2 transition-all text-center {materialType === 'ceramic'
+							class="flex-1 py-3 px-4 rounded border-2 transition-all text-center {materialType ===
+							'ceramic'
 								? 'bg-brand-primary/20 border-brand-primary text-brand-primary'
 								: 'bg-surface-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 							onclick={() => handleMaterialSelect('ceramic')}
@@ -135,7 +139,8 @@
 							<div class="text-xs font-medium mt-1">Ceramic</div>
 						</button>
 						<button
-							class="flex-1 py-3 px-4 rounded border-2 transition-all text-center {materialType === 'plastic'
+							class="flex-1 py-3 px-4 rounded border-2 transition-all text-center {materialType ===
+							'plastic'
 								? 'bg-brand-primary/20 border-brand-primary text-brand-primary'
 								: 'bg-surface-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 							onclick={() => handleMaterialSelect('plastic')}
@@ -148,9 +153,7 @@
 
 				<!-- Base Color -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2">
-						🎨 Base Color
-					</label>
+					<label class="block text-sm font-semibold text-secondary mb-2"> 🎨 Base Color </label>
 					<div class="flex gap-2 items-center">
 						<input
 							bind:this={colorInput}
@@ -177,7 +180,8 @@
 					</label>
 					<div class="flex gap-2 flex-wrap">
 						<button
-							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode === 'digital'
+							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode ===
+							'digital'
 								? 'bg-brand-primary/20 border-brand-primary text-brand-primary'
 								: 'bg-surface-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 							onclick={() => handleConstraintSelect('digital')}
@@ -186,7 +190,8 @@
 							🪄 Digital
 						</button>
 						<button
-							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode === 'ceramic'
+							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode ===
+							'ceramic'
 								? 'bg-brand-primary/20 border-brand-primary text-brand-primary'
 								: 'bg-surface-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 							onclick={() => handleConstraintSelect('ceramic')}
@@ -195,7 +200,8 @@
 							🏺 Ceramic
 						</button>
 						<button
-							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode === '3d_print'
+							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode ===
+							'3d_print'
 								? 'bg-brand-primary/20 border-brand-primary text-brand-primary'
 								: 'bg-surface-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 							onclick={() => handleConstraintSelect('3d_print')}
@@ -239,4 +245,3 @@
 		accent-color: var(--color-brand-primary);
 	}
 </style>
-

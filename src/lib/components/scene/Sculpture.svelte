@@ -1,19 +1,32 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh, BoxGeometry, Color, BufferGeometry, BufferAttribute, DynamicDrawUsage } from 'three';
+	import {
+		LatheGeometry,
+		Vector2,
+		Mesh,
+		BoxGeometry,
+		Color,
+		BufferGeometry,
+		BufferAttribute,
+		DynamicDrawUsage
+	} from 'three';
 	import * as THREE from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
-import type { SculptureDefinition } from '$lib/types';
-import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
+	import type { SculptureDefinition } from '$lib/types';
+	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
-	import { voiceLinksStore, pitchToTwist, timbreToRoughness } from '$lib/stores/voiceLinksStore.svelte';
+	import {
+		voiceLinksStore,
+		pitchToTwist,
+		timbreToRoughness
+	} from '$lib/stores/voiceLinksStore.svelte';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
@@ -67,7 +80,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 
 			if (isInZone) {
 				// Active zone: BRIGHT - Full white/material color at full saturation
-				colors[i * 3] = 1.0;      // R
+				colors[i * 3] = 1.0; // R
 				colors[i * 3 + 1] = 1.0; // G
 				colors[i * 3 + 2] = 1.0; // B
 			} else {
@@ -76,8 +89,8 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				// - Desaturate by converting to grayscale and tinting
 				const grayScale = 0.3; // Much darker than active (0.3 instead of 1.0)
 				const tint = 0.4; // Slight color tint remains (40% gray, 60% original if any)
-				
-				colors[i * 3] = grayScale * tint;      // R
+
+				colors[i * 3] = grayScale * tint; // R
 				colors[i * 3 + 1] = grayScale * tint; // G
 				colors[i * 3 + 2] = grayScale * tint; // B
 			}
@@ -150,44 +163,51 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	// DIRECTIVE 1: NEVER destructively modify sculpture.radiusCurve
 	function createGeometryFromSculpture(sculpture: SculptureDefinition): LatheGeometry | null {
 		// Safety check
-		if (!sculpture.radiusCurve || !Array.isArray(sculpture.radiusCurve) || sculpture.radiusCurve.length === 0) {
+		if (
+			!sculpture.radiusCurve ||
+			!Array.isArray(sculpture.radiusCurve) ||
+			sculpture.radiusCurve.length === 0
+		) {
 			return null;
 		}
 
 		// 1. START WITH BASE - Create a copy, never overwrite original
-		let basePoints = sculpture.radiusCurve.map(p => ({ x: p.x, y: p.y }));
+		let basePoints = sculpture.radiusCurve.map((p) => ({ x: p.x, y: p.y }));
 
-	// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
-	if (sculpture.deformation && (sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)) {
-		basePoints = applyDeformation(basePoints, sculpture.deformation);
-	}
+		// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
+		if (
+			sculpture.deformation &&
+			(sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)
+		) {
+			basePoints = applyDeformation(basePoints, sculpture.deformation);
+		}
 
-	// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
-	// If recording, modulate the sculpture with live audio
-	if (recordingStore.state === 'recording') {
-		const frame = analysisStore.latestFrame;
-		
-		// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
-		const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
-		
-		// Apply sensitivity boost (match physicsMapping.ts line 74)
-		const energy = rawEnergy * 2.0;
-		
-		// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
-		const breathScale = 1.0 + (energy * 0.3); // 0-30% radial expansion
-		basePoints = basePoints.map(p => ({
-			x: p.x * breathScale,
-			y: p.y
-		}));
-	}
-	
-	// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
-	// These constraints persist through twist, compression, height changes, etc.
-	// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
-	basePoints = applyConstraints(basePoints, uiStore.constraintMode);
-	
-	// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
-	// NOT here in the geometry, to avoid double-scaling (heightScale²)
+		// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
+		// If recording, modulate the sculpture with live audio
+		if (recordingStore.state === 'recording') {
+			const frame = analysisStore.latestFrame;
+
+			// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
+			const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
+
+			// Apply sensitivity boost (match physicsMapping.ts line 74)
+			const energy = rawEnergy * 2.0;
+
+			// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
+			const breathScale = 1.0 + energy * 0.3; // 0-30% radial expansion
+			basePoints = basePoints.map((p) => ({
+				x: p.x * breathScale,
+				y: p.y
+			}));
+		}
+
+		// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
+		// These constraints persist through twist, compression, height changes, etc.
+		// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
+		basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+
+		// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
+		// NOT here in the geometry, to avoid double-scaling (heightScale²)
 
 		// 5. Low Poly / Resolution Logic
 		// DIRECTIVE 2: Resolution Slider controls Geometry Segments
@@ -195,31 +215,31 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		// 0 = Low Poly (6 segments - hexagonal/blocky)
 		// 1 = High Poly (64 segments - smooth)
 		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
-		
+
 		// Map 0-1 to 6-64 segments
 		// Use floor to get integer segments
 		// Resolution 0.0 -> 6 segments
 		// Resolution 1.0 -> 64 segments
-		const segments = Math.floor(6 + (roughnessInput * 58)); 
+		const segments = Math.floor(6 + roughnessInput * 58);
 
 		// Apply flat shading effect if low resolution (poly look)
 		// When resolution is low (< 0.3 / segments < 20), enable flat shading for style
 		// Note: Material update happens in the template, geometry update happens here
-		
+
 		if (basePoints.length < 2) {
 			return null;
 		}
 
 		// 6. Generate Geometry from final deformed + modulated points
-		const vectors = basePoints.map(p => new Vector2(p.x, p.y));
+		const vectors = basePoints.map((p) => new Vector2(p.x, p.y));
 		// Use dynamic segments count for Low Poly effect
 		const geometry = new LatheGeometry(vectors, segments);
-		
+
 		// DIRECTIVE 2B: Initialize vertex colors if saved colors exist or in glaze mode
 		if (geometry.attributes.position) {
 			const positions = geometry.attributes.position;
 			const vertexCount = positions.count;
-			
+
 			// Check if sculpture has saved vertex colors
 			if (sculpture.vertexColors && sculpture.vertexColors.length === vertexCount * 3) {
 				// Use saved colors
@@ -229,22 +249,22 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				// Initialize with base color if no saved colors
 				const colors = new Float32Array(vertexCount * 3);
 				const baseColorObj = new Color(materialColor);
-				
+
 				for (let i = 0; i < vertexCount; i++) {
 					colors[i * 3] = baseColorObj.r;
 					colors[i * 3 + 1] = baseColorObj.g;
 					colors[i * 3 + 2] = baseColorObj.b;
 				}
-				
+
 				geometry.setAttribute('color', new BufferAttribute(colors, 3));
 			}
 		}
-		
+
 		// DIRECTIVE 1: Apply TRUE vertex-level twist (spiral deformation)
 		if (sculpture.deformation && Math.abs(sculpture.deformation.twist) > 0.001) {
 			applyVertexTwist(geometry, sculpture.deformation.twist);
 		}
-		
+
 		return geometry;
 	}
 
@@ -265,17 +285,17 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		const currentSculpture = sculpture;
 		const zoneMin = uiStore.sculptZone.min;
 		const zoneMax = uiStore.sculptZone.max;
-		
+
 		const newGeom = createGeometryFromSculpture(currentSculpture);
 		if (newGeom) {
 			// DIRECTIVE 2: Apply zone visualization if zone is restricted
 			// Show zone dimming when zone sliders are being adjusted
 			const zoneIsRestricted = zoneMin > 0 || zoneMax < 1;
-			
+
 			if (zoneIsRestricted) {
 				applyZoneVisualization(newGeom, zoneMin, zoneMax);
 			}
-			
+
 			const oldGeom = meshRef.geometry;
 			meshRef.geometry = newGeom;
 			if (oldGeom) oldGeom.dispose();
@@ -290,7 +310,6 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
 				// Extract the actual colors from the geometry buffer
 				const savedColors = Array.from(colorAttr.array);
-				console.log(`🎨 [SCULPTURE] Capturing ${savedColors.length / 3} vertex colors from geometry`);
 				// Save them to the sculpture store
 				updateSculptureColors(new Float32Array(savedColors));
 			}
@@ -302,7 +321,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	$effect(() => {
 		const state = recordingStore.state;
 		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-		
+
 		// When recording just stopped (state changed to 'processing') and we were glazing
 		if (state === 'processing' && isGlazeMode) {
 			// Defer to next frame to ensure geometry is stable
@@ -319,12 +338,13 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 			const frame = analysisStore.latestFrame;
 			if (frame) {
 				// Apply voice link automation if any links are active
-				const hasActiveLinks = voiceLinksStore.twist === 'pitch' || voiceLinksStore.roughness === 'timbre';
-				
+				const hasActiveLinks =
+					voiceLinksStore.twist === 'pitch' || voiceLinksStore.roughness === 'timbre';
+
 				if (hasActiveLinks) {
 					// Create a copy of the sculpture with modulated parameters
 					let modulated = sculpture;
-					
+
 					// DIRECTIVE 2A: Twist Link (Pitch) - Map pitch to twist
 					if (voiceLinksStore.twist === 'pitch' && frame.pitch > 0) {
 						const voiceTwist = pitchToTwist(frame.pitch);
@@ -336,7 +356,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 							}
 						};
 					}
-					
+
 					// DIRECTIVE 2B: Roughness Link (Timbre) - Map spectralCentroid to roughness
 					if (voiceLinksStore.roughness === 'timbre') {
 						const voiceRoughness = timbreToRoughness(frame.timbre.spectralCentroid);
@@ -348,7 +368,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 							}
 						};
 					}
-					
+
 					// Update the sculpture with voice-modulated parameters
 					if (modulated !== sculpture) {
 						setCurrentSculpture(modulated);
@@ -356,11 +376,11 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				}
 			}
 		}
-		
+
 		if (recordingStore.state === 'recording') {
 			const frames = getCapturedFrames();
 			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-			
+
 			if (isGlazeMode) {
 				// GLAZE MODE: Non-destructive painting - use existing geometry, only update colors
 				if (sculpture && meshRef && frames.length > 0) {
@@ -369,26 +389,26 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 					if (existingGeom && existingGeom.attributes.position) {
 						// Generate glaze colors from frames
 						const glazeColors = generateGlaze(frames, uiStore.activeGlaze);
-						
+
 						// Apply colors to geometry
 						// Map frame index to vertex rings (each frame corresponds to a ring of vertices)
 						const positions = existingGeom.attributes.position;
 						const vertexCount = positions.count;
 						const ringCount = Math.floor(vertexCount / 32); // Assuming 32 segments per ring
-						
+
 						// Create color array matching vertex count
 						const colors = new Float32Array(vertexCount * 3);
 						const frameCount = Math.min(glazeColors.length / 3, ringCount);
-						
+
 						for (let ringIdx = 0; ringIdx < ringCount; ringIdx++) {
 							const frameIdx = Math.floor((ringIdx / ringCount) * frameCount);
 							const colorIdx = frameIdx * 3;
-							
+
 							// Get color for this ring
 							const r = glazeColors[colorIdx] || 1;
 							const g = glazeColors[colorIdx + 1] || 1;
 							const b = glazeColors[colorIdx + 2] || 1;
-							
+
 							// Apply to all vertices in this ring (32 vertices per ring)
 							for (let segIdx = 0; segIdx < 32; segIdx++) {
 								const vertexIdx = ringIdx * 32 + segIdx;
@@ -399,7 +419,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 								}
 							}
 						}
-						
+
 						existingGeom.setAttribute('color', new BufferAttribute(colors, 3));
 					}
 				}
@@ -408,23 +428,32 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 				if (frames.length > 0 && liveMeshRef) {
 					// Get sculpt mode from current sculpture or default to 'additive'
 					const mode = sculpture?.physical.sculptMode ?? 'additive';
-					
+
 					// DIRECTIVE 4: Pass zone parameter for zone sculpting
-				const zone = (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1) 
-					? uiStore.sculptZone 
-					: undefined;
-				
-				// Generate geometry on the fly from current frames with sculpt mode, zone, and constraints
-				const profile = generateLathe(frames, appSettings.userProfile, mode, zone, uiStore.constraintMode);
-					
+					const zone =
+						uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1
+							? uiStore.sculptZone
+							: undefined;
+
+					// Generate geometry on the fly from current frames with sculpt mode, zone, and constraints
+					const profile = generateLathe(
+						frames,
+						appSettings.userProfile,
+						mode,
+						zone,
+						uiStore.constraintMode
+					);
+
 					// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
 					if (!profile || profile.length === 0) return;
-					const validProfile = profile.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+					const validProfile = profile.filter(
+						(p) => p && typeof p.x === 'number' && typeof p.y === 'number'
+					);
 					if (validProfile.length < 2) return;
-					
-					const vectors = validProfile.map(p => new Vector2(p.x, p.y));
+
+					const vectors = validProfile.map((p) => new Vector2(p.x, p.y));
 					const newGeom = new LatheGeometry(vectors, 32);
-					
+
 					const oldGeom = liveMeshRef.geometry;
 					liveMeshRef.geometry = newGeom;
 					if (oldGeom) oldGeom.dispose();
@@ -433,7 +462,7 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		} else if (sculpture && meshRef) {
 			// Modulate existing sculpture if needed (breathing effect)
 			// Only need to re-run if we want the breathing effect on the *static* sculpture during playback
-			// Currently createGeometryFromSculpture handles this if state is 'recording', but 
+			// Currently createGeometryFromSculpture handles this if state is 'recording', but
 			// if we are using the separate Live Mesh, we might not need this block.
 		}
 	});
@@ -446,10 +475,13 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		}
 
 		// 1. Get Base Points
-		let points = ghost.radiusCurve.map(p => ({ x: p.x, y: p.y }));
+		let points = ghost.radiusCurve.map((p) => ({ x: p.x, y: p.y }));
 
 		// 2. Directive 2: Apply Deformations using consistent helper
-		if (ghost.deformation && (ghost.deformation.twist !== 0 || ghost.deformation.compression !== 0)) {
+		if (
+			ghost.deformation &&
+			(ghost.deformation.twist !== 0 || ghost.deformation.compression !== 0)
+		) {
 			points = applyDeformation(points, ghost.deformation);
 		}
 
@@ -459,19 +491,21 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 
 		// 3. Create geometry from deformed points
 		// ISSUE 1 FIX: Crash Guard - Ensure all points are valid before mapping
-		const validPoints = points.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number');
+		const validPoints = points.filter(
+			(p) => p && typeof p.x === 'number' && typeof p.y === 'number'
+		);
 		if (validPoints.length < 2) {
 			return null;
 		}
-		
-		const vectorPoints = validPoints.map(p => new Vector2(p.x, p.y));
+
+		const vectorPoints = validPoints.map((p) => new Vector2(p.x, p.y));
 		const geometry = new LatheGeometry(vectorPoints, 32);
-		
+
 		// DIRECTIVE 1: Apply vertex-level twist to ghost too
 		if (ghost.deformation && Math.abs(ghost.deformation.twist) > 0.001) {
 			applyVertexTwist(geometry, ghost.deformation.twist);
 		}
-		
+
 		return geometry;
 	}
 
@@ -498,41 +532,41 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	function lerpColor(colorA: string, colorB: string, t: number): string {
 		const c1 = parseInt(colorA.slice(1), 16);
 		const c2 = parseInt(colorB.slice(1), 16);
-		
+
 		const r1 = (c1 >> 16) & 255;
 		const g1 = (c1 >> 8) & 255;
 		const b1 = c1 & 255;
-		
+
 		const r2 = (c2 >> 16) & 255;
 		const g2 = (c2 >> 8) & 255;
 		const b2 = c2 & 255;
-		
+
 		const r = Math.round(r1 + (r2 - r1) * t);
 		const g = Math.round(g1 + (g2 - g1) * t);
 		const b = Math.round(b1 + (b2 - b1) * t);
-		
-		return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+
+		return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 	}
 
 	// Material Configuration
 	const CLAY_COLOR_DEFAULT = DEFAULT_MATERIAL_CERAMIC;
 	const PORCELAIN_COLOR = '#FFFFFF';
-	
+
 	// Derived material properties based on material type
 	let isPlastic = $derived(sculpture?.surface.materialType === 'plastic');
-	
+
 	// Color Logic:
 	// Ceramic: Blend between Clay and Porcelain based on Glaze Transmission
 	// Plastic: Use baseColor or default to white, Glaze adds gloss
 	let materialColor = $derived.by(() => {
 		if (!sculpture) return PORCELAIN_COLOR;
-		
+
 		if (isPlastic) {
 			const baseColor = sculpture.surface.baseColor || DEFAULT_MATERIAL_PLASTIC;
 			// Dim pure white to #EEEEEE so highlights are visible
 			return baseColor === '#FFFFFF' || baseColor === '#ffffff' ? '#EEEEEE' : baseColor;
 		}
-		
+
 		// Ceramic Logic
 		const base = sculpture.surface.baseColor || DEFAULT_MATERIAL_CERAMIC;
 		// If glaze is high, we see more of the glaze (white/glass) or the underlying clay?
@@ -541,24 +575,29 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 		return lerpColor(base, PORCELAIN_COLOR, sculpture.surface.glazeTransmission);
 	});
 
-	let ghostMaterialColor = $derived(sculptureStore.ghostSculpture 
-		? lerpColor(CLAY_COLOR_DEFAULT, PORCELAIN_COLOR, sculptureStore.ghostSculpture.surface.glazeTransmission)
-		: '#8F3E48'
+	let ghostMaterialColor = $derived(
+		sculptureStore.ghostSculpture
+			? lerpColor(
+					CLAY_COLOR_DEFAULT,
+					PORCELAIN_COLOR,
+					sculptureStore.ghostSculpture.surface.glazeTransmission
+				)
+			: '#8F3E48'
 	);
 
 	// Parent Rig Transform Values
 	// Height scaling: Normalize to 150mm reference height
 	let heightScale = $derived(sculpture?.physical.height ? sculpture.physical.height / 150 : 1);
-	
+
 	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
 	// Smooth rotation animation for Pottery ↔ Lathe toggle using spring for fluidity
 	const orientationSpring = spring(0, { stiffness: 0.05, damping: 0.25 });
-	
+
 	$effect(() => {
 		const targetRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0;
 		orientationSpring.set(targetRotation);
 	});
-	
+
 	let orientationRotation = $derived($orientationSpring);
 </script>
 
@@ -578,25 +617,30 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
 		<!-- Main Sculpture (Visible during glaze mode recording, hidden during sculpt mode recording) -->
-		{#if sculpture && (recordingStore.state !== 'recording' || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint'))}
+		{#if sculpture && (recordingStore.state !== 'recording' || uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint')}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 				<!-- Material Switching -->
-			{#if isPlastic}
-				<!-- Plastic: Physical Material (tuned for visibility - semi-matte, less glare) -->
-				<T.MeshPhysicalMaterial
-					color={materialColor}
-					roughness={Math.max(0.3, sculpture.surface.textureRoughness)}
-					clearcoat={0.5}
-					clearcoatRoughness={0.3}
-					metalness={0.1}
-					flatShading={false}
-				/>
+				{#if isPlastic}
+					<!-- Plastic: Physical Material (tuned for visibility - semi-matte, less glare) -->
+					<T.MeshPhysicalMaterial
+						color={materialColor}
+						roughness={Math.max(0.3, sculpture.surface.textureRoughness)}
+						clearcoat={0.5}
+						clearcoatRoughness={0.3}
+						metalness={0.1}
+						flatShading={false}
+					/>
 				{:else}
 					<!-- Ceramic: Physical Material (transmission, clearcoat) -->
 					<!-- DIRECTIVE 2: Fix Material Priority - use vertex colors if available, otherwise base color -->
-					{@const hasVertexColors = (sculpture.vertexColors && sculpture.vertexColors.length > 0) || (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') || (recordingStore.state === 'recording' && (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
+					{@const hasVertexColors =
+						(sculpture.vertexColors && sculpture.vertexColors.length > 0) ||
+						uiStore.toolMode === 'glaze-mix' ||
+						uiStore.toolMode === 'glaze-paint' ||
+						(recordingStore.state === 'recording' &&
+							(uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					<T.MeshPhysicalMaterial
-						transmission={sculpture.surface.glazeTransmission * 0.8} 
+						transmission={sculpture.surface.glazeTransmission * 0.8}
 						thickness={0.5}
 						roughness={sculpture.surface.textureRoughness}
 						clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}

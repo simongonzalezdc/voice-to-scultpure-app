@@ -49,7 +49,7 @@ export function exportProfileSVG(sculpture: SculptureDefinition): string {
 		const normalizedY = point.y - minYValue;
 		const x = padding + physicalMaxRadius - point.x * radiusScale * scaleFactor; // Center horizontally
 		const y = padding + normalizedY * heightScale * scaleFactor; // Top to bottom
-		
+
 		if (i === 0) {
 			pathData += ` ${x.toFixed(2)} ${y.toFixed(2)}`;
 		} else {
@@ -61,7 +61,7 @@ export function exportProfileSVG(sculpture: SculptureDefinition): string {
 	const rulerLines: string[] = [];
 	const rulerStep = isMetric ? 10 : 10 / 25.4; // 1cm or ~0.4 inches
 	const rulerStart = Math.ceil(padding / rulerStep) * rulerStep;
-	
+
 	// Vertical ruler lines (height)
 	for (let y = rulerStart; y <= svgHeight - padding; y += rulerStep) {
 		const cm = isMetric ? (y - padding) / 10 : (y - padding) / (10 / 25.4);
@@ -129,4 +129,3 @@ export function downloadBlueprint(svg: string, filename: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
-

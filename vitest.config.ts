@@ -12,7 +12,7 @@ export default defineConfig({
 			'.idea',
 			'.git',
 			'.cache',
-			'tests/**',  // Exclude Playwright E2E tests
+			'tests/**', // Exclude Playwright E2E tests
 			'**/*.spec.ts' // Only run .test.ts files, not .spec.ts
 		]
 	}

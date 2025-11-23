@@ -1,5 +1,10 @@
 <script lang="ts">
-import { recordingStore, startRecording, stopRecording, resetRecording } from '$lib/stores/recording.svelte';
+	import {
+		recordingStore,
+		startRecording,
+		stopRecording,
+		resetRecording
+	} from '$lib/stores/recording.svelte';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
 		initializeAudioContext,
@@ -20,7 +25,7 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-		
+
 		if (recordingStore.state === 'idle') {
 			// Glaze mode: Require existing sculpture
 			if (isGlazeMode && !sculptureStore.currentSculpture) {
@@ -67,7 +72,9 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 					await initializeAudioContext(ringBuffer.buffer, 44100);
 
 					// Resume audio context (required for browser autoplay policy)
-					const audioContext = await import('$lib/audio/audioContext').then(m => m.getAudioContext());
+					const audioContext = await import('$lib/audio/audioContext').then((m) =>
+						m.getAudioContext()
+					);
 					if (audioContext && audioContext.state === 'suspended') {
 						await audioContext.resume();
 					}
@@ -91,7 +98,7 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 					});
 
 					isInitialized = true;
-					
+
 					// DIRECTIVE 2: Start worker immediately for continuous monitoring
 					// This ensures GlazeMixer gets pitch/timbre data even when not recording
 					workerClient?.start();
@@ -113,7 +120,7 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 
 				if (attempt < maxRetries) {
 					// Wait before retry
-					await new Promise(resolve => setTimeout(resolve, 1000));
+					await new Promise((resolve) => setTimeout(resolve, 1000));
 				}
 			}
 		}
@@ -126,7 +133,7 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 		// DIRECTIVE 2: Don't stop the worker - keep it running for continuous monitoring
 		// The analysis worker should stay active for GlazeMixer to receive pitch/timbre data
 		// workerClient?.stop(); // REMOVED - keep worker running
-		
+
 		// CRITICAL FIX: Don't stop microphone capture here!
 		// Keep the mic open for live monitoring (GlazeMixer, visualizers, etc.)
 		// The visualizer bypass needs continuous audio input for real-time feedback.
@@ -138,14 +145,14 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 
 	function getButtonText(): string {
 		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
-		
+
 		// Glaze Mode ALWAYS takes priority. It implies "Recording on top".
 		if (isGlazeMode) {
 			// Safety check: Can't paint without a sculpture
 			if (!sculptureStore.currentSculpture && recordingStore.state === 'idle') {
 				return 'Paint (Disabled)';
 			}
-			
+
 			switch (recordingStore.state) {
 				case 'idle':
 					return 'Paint';
@@ -174,18 +181,18 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 			}
 		}
 	}
-	
+
 	function getButtonColor(): string {
 		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
 		if (isGlazeMode) {
 			// Purple/Indigo for glaze mode
-			return recordingStore.state === 'recording' 
-				? 'bg-[#6b46c1] hover:bg-[#7c3aed] border-[#8b5cf6]' 
+			return recordingStore.state === 'recording'
+				? 'bg-[#6b46c1] hover:bg-[#7c3aed] border-[#8b5cf6]'
 				: 'bg-[#7c3aed] hover:bg-[#8b5cf6] border-[#a78bfa]';
 		} else {
 			// Red for sculpt mode
-			return recordingStore.state === 'recording' 
-				? 'bg-[#dc2626] hover:bg-[#ef4444] border-[#f87171]' 
+			return recordingStore.state === 'recording'
+				? 'bg-[#dc2626] hover:bg-[#ef4444] border-[#f87171]'
 				: 'bg-[#ef4444] hover:bg-[#f87171] border-[#fca5a5]';
 		}
 	}
@@ -201,7 +208,10 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 		class="px-6 py-3 {getButtonColor()} border text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
 		type="button"
 		onclick={handleRecordClick}
-		disabled={recordingStore.state === 'processing' || ((uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') && !sculptureStore.currentSculpture && recordingStore.state === 'idle')}
+		disabled={recordingStore.state === 'processing' ||
+			((uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') &&
+				!sculptureStore.currentSculpture &&
+				recordingStore.state === 'idle')}
 	>
 		{#if (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') && recordingStore.state === 'idle'}
 			<span>🎨</span>

@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	createAudioRingBuffer,
-	writeToRingBuffer,
-	readFromRingBuffer
-} from '../audio/ringBuffer';
+import { createAudioRingBuffer, writeToRingBuffer, readFromRingBuffer } from '../audio/ringBuffer';
 
 describe('Ring Buffer', () => {
 	it('should create a ring buffer', () => {

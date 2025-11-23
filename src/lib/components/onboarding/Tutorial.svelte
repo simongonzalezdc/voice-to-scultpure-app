@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
-	import {
-		uiStore,
-		nextOnboardingStep,
-		finishOnboarding
-	} from '$lib/stores/uiStore.svelte';
+	import { uiStore, nextOnboardingStep, finishOnboarding } from '$lib/stores/uiStore.svelte';
 	import { computeCalibration, saveCalibration } from '$lib/audio/calibration';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
@@ -51,7 +47,7 @@
 
 			// Initialize audio context and worklet
 			await initializeAudioContext(calibrationRingBuffer.buffer, 44100);
-			
+
 			// Resume audio context (required for browser autoplay policy)
 			const audioContext = getAudioContext();
 			if (audioContext && audioContext.state === 'suspended') {
@@ -106,12 +102,12 @@
 
 		// Compute calibration
 		const calibrationResult = computeCalibration(calibrationFrames);
-		
+
 		// Save calibration to store
 		saveCalibration(calibrationResult);
 
 		calibrationState = 'complete';
-		
+
 		// Move to next step after a brief delay
 		setTimeout(() => {
 			nextOnboardingStep();
@@ -189,19 +185,16 @@
 							We'll record 5 seconds to calibrate the system to your voice and environment.
 						</p>
 						<p class="text-secondary mb-4 text-sm">
-							<strong>Make a range of sounds:</strong> Low hums, high whistles, and sharp noises (Pa! Ka! Shhh!).
-							This helps us calibrate texture, pitch, and attack detection.
+							<strong>Make a range of sounds:</strong> Low hums, high whistles, and sharp noises (Pa!
+							Ka! Shhh!). This helps us calibrate texture, pitch, and attack detection.
 						</p>
-						<button
-							class="button-primary px-4 py-2"
-							type="button"
-							onclick={handleCalibrationStart}
-						>
+						<button class="button-primary px-4 py-2" type="button" onclick={handleCalibrationStart}>
 							Start Calibration
 						</button>
 					{:else if calibrationState === 'recording'}
 						<p class="text-secondary mb-4">
-							Recording... Make diverse sounds: Low hums, high whistles, sharp attacks (Pa! Ka! Shhh!).
+							Recording... Make diverse sounds: Low hums, high whistles, sharp attacks (Pa! Ka!
+							Shhh!).
 						</p>
 						<p class="text-secondary mb-2 text-sm">
 							The system is analyzing your voice characteristics, timbre range, and attack patterns.
@@ -219,7 +212,9 @@
 						<p class="text-secondary mb-4">Processing calibration data...</p>
 						<div class="animate-pulse text-brand-primary">Analyzing your voice profile...</div>
 					{:else if calibrationState === 'complete'}
-						<p class="text-secondary mb-4">Calibration complete! Your voice profile has been saved.</p>
+						<p class="text-secondary mb-4">
+							Calibration complete! Your voice profile has been saved.
+						</p>
 					{/if}
 				</div>
 			{:else if currentStep === 'first-recording'}

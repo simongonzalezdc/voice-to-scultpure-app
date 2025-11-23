@@ -13,13 +13,19 @@
 	<div class="p-3 border-b border-[#4a4a4a]">
 		<div class="flex gap-1 bg-[#2a2a2a] rounded p-1">
 			<button
-				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode === 'sculpt' ? 'bg-[#8f3e48] text-white' : 'text-[#888] hover:text-white'}"
+				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode ===
+				'sculpt'
+					? 'bg-[#8f3e48] text-white'
+					: 'text-[#888] hover:text-white'}"
 				onclick={() => setToolMode('sculpt')}
 			>
 				🗿 SCULPT
 			</button>
 			<button
-				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint' ? 'bg-[#8f3e48] text-white' : 'text-[#888] hover:text-white'}"
+				class="flex-1 py-2 px-3 text-xs font-medium rounded transition-colors {uiStore.toolMode ===
+					'glaze-mix' || uiStore.toolMode === 'glaze-paint'
+					? 'bg-[#8f3e48] text-white'
+					: 'text-[#888] hover:text-white'}"
 				onclick={() => setToolMode('glaze-mix')}
 			>
 				🎨 GLAZE
@@ -29,21 +35,28 @@
 
 	<!-- Tab Header -->
 	<div class="flex border-b border-[#4a4a4a]">
-		<button 
-			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab === 'design' ? 'text-white border-[#8f3e48]' : 'text-[#888] border-transparent hover:text-white'}"
-			onclick={() => activeTab = 'design'}
+		<button
+			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab === 'design'
+				? 'text-white border-[#8f3e48]'
+				: 'text-[#888] border-transparent hover:text-white'}"
+			onclick={() => (activeTab = 'design')}
 		>
 			DESIGN
 		</button>
-		<button 
-			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab === 'fabrication' ? 'text-white border-[#8f3e48]' : 'text-[#888] border-transparent hover:text-white'}"
-			onclick={() => activeTab = 'fabrication'}
+		<button
+			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab ===
+			'fabrication'
+				? 'text-white border-[#8f3e48]'
+				: 'text-[#888] border-transparent hover:text-white'}"
+			onclick={() => (activeTab = 'fabrication')}
 		>
 			FABRICATION
 		</button>
-		<button 
-			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab === 'settings' ? 'text-white border-[#8f3e48]' : 'text-[#888] border-transparent hover:text-white'}"
-			onclick={() => activeTab = 'settings'}
+		<button
+			class="flex-1 py-3 text-sm font-medium transition-colors border-b-2 {activeTab === 'settings'
+				? 'text-white border-[#8f3e48]'
+				: 'text-[#888] border-transparent hover:text-white'}"
+			onclick={() => (activeTab = 'settings')}
 		>
 			SETTINGS
 		</button>

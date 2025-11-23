@@ -7,11 +7,13 @@
 3. **Drag Twist slider** from `-1.0` to `1.0`
 
 **✅ Expected Result:**
+
 - Sculpture spirals like a **corkscrew**
 - NOT just rotating, but **twisting around the axis**
 - Like a screw, DNA helix, or twisted tower
 
 **❌ Fail Case:**
+
 - Shape only rotates but doesn't spiral
 - → Vertex twist not working
 
@@ -26,16 +28,19 @@
    - Focus Top: `100%`
 
 **✅ Visual Check:**
+
 - Bottom 70% of sculpture appears **dark gray** (locked)
 - Top 30% appears **white/normal** (active zone)
 
 4. **Click Record** → **Speak for 3 seconds** → **Stop**
 
 **✅ Expected Result:**
+
 - Only the **top 30%** changes shape
 - Bottom **70% remains unchanged**
 
 **Use Cases:**
+
 - Lock base, sculpt rim (pottery lip)
 - Lock rim, sculpt body
 - Focus on middle band only
@@ -47,6 +52,7 @@
 **Setup:** Set Zone to full range (0% - 100%)
 
 ### Test 3A: Loud vs Quiet
+
 1. **Record** → **SHOUT:** "LOUD VOICE!" → **Stop**
 2. **Expected:** Large, dramatic radius changes (thick → thin)
 
@@ -54,10 +60,12 @@
 4. **Expected:** Subtle, delicate variations
 
 ### Test 3B: Sharp Consonants (Chisel Effect)
+
 1. **Record** → **Say sharply:** "K! T! P! CHK!" → **Stop**
 2. **Expected:** Visible **indentations** (chisel marks)
 
 ### Test 3C: Pitch Variation (Ripples)
+
 1. **Record** → **Sing/hum** a melody → **Stop**
 2. **Expected:** Wavy **ripples** along the height
 
@@ -65,14 +73,14 @@
 
 ## 📊 Success Criteria
 
-| Feature | Metric | Pass |
-|---------|--------|------|
-| **Twist** | Creates spiral (not just rotation) | ⬜ |
-| **Zone Visual** | Locked areas appear dark gray | ⬜ |
-| **Zone Locking** | Only active zone changes shape | ⬜ |
-| **Voice Visible** | Loud voice = dramatic changes | ⬜ |
-| **Attack Cuts** | Sharp sounds = indentations | ⬜ |
-| **Pitch Ripples** | Singing = wavy surface | ⬜ |
+| Feature           | Metric                             | Pass |
+| ----------------- | ---------------------------------- | ---- |
+| **Twist**         | Creates spiral (not just rotation) | ⬜   |
+| **Zone Visual**   | Locked areas appear dark gray      | ⬜   |
+| **Zone Locking**  | Only active zone changes shape     | ⬜   |
+| **Voice Visible** | Loud voice = dramatic changes      | ⬜   |
+| **Attack Cuts**   | Sharp sounds = indentations        | ⬜   |
+| **Pitch Ripples** | Singing = wavy surface             | ⬜   |
 
 ---
 
@@ -81,22 +89,25 @@
 **Zone Sculpting Logic Not Yet Applied to Frame Processing**
 
 Currently:
+
 - ✅ Visual dimming works (dark gray locked areas)
 - ❌ Frame capture doesn't filter by zone yet
 
-**Workaround:** This will be fixed in the next iteration. For now, the visual feedback works to show where the zone *should* be applied.
+**Workaround:** This will be fixed in the next iteration. For now, the visual feedback works to show where the zone _should_ be applied.
 
 ---
 
 ## 🎨 Visual Amplification Summary
 
 **BEFORE** (old values):
+
 - Energy sensitivity: 2.0x
 - Attack cuts: 0.2x depth
 - Timbre noise: 0.15x
 - Pitch ripple: 0.1x
 
 **AFTER** (new values):
+
 - Energy sensitivity: **3.5x** (75% increase)
 - Attack cuts: **0.5x** depth (150% increase)
 - Timbre noise: **0.3x** (100% increase)
@@ -109,18 +120,20 @@ Currently:
 ## 🔧 If Something Breaks
 
 **Console Errors:**
+
 - Open DevTools Console (Cmd+Option+J)
 - Look for errors mentioning `applyVertexTwist` or `applyZoneVisualization`
 
 **Twist Not Working:**
+
 - Check console for errors
 - Try refresh (Cmd+R)
 
 **Zone Not Dimming:**
+
 - Make sure you're in recording mode
 - Zone sliders must be moved from default (0-100%)
 
 ---
 
 **Ready to test! 🚀**
-

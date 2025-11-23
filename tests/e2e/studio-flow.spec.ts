@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 /**
  * E2E Tests: Main Studio Flow
- * 
+ *
  * Tests the complete user journey including:
  * - Application load and initialization
  * - New project creation
@@ -15,7 +15,7 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 	test.beforeEach(async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
-		
+
 		// Wait for the app to load (check for header or main canvas)
 		await page.waitForSelector('[class*="Header"]', { timeout: 5000 }).catch(() => {
 			// Fallback if header doesn't load, wait for canvas
@@ -38,10 +38,10 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 	test('should show new project modal when no sculpture exists', async ({ page }) => {
 		// Clear any existing project by checking if modal appears
 		const modal = page.locator('text=/New Sculpture Project|Create Project/i');
-		
+
 		// Modal should appear on fresh load if no project exists
 		const isVisible = await modal.isVisible().catch(() => false);
-		
+
 		if (isVisible) {
 			await expect(modal).toBeVisible();
 			console.log('✅ New Project Modal visible');
@@ -51,10 +51,10 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 	test('should create a new project with ceramic constraints', async ({ page }) => {
 		// Look for the "Create Project" button or modal
 		const createButton = page.locator('button:has-text("Create Project")').first();
-		
+
 		// If modal exists, proceed with creation
 		const isModalVisible = await createButton.isVisible().catch(() => false);
-		
+
 		if (isModalVisible) {
 			// Select ceramic material (if not already selected)
 			const ceramicButton = page.locator('text=Ceramic').locator('..').first();
@@ -63,17 +63,19 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 			});
 
 			// Select ceramic constraints
-			const ceramicConstraintButton = page.locator('button', { has: page.locator('text=🏺 Ceramic') }).first();
+			const ceramicConstraintButton = page
+				.locator('button', { has: page.locator('text=🏺 Ceramic') })
+				.first();
 			await ceramicConstraintButton.click().catch(() => {
 				// Might already be selected
 			});
 
 			// Click Create Project
 			await createButton.click();
-			
+
 			// Wait for sculpture to load
 			await page.waitForTimeout(1000);
-			
+
 			console.log('✅ Project created with ceramic constraints');
 		}
 	});
@@ -97,11 +99,11 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 
 		if (isTabVisible) {
 			await fabricationTab.click();
-			
+
 			// Verify fabrication options are visible
 			const constraintButtons = page.locator('button', { has: page.locator('text=/🪄|🏺|🖨️/') });
 			const count = await constraintButtons.count();
-			
+
 			expect(count).toBeGreaterThan(0);
 			console.log('✅ Fabrication panel toggled');
 		}
@@ -114,13 +116,13 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 
 		if (isVisible) {
 			await settingsButton.click();
-			
+
 			// Wait for settings panel to appear
 			await page.waitForTimeout(300);
-			
+
 			const settingsPanel = page.locator('text=/Settings|preferences/i').first();
 			const isPanelVisible = await settingsPanel.isVisible().catch(() => false);
-			
+
 			if (isPanelVisible) {
 				console.log('✅ Settings panel toggled');
 			}
@@ -240,4 +242,3 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 		}
 	});
 });
-

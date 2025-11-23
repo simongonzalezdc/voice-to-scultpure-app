@@ -51,7 +51,7 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 		}
 		energies.push(frame.energy);
 		timbres.push(frame.timbre.spectralCentroid);
-		
+
 		// Calculate energy delta (change rate) for attack detection
 		if (previousEnergy > 0) {
 			const delta = Math.abs(frame.energy - previousEnergy);
@@ -77,9 +77,10 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 	let attackThreshold = 0.15; // Default fallback
 	if (energyDeltas.length > 0) {
 		const meanDelta = energyDeltas.reduce((a, b) => a + b, 0) / energyDeltas.length;
-		const variance = energyDeltas.reduce((sum, d) => sum + Math.pow(d - meanDelta, 2), 0) / energyDeltas.length;
+		const variance =
+			energyDeltas.reduce((sum, d) => sum + Math.pow(d - meanDelta, 2), 0) / energyDeltas.length;
 		const stdDev = Math.sqrt(variance);
-		attackThreshold = meanDelta + (2 * stdDev);
+		attackThreshold = meanDelta + 2 * stdDev;
 		// Clamp to reasonable range
 		attackThreshold = Math.max(0.05, Math.min(0.5, attackThreshold));
 	}
@@ -87,7 +88,7 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 	// Timbre Floor: Minimum spectral centroid (noise/silence baseline)
 	// This prevents background hiss from creating rough textures
 	const timbreMin = timbres.length > 0 ? Math.min(...timbres) : DEFAULT_TIMBRE_MIN;
-	
+
 	// Timbre Ceiling: Maximum spectral centroid (max grit/harsh sounds)
 	// This captures the full range of texture variation
 	const timbreMax = timbres.length > 0 ? Math.max(...timbres) : DEFAULT_TIMBRE_MAX;
