@@ -5,9 +5,49 @@
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { generateLathe } from '$lib/engine/physicsMapping';
 	import type { AnalysisFrame } from '$lib/types';
+	import { onMount } from 'svelte';
 
 	// Modal state
 	let isOpen = $derived(!sculptureStore.currentSculpture); // Show when no project active
+
+	// Focus trap
+	let modalElement = $state<HTMLDivElement | null>(null);
+	let firstFocusableElement = $state<HTMLElement | null>(null);
+	let lastFocusableElement = $state<HTMLElement | null>(null);
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (!isOpen) return;
+
+		if (event.key === 'Tab') {
+			if (event.shiftKey) {
+				// Shift + Tab
+				if (document.activeElement === firstFocusableElement) {
+					event.preventDefault();
+					lastFocusableElement?.focus();
+				}
+			} else {
+				// Tab
+				if (document.activeElement === lastFocusableElement) {
+					event.preventDefault();
+					firstFocusableElement?.focus();
+				}
+			}
+		}
+	}
+
+	// Setup focus trap on open
+	$effect(() => {
+		if (isOpen && modalElement) {
+			const focusableElements = modalElement.querySelectorAll(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			);
+			if (focusableElements.length > 0) {
+				firstFocusableElement = focusableElements[0] as HTMLElement;
+				lastFocusableElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+				firstFocusableElement.focus();
+			}
+		}
+	});
 
 	// Form state
 	let height = $state(150); // Default 150mm
@@ -93,10 +133,20 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-panel rounded-lg shadow-2xl max-w-md w-full p-6 border border-subtle">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+		onkeydown={handleKeydown}
+	>
+		<div
+			bind:this={modalElement}
+			class="bg-surface-panel rounded-lg shadow-2xl max-w-md w-full p-6 border border-subtle"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="modal-title"
+		>
 			<!-- Header -->
-			<h1 class="text-2xl font-bold text-primary mb-2">🏺 New Sculpture Project</h1>
+			<h1 id="modal-title" class="text-2xl font-bold text-primary mb-2">🏺 New Sculpture Project</h1>
 			<p class="text-sm text-secondary mb-6">
 				Start with a canvas. Customize your initial parameters, then refine with the sliders.
 			</p>

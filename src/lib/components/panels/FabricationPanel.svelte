@@ -111,7 +111,7 @@
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { uiStore, closePanel, setConstraintMode } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setConstraintMode } from '$lib/stores/uiStore.svelte';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 
@@ -134,24 +134,9 @@
 	function handleConstraintModeChange(mode: ConstraintMode) {
 		setConstraintMode(mode);
 	}
-
-	function handleClose() {
-		closePanel('fabricationPanel');
-	}
 </script>
 
-<div class="surface-panel p-6 rounded-lg max-w-md w-full">
-	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-2xl font-bold">Fabrication & Export</h2>
-		<button
-			onclick={handleClose}
-			class="text-secondary hover:text-primary transition-colors text-xl"
-			title="Close panel (or press Escape)"
-		>
-			✕
-		</button>
-	</div>
-
+<div class="w-full">
 	{#if !sculptureStore.currentSculpture}
 		<p class="text-secondary mb-4">
 			No sculpture loaded. Generate a test mesh or record audio first.

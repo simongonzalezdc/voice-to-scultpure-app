@@ -23,7 +23,7 @@
 	let isInitialized = $state(false);
 
 	async function handleRecordClick() {
-		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		const isGlazeMode = uiStore.workspace === 'glaze';
 
 		if (recordingStore.state === 'idle') {
 			// Glaze mode: Require existing sculpture
@@ -143,7 +143,7 @@
 	}
 
 	function getButtonText(): string {
-		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		const isGlazeMode = uiStore.workspace === 'glaze';
 
 		// Glaze Mode ALWAYS takes priority. It implies "Recording on top".
 		if (isGlazeMode) {
@@ -182,7 +182,7 @@
 	}
 
 	function getButtonColor(): string {
-		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		const isGlazeMode = uiStore.workspace === 'glaze';
 		if (isGlazeMode) {
 			// Purple/Indigo for glaze mode
 			return recordingStore.state === 'recording'
@@ -208,20 +208,29 @@
 		type="button"
 		onclick={handleRecordClick}
 		disabled={recordingStore.state === 'processing' ||
-			((uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') &&
+			(uiStore.workspace === 'glaze' &&
 				!sculptureStore.currentSculpture &&
 				recordingStore.state === 'idle')}
+		aria-label={getButtonText()}
+		aria-live="polite"
 	>
-		{#if (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') && recordingStore.state === 'idle'}
-			<span>🎨</span>
+		{#if uiStore.workspace === 'glaze' && recordingStore.state === 'idle'}
+			<span aria-hidden="true">🎨</span>
 		{:else if recordingStore.state === 'idle'}
-			<span>🔴</span>
+			<span aria-hidden="true">🔴</span>
 		{/if}
 		{getButtonText()}
 	</button>
 	<div class="flex-1">
-		<div class="text-xs text-[#888] mb-1">Mic Level</div>
-		<div class="h-2 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]">
+		<div class="text-xs text-[#888] mb-1" id="mic-level-label">Mic Level</div>
+		<div
+			class="h-2 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]"
+			role="progressbar"
+			aria-labelledby="mic-level-label"
+			aria-valuenow={Math.round(getMicLevel() * 100)}
+			aria-valuemin="0"
+			aria-valuemax="100"
+		>
 			<div
 				class="h-full bg-[#4a9eff] transition-all duration-100"
 				style="width: {getMicLevel() * 100}%"
@@ -229,6 +238,6 @@
 		</div>
 	</div>
 	{#if recordingStore.state === 'recording'}
-		<div class="px-2 py-1 text-xs bg-[#ff4444] text-white rounded">Recording</div>
+		<div class="px-2 py-1 text-xs bg-[#ff4444] text-white rounded" role="status">Recording</div>
 	{/if}
 </div>

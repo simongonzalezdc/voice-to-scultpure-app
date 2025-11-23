@@ -52,7 +52,7 @@ export function hasCapturedFrames(): boolean {
  * DIRECTIVE 2: Non-destructive for glaze mode - only clears frames, preserves sculpture
  */
 export function startRecording(): void {
-	const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+	const isGlazeMode = uiStore.workspace === 'glaze';
 
 	// Clear frames array (prepare for new recording)
 	capturedFrames = [];
@@ -86,7 +86,7 @@ export function stopRecording(): void {
 	// DEAD LOCK GUARD: use try/finally to guarantee state transition
 	try {
 		if (capturedFrames.length > 0) {
-			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+			const isGlazeMode = uiStore.workspace === 'glaze';
 
 			if (isGlazeMode) {
 				// DIRECTIVE 1: GLAZE MODE - Colors are now captured in Sculpture.svelte

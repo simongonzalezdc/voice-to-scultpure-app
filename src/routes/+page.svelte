@@ -10,15 +10,20 @@
 	import Tutorial from '$lib/components/onboarding/Tutorial.svelte';
 	import ErrorBoundary from '$lib/components/layout/ErrorBoundary.svelte';
 	import SettingsPanel from '$lib/components/panels/SettingsPanel.svelte';
-	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
-	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
-	import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte';
+	// import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte'; // Moved to Inspector
+	// import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte'; // Moved to Inspector
+	// import TabbedSidebar from '$lib/components/layout/TabbedSidebar.svelte'; // Deprecated
+	import Inspector from '$lib/components/layout/Inspector.svelte';
+	import Toolbar from '$lib/components/layout/Toolbar.svelte';
+	import WorkspaceSwitcher from '$lib/components/layout/WorkspaceSwitcher.svelte';
+	import KeyboardShortcutsModal from '$lib/components/modals/KeyboardShortcutsModal.svelte';
 	import {
 		uiStore,
 		startOnboarding,
 		togglePanel,
 		toggleOrientation,
-		setOrientation
+		setOrientation,
+		setWorkspace
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
@@ -200,9 +205,18 @@
 		}
 	}
 
+	// Keyboard Shortcuts Modal
+	let showKeyboardShortcuts = $state(false);
+
 	function handleKeydown(event: KeyboardEvent) {
 		// Ignore if user is typing in an input
 		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+			return;
+		}
+
+		if (event.key === '?' && event.shiftKey) {
+			event.preventDefault();
+			showKeyboardShortcuts = true;
 			return;
 		}
 
@@ -258,14 +272,13 @@
 			case 'f':
 			case 'F':
 				event.preventDefault();
-				togglePanel('fabricationPanel');
+				setWorkspace('export');
 				break;
 			case 'Escape':
 				// Close all panels
 				uiStore.panels.aiPanel = false;
 				uiStore.panels.projectList = false;
 				uiStore.panels.settings = false;
-				uiStore.panels.fabricationPanel = false;
 				break;
 		}
 	}
@@ -283,7 +296,13 @@
 				<!-- Header: Top Row, Full Width -->
 				<header class="app-header">
 					<div class="flex items-center gap-4">
-						<h1 class="text-lg font-semibold text-white">Voice-to-Sculpture Studio</h1>
+						<h1 class="text-lg font-semibold text-white mr-4">Voice-to-Sculpture Studio</h1>
+						
+						<!-- Central Workspace Switcher -->
+						<WorkspaceSwitcher />
+					</div>
+					
+					<div class="flex items-center gap-4">
 						<button
 							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
 							type="button"
@@ -291,39 +310,35 @@
 						>
 							Generate Test Mesh
 						</button>
-						<button
-							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white disabled:opacity-50 disabled:cursor-not-allowed"
-							type="button"
-							onclick={handleExportSTL}
-							disabled={!sculptureStore.currentSculpture}
-						>
-							Export
-						</button>
-						<button
-							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
-							type="button"
-							onclick={toggleOrientation}
-							title={`Current: ${uiStore.orientation === 'vertical' ? 'Pottery Wheel (Vertical)' : 'Lathe (Horizontal)'}`}
-						>
-							{uiStore.orientation === 'vertical' ? '⊶ Pottery' : '↺ Lathe'}
-						</button>
 					</div>
 				</header>
 
+				<!-- Toolbar: Left Rail -->
+				<aside class="app-toolbar">
+					<Toolbar />
+				</aside>
+
 				<!-- Canvas: Center Area -->
 				<div class="app-canvas">
-					<Canvas>
-						<MainScene />
-					</Canvas>
+					<div
+						role="region"
+						aria-label="3D Sculpture Canvas. Use mouse to rotate, scroll to zoom."
+						tabindex="0"
+						class="w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-primary"
+					>
+						<Canvas>
+							<MainScene />
+						</Canvas>
+					</div>
 					<!-- On-screen Viewport Controls -->
 					<div class="absolute top-4 right-4 z-20">
 						<ViewportControls />
 					</div>
 				</div>
 
-				<!-- Sidebar: Right Column with Tabbed Interface -->
-				<aside class="app-sidebar">
-					<TabbedSidebar />
+				<!-- Sidebar: Right Inspector -->
+				<aside class="app-inspector">
+					<Inspector />
 				</aside>
 
 				<!-- Footer: Bottom Row, Full Width - Transport + Telemetry Hub -->
@@ -375,9 +390,9 @@
 
 						<!-- Status Bar (Right) - Context-Aware Legend -->
 						<div class="text-xs text-[#888] whitespace-nowrap">
-							{#if uiStore.toolMode === 'sculpt'}
+							{#if uiStore.workspace === 'sculpt'}
 								🔨 Pitch: Twist | Vol: Thickness | Attack: Cut
-							{:else if uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint'}
+							{:else if uiStore.workspace === 'glaze'}
 								🎨 Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss
 							{:else}
 								FPS: 60 | GPU: Ready
@@ -389,41 +404,37 @@
 
 			<!-- Modal Panels (Overlay) -->
 			{#if uiStore.panels.aiPanel}
-				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
+				<div
+					class="fixed inset-0 flex items-center justify-center bg-black/50"
+					style="z-index: var(--z-modal-backdrop)"
+				>
+					<div
+						class="surface-panel p-6 rounded max-w-md w-full"
+						style="z-index: var(--z-modal)"
+					>
 						<AIPanel />
 					</div>
 				</div>
 			{/if}
 			{#if uiStore.panels.projectList}
-				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-2xl w-full">
+				<div
+					class="fixed inset-0 flex items-center justify-center bg-black/50"
+					style="z-index: var(--z-modal-backdrop)"
+				>
+					<div
+						class="surface-panel p-6 rounded max-w-2xl w-full"
+						style="z-index: var(--z-modal)"
+					>
 						<ProjectList />
 					</div>
 				</div>
 			{/if}
 			{#if uiStore.panels.settings}
-				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
-						<SettingsPanel />
-					</div>
-				</div>
-			{/if}
-			{#if uiStore.panels.fabricationPanel}
-				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<div class="bg-[#1a1a1a] border border-[#4a4a4a] p-6 rounded max-w-md w-full">
-						<FabricationPanel />
-					</div>
-				</div>
-			{/if}
-			{#if uiStore.panels.glazeMixer}
-				<div class="fixed inset-0 flex items-center justify-center z-40 bg-black/50">
-					<GlazeMixer />
-				</div>
+				<SettingsPanel />
 			{/if}
 		{:else}
 			<!-- Tutorial/Gating View (shown when not calibrated) -->
-			<div class="flex-1 relative overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
+			<div class="flex-1 relative overflow-hidden bg-app flex items-center justify-center">
 				<div class="text-center text-[#888]">
 					<p>Please complete the calibration tutorial to access the studio.</p>
 				</div>
@@ -434,7 +445,16 @@
 		<Tutorial />
 
 		<!-- DIRECTIVE 1: New Project Modal (auto-triggers when no project) -->
-		<NewProjectModal />
+		<!-- Fix: Only show modal if NO project exists AND we're not onboarding -->
+		<!-- This prevents modal overlap on first launch -->
+		{#if !sculptureStore.currentSculpture && !uiStore.onboarding.active}
+			<NewProjectModal />
+		{/if}
+
+		<KeyboardShortcutsModal
+			isOpen={showKeyboardShortcuts}
+			onClose={() => (showKeyboardShortcuts = false)}
+		/>
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">
@@ -449,54 +469,61 @@
 	.app-shell {
 		display: grid;
 		grid-template-rows: 60px 1fr 60px;
-		grid-template-columns: 1fr 320px;
+		/* Toolbar (64px) | Canvas (Flex) | Inspector (320px) */
+		grid-template-columns: 64px 1fr 320px;
 		height: 100vh;
-		background: #1a1a1a;
+		background: var(--bg-body);
 	}
 
 	/* PHASE 4.2: Z-Index Management */
 	.app-header {
 		grid-column: 1 / -1;
 		grid-row: 1;
-		border-bottom: 1px solid #4a4a4a;
-		background: #1a1a1a;
+		border-bottom: 1px solid var(--border-subtle);
+		background: var(--bg-body);
 		padding: 0 16px;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		z-index: 50; /* Header always on top */
+		z-index: var(--z-header);
 		position: relative;
+	}
+
+	.app-toolbar {
+		grid-column: 1;
+		grid-row: 2;
+		background: var(--bg-body);
+		z-index: var(--z-toolbar);
 	}
 
 	.app-canvas {
-		grid-column: 1;
+		grid-column: 2;
 		grid-row: 2;
 		position: relative;
 		overflow: hidden;
-		background: #1a1a1a;
-		z-index: 10; /* Canvas behind viewport controls */
+		background: var(--bg-body);
+		z-index: var(--z-canvas);
 	}
 
-	.app-sidebar {
-		grid-column: 2;
+	.app-inspector {
+		grid-column: 3;
 		grid-row: 2;
-		border-left: 1px solid #4a4a4a;
-		background: #1a1a1a;
+		border-left: 1px solid var(--border-subtle);
+		background: var(--bg-panel);
 		overflow-y: auto;
-		z-index: 40; /* Sidebar panels above canvas */
+		z-index: var(--z-ui-panel);
 		position: relative;
-		/* padding removed to let TabbedSidebar handle it */
 	}
 
 	.app-footer {
 		grid-column: 1 / -1;
 		grid-row: 3;
-		border-top: 1px solid #4a4a4a;
-		background: #1a1a1a;
+		border-top: 1px solid var(--border-subtle);
+		background: var(--bg-body);
 		padding: 0 16px;
 		display: flex;
 		align-items: center;
-		z-index: 50; /* Footer always on top */
+		z-index: var(--z-footer);
 		position: relative;
 	}
 </style>

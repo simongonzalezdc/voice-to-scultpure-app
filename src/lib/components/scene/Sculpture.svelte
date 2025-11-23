@@ -239,7 +239,7 @@
 				// Use saved colors
 				const colors = new Float32Array(sculpture.vertexColors);
 				geometry.setAttribute('color', new BufferAttribute(colors, 3));
-			} else if (uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint') {
+			} else if (uiStore.workspace === 'glaze') {
 				// Initialize with base color if no saved colors
 				const colors = new Float32Array(vertexCount * 3);
 				const baseColorObj = new Color(materialColor);
@@ -277,7 +277,7 @@
 
 		// DIRECTIVE 1: Capture glaze colors BEFORE geometry disposal
 		// When recording stops in glaze mode, extract colors from the mesh before recreating geometry
-		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+		const isGlazeMode = uiStore.workspace === 'glaze';
 		const wasRecording = recordingStore.state === 'processing'; // Just transitioned from recording
 
 		if (isGlazeMode && wasRecording && meshRef.geometry && meshRef.geometry.attributes.color) {
@@ -365,7 +365,7 @@
 
 		if (recordingStore.state === 'recording') {
 			const frames = getCapturedFrames();
-			const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
+			const isGlazeMode = uiStore.workspace === 'glaze';
 
 			if (isGlazeMode) {
 				// GLAZE MODE: Non-destructive painting - use existing geometry, only update colors
@@ -603,7 +603,7 @@
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
 		<!-- Main Sculpture (Visible during glaze mode recording, hidden during sculpt mode recording) -->
-		{#if sculpture && (recordingStore.state !== 'recording' || uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint')}
+		{#if sculpture && (recordingStore.state !== 'recording' || uiStore.workspace === 'glaze')}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 				<!-- DIRECTIVE 3: Material Optimization
 				     Threlte's <T.MeshPhysicalMaterial> uses Svelte's reactivity system.
@@ -627,8 +627,7 @@
 					<!-- DIRECTIVE 2: Fix Material Priority - use vertex colors if available, otherwise base color -->
 					{@const hasVertexColors =
 						(sculpture.vertexColors && sculpture.vertexColors.length > 0) ||
-						uiStore.toolMode === 'glaze-mix' ||
-						uiStore.toolMode === 'glaze-paint' ||
+						uiStore.workspace === 'glaze' ||
 						(recordingStore.state === 'recording' &&
 							(uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					<T.MeshPhysicalMaterial
@@ -648,7 +647,7 @@
 		{/if}
 
 		<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
-		{#if recordingStore.state === 'recording' && uiStore.toolMode === 'sculpt'}
+		{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt'}
 			<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
 				<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
 				<T.MeshPhysicalMaterial

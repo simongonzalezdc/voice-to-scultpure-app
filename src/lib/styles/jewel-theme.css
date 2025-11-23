@@ -45,6 +45,16 @@
 	/* Optional graph / highlight accents */
 	--graph-accent-a: rgba(143, 62, 72, 0.22);
 	--graph-accent-b: rgba(181, 147, 60, 0.18);
+
+	/* Z-Index Scale */
+	--z-canvas: 10;
+	--z-viewport-controls: 20;
+	--z-ui-panel: 40;
+	--z-toolbar: 45;
+	--z-header: 50;
+	--z-footer: 50;
+	--z-modal-backdrop: 100;
+	--z-modal: 110;
 }
 
 /* Example utility mappings (optional – adapt to your system) */

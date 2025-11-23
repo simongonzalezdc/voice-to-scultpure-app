@@ -66,25 +66,22 @@ describe('Recording Store', () => {
 describe('UI Store', () => {
 	beforeEach(() => {
 		// Reset to defaults
-		uiStore.panels.fabricationPanel = false;
 		uiStore.panels.aiPanel = false;
 		uiStore.panels.settings = false;
 	});
 
 	it('should initialize with default panel states', () => {
-		expect(uiStore.panels).toHaveProperty('fabricationPanel');
 		expect(uiStore.panels).toHaveProperty('aiPanel');
 		expect(uiStore.panels).toHaveProperty('settings');
-		expect(typeof uiStore.panels.fabricationPanel).toBe('boolean');
 	});
 
 	it('should toggle panels', () => {
-		const initialState = uiStore.panels.fabricationPanel;
-		togglePanel('fabricationPanel');
-		expect(uiStore.panels.fabricationPanel).toBe(!initialState);
+		const initialState = uiStore.panels.settings;
+		togglePanel('settings');
+		expect(uiStore.panels.settings).toBe(!initialState);
 
-		togglePanel('fabricationPanel');
-		expect(uiStore.panels.fabricationPanel).toBe(initialState);
+		togglePanel('settings');
+		expect(uiStore.panels.settings).toBe(initialState);
 	});
 
 	it('should have orientation property', () => {
@@ -92,20 +89,17 @@ describe('UI Store', () => {
 		expect(['vertical', 'horizontal']).toContain(uiStore.orientation);
 	});
 
-	it('should have sculpt and glaze tool modes', () => {
-		expect(uiStore).toHaveProperty('toolMode');
-		expect(['sculpt', 'glaze-mix', 'glaze-paint']).toContain(uiStore.toolMode);
+	it('should have workspace property', () => {
+		expect(uiStore).toHaveProperty('workspace');
+		expect(['sculpt', 'glaze', 'export']).toContain(uiStore.workspace);
 	});
 
-	it('should set tool mode', () => {
+	it('should set tool mode updates workspace', () => {
 		setToolMode('glaze-mix');
-		expect(uiStore.toolMode).toBe('glaze-mix');
+		expect(uiStore.workspace).toBe('glaze');
 
 		setToolMode('sculpt');
-		expect(uiStore.toolMode).toBe('sculpt');
-
-		setToolMode('glaze-paint');
-		expect(uiStore.toolMode).toBe('glaze-paint');
+		expect(uiStore.workspace).toBe('sculpt');
 	});
 
 	it('should set sculpt mode (additive/subtractive)', () => {
@@ -236,7 +230,7 @@ describe('UI Store - Constraint Mode Switching', () => {
 
 describe('UI Store - Glaze Mode', () => {
 	beforeEach(() => {
-		uiStore.toolMode = 'sculpt';
+		uiStore.workspace = 'sculpt';
 		uiStore.activeGlaze.color = '#FFFFFF';
 		uiStore.activeGlaze.roughness = 0.5;
 	});

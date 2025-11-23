@@ -5,14 +5,15 @@ export type OnboardingStep =
 	| 'first-recording'
 	| 'ai-tutorial';
 
+export type Workspace = 'sculpt' | 'glaze' | 'export';
+
 export const uiStore = $state<{
 	panels: {
 		aiPanel: boolean;
 		projectList: boolean;
 		settings: boolean;
-		fabricationPanel: boolean;
-		glazeMixer: boolean;
 	};
+	workspace: Workspace;
 	onboarding: {
 		active: boolean;
 		currentStep: OnboardingStep | null;
@@ -20,7 +21,7 @@ export const uiStore = $state<{
 	};
 	orientation: 'vertical' | 'horizontal';
 	sculptMode: 'additive' | 'subtractive';
-	toolMode: 'sculpt' | 'glaze-mix' | 'glaze-paint';
+	// toolMode deprecated in favor of workspace + local state
 	activeGlaze: {
 		color: string; // Hex color
 		roughness: number; // 0-1
@@ -39,9 +40,8 @@ export const uiStore = $state<{
 		aiPanel: false,
 		projectList: false,
 		settings: false,
-		fabricationPanel: false,
-		glazeMixer: false
 	},
+	workspace: 'sculpt',
 	onboarding: {
 		active: false,
 		currentStep: null,
@@ -49,7 +49,6 @@ export const uiStore = $state<{
 	},
 	orientation: 'vertical',
 	sculptMode: 'additive',
-	toolMode: 'sculpt',
 	activeGlaze: {
 		color: '#FFFFFF',
 		roughness: 0.5
@@ -64,6 +63,10 @@ export const uiStore = $state<{
 	},
 	constraintMode: 'digital' // Default: no constraints
 });
+
+export function setWorkspace(workspace: Workspace): void {
+	uiStore.workspace = workspace;
+}
 
 export function togglePanel(panel: keyof typeof uiStore.panels): void {
 	uiStore.panels[panel] = !uiStore.panels[panel];
@@ -136,7 +139,9 @@ export function setSculptMode(mode: 'additive' | 'subtractive'): void {
 }
 
 export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint'): void {
-	uiStore.toolMode = mode;
+	// uiStore.toolMode = mode;
+	if (mode === 'sculpt') uiStore.workspace = 'sculpt';
+	else uiStore.workspace = 'glaze';
 }
 
 export function setActiveGlaze(color: string, roughness: number): void {

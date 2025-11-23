@@ -187,11 +187,7 @@
 	}
 </script>
 
-<div class="surface-panel p-6 rounded-lg max-w-md w-full">
-	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-2xl font-bold">Glaze Mixer</h2>
-	</div>
-
+<div class="w-full">
 	<div class="space-y-4">
 		<!-- Preview Sphere -->
 		<div class="flex justify-center mb-4 relative">
