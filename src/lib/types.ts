@@ -33,11 +33,14 @@ export interface SculpturePhysical {
 	sculptMode?: 'additive' | 'subtractive'; // Sculpting mode: additive (build up) or subtractive (carve in), default 'additive'
 }
 
+export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane';
+
 export interface SculptureDefinition {
 	id: string;
 	name: string;
 	createdAt: number;
-	radiusCurve: LathePoint[];
+	baseShape?: BaseShape; // Default: 'lathe' - if not 'lathe', ignore radiusCurve
+	radiusCurve: LathePoint[]; // Only used when baseShape === 'lathe'
 	surface: SculptureSurface;
 	deformation: SculptureDeformation;
 	physical: SculpturePhysical;

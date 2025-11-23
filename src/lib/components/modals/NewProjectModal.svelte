@@ -86,6 +86,7 @@
 			id: `sculpture-${Date.now()}`,
 			name: `New ${materialType === 'ceramic' ? 'Ceramic' : 'Plastic'} Sculpture`,
 			createdAt: Date.now(),
+			baseShape: 'lathe' as const, // Default to lathe for new projects
 			radiusCurve: initialGeometry,
 			surface: {
 				textureRoughness: 0.5,

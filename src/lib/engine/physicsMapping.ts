@@ -308,6 +308,7 @@ export function createSculptureFromFrames(
 		id: crypto.randomUUID(),
 		name: name || `Sculpture ${new Date().toLocaleString()}`,
 		createdAt: Date.now(),
+		baseShape: 'lathe' as const, // Default to lathe for audio-generated sculptures
 		radiusCurve,
 		surface: {
 			...surface,

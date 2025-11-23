@@ -7,7 +7,7 @@
 	} from '$lib/stores/sculptureStore.svelte';
 	import { uiStore, setSculptMode, setSculptZone } from '$lib/stores/uiStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
-	import type { SculptureDefinition } from '$lib/types';
+	import type { SculptureDefinition, BaseShape } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { getConstraintDescription } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
@@ -206,11 +206,87 @@
 		};
 		setCurrentSculpture(updated);
 	}
+
+	// DIRECTIVE 3: Handle base shape change with confirmation
+	function handleBaseShapeChange(newShape: BaseShape) {
+		const currentShape = sculptureStore.currentSculpture?.baseShape || 'lathe';
+		if (newShape === currentShape) return;
+
+		// Warning: Changing base shape wipes the current sculpture
+		if (sculptureStore.currentSculpture) {
+			const confirmed = confirm(
+				`Changing base shape from ${currentShape} to ${newShape} will reset the current sculpture. Continue?`
+			);
+			if (!confirmed) return;
+		}
+
+		// Create new sculpture with the selected base shape
+		if (sculptureStore.currentSculpture) {
+			const updated: SculptureDefinition = {
+				...sculptureStore.currentSculpture,
+				baseShape: newShape,
+				// Reset radiusCurve if not lathe (per Directive 1)
+				radiusCurve: newShape === 'lathe' ? sculptureStore.currentSculpture.radiusCurve : []
+			};
+			setCurrentSculpture(updated);
+		} else {
+			// If no sculpture exists, create a new one with the selected shape
+			// This would typically be handled by NewProjectModal, but we can set a default
+			console.warn('No sculpture exists - base shape change requires an existing sculpture');
+		}
+	}
 </script>
 
 <div class="surface-panel p-4 rounded-lg">
 	<h2 class="text-lg font-semibold mb-4">Sculpture Parameters</h2>
 	<div class="space-y-4">
+		<!-- Base Shape Selector (DIRECTIVE 3: Sonic Force Mode) -->
+		<div>
+			<label class="text-sm text-secondary block mb-2">Base Shape</label>
+			<div class="grid grid-cols-4 gap-2">
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors {(!sculptureStore.currentSculpture?.baseShape || sculptureStore.currentSculpture?.baseShape === 'lathe')
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => handleBaseShapeChange('lathe')}
+					title="Vase (Lathe)"
+				>
+					🏺 Vase
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'sphere'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => handleBaseShapeChange('sphere')}
+					title="Sphere"
+				>
+					🔮 Sphere
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'cube'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => handleBaseShapeChange('cube')}
+					title="Block (Cube)"
+				>
+					🧊 Block
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'plane'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => handleBaseShapeChange('plane')}
+					title="Plane"
+				>
+					📜 Plane
+				</button>
+			</div>
+		</div>
+
 		<!-- Height Slider -->
 		<div>
 			<label

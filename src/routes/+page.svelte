@@ -150,6 +150,7 @@
 			id: crypto.randomUUID(),
 			name: 'Test Mesh (Hourglass)',
 			createdAt: Date.now(),
+			baseShape: 'lathe' as const, // Default to lathe for test mesh
 			radiusCurve: [
 				{ x: 0.1, y: 0 },
 				{ x: 0.3, y: 1 },

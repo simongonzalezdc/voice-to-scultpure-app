@@ -9,7 +9,19 @@
 	import { recordingStore, getCapturedFrames, type RecordingState } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh, Color, BufferAttribute, DynamicDrawUsage, RingGeometry } from 'three';
+	import {
+		LatheGeometry,
+		Vector2,
+		Mesh,
+		Color,
+		BufferAttribute,
+		DynamicDrawUsage,
+		RingGeometry,
+		IcosahedronGeometry,
+		BoxGeometry,
+		PlaneGeometry,
+		BufferGeometry
+	} from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition } from '$lib/types';
@@ -204,7 +216,40 @@
 
 	// Helper function to create geometry from sculpture data
 	// DIRECTIVE 1: NEVER destructively modify sculpture.radiusCurve
-	function createGeometryFromSculpture(sculpture: SculptureDefinition): LatheGeometry | null {
+	// DIRECTIVE 2: Support multiple base shapes for Sonic Force mode
+	function createGeometryFromSculpture(sculpture: SculptureDefinition): BufferGeometry | null {
+		const baseShape = sculpture.baseShape || 'lathe';
+		
+		// Handle non-lathe shapes
+		if (baseShape !== 'lathe') {
+			const height = sculpture.physical.height || 150;
+			const heightInUnits = height / 150; // Normalize to 0-2 range (matching lathe)
+			const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+			
+			switch (baseShape) {
+				case 'sphere': {
+					// Sphere: IcosahedronGeometry with high detail for smooth sculpting
+					const radius = heightInUnits / 2; // Sphere radius = half height
+					const detail = 40; // High detail for smooth sculpting
+					return new IcosahedronGeometry(radius, detail);
+				}
+				case 'cube': {
+					// Cube: BoxGeometry with high segments to act like a solid block
+					const size = heightInUnits;
+					const segments = 64; // High segments for smooth sculpting
+					return new BoxGeometry(size, size, size, segments, segments, segments);
+				}
+				case 'plane': {
+					// Plane: PlaneGeometry with high segments
+					const size = heightInUnits * 2; // Plane extends wider
+					return new PlaneGeometry(size, size, 128, 128);
+				}
+				default:
+					return null;
+			}
+		}
+		
+		// LATHE SHAPE: Original logic
 		// Safety check
 		if (
 			!sculpture.radiusCurve ||
@@ -226,8 +271,8 @@
 		}
 
 		// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
-		// If recording, modulate the sculpture with live audio
-		if (recordingStore.state === 'recording') {
+		// Only applies to lathe shapes (non-lathe shapes use Sonic Force mode instead)
+		if (recordingStore.state === 'recording' && baseShape === 'lathe') {
 			const frame = analysisStore.latestFrame;
 
 			// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
@@ -245,9 +290,12 @@
 		}
 
 		// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
+		// Only applies to lathe shapes (non-lathe shapes don't use radiusCurve)
 		// These constraints persist through twist, compression, height changes, etc.
 		// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
-		basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+		if (baseShape === 'lathe') {
+			basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+		}
 
 		// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
 		// NOT here in the geometry, to avoid double-scaling (heightScale²)

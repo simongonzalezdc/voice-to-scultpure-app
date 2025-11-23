@@ -48,8 +48,16 @@
 			: [currentHeight, 0, 0] // Lathe: X-axis
 	);
 
-	// Visibility check: only show during active recording
-	let isVisible = $derived(recordingStore.state === 'recording' && analysisStore.micLevel > 0.01);
+	// DIRECTIVE 4: Hide ring visualizer for non-lathe shapes (especially sphere)
+	// In Force Mode, the "Reticle" (cursor ring) IS the visualizer
+	const baseShape = $derived(sculptureStore.currentSculpture?.baseShape || 'lathe');
+	
+	// Visibility check: only show during active recording AND for lathe shapes
+	let isVisible = $derived(
+		recordingStore.state === 'recording' && 
+		analysisStore.micLevel > 0.01 &&
+		baseShape === 'lathe' // Only show ring visualizer for lathe shapes
+	);
 </script>
 
 <!-- Ring visualizer - visible only during active recording -->
