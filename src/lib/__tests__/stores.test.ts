@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { recordingStore, addAnalysisFrame, resetRecording } from '../stores/recording.svelte';
 import { uiStore, togglePanel, setToolMode, setSculptMode } from '../stores/uiStore.svelte';
 import {

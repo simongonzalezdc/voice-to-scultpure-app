@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 import {
 	type OnboardingStep,
 	finishOnboarding,
@@ -60,7 +61,9 @@ describe('uiStore onboarding flow', () => {
 });
 
 describe('uiStore sculpt zone validation', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn> | undefined;
+	let warnSpy:
+		| MockInstance<Parameters<typeof console.warn>, ReturnType<typeof console.warn>>
+		| undefined;
 
 	beforeEach(() => {
 		uiStore.sculptZone = { min: 0, max: 1 };

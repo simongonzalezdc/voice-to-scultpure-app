@@ -168,7 +168,6 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 	const MAX_OVERHANG_ANGLE = 60; // degrees (FDM typical: 45-60°)
 	const MIN_RADIUS = 0.001; // 1mm minimum (prevents zero-radius gaps)
-	const LAYER_HEIGHT = 0.0002; // 0.2mm typical layer height
 
 	// RULE A: Overhang Constraints
 	// Limit how fast radius can grow relative to layer height

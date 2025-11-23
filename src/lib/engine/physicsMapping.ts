@@ -8,13 +8,8 @@ import {
 	SCULPTURE_SENSITIVITY,
 	GEOMETRY_MAX_POINTS,
 	NOISE_FLOOR_DEFAULT,
-	SILENCE_THRESHOLD_MULTIPLIER,
-	TIMBRE_MIN_HZ,
-	TIMBRE_MAX_HZ
+	SILENCE_THRESHOLD_MULTIPLIER
 } from '$lib/config/constants';
-
-// Geometric design constants (legacy - now using constants.ts)
-const BASE_RADIUS = 0.5;
 
 function createHourglass(): LathePoint[] {
 	// Simple hourglass shape

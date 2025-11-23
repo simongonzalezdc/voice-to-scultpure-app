@@ -24,7 +24,6 @@ let running = false;
 let lastAnalysisTime = 0;
 const ANALYSIS_INTERVAL_MS = 16; // ~60fps
 let framesSent = 0;
-let pitchDetectionFailures = 0; // Track how often pitch detection fails
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {

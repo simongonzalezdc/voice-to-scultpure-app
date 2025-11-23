@@ -1,4 +1,4 @@
-import type { SculptureDefinition, LathePoint } from '$lib/types';
+import type { SculptureDefinition } from '$lib/types';
 import { applyDeformation } from '$lib/engine/physicsMapping';
 
 /**

@@ -16,7 +16,7 @@
 	let constraintMode = $state<ConstraintMode>('ceramic');
 
 	// Color picker reference
-	let colorInput: HTMLInputElement;
+	let colorInput = $state<HTMLInputElement | null>(null);
 
 	// DIRECTIVE: Generate initial placeholder geometry
 	// Creates a smooth bell curve from silence to represent a basic vase
@@ -105,9 +105,12 @@
 			<div class="space-y-5">
 				<!-- Target Height -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2"> 📏 Target Height </label>
+					<label for="new-project-height" class="block text-sm font-semibold text-secondary mb-2">
+						📏 Target Height
+					</label>
 					<div class="flex gap-2 items-center">
 						<input
+							id="new-project-height"
 							type="range"
 							min="50"
 							max="300"
@@ -126,7 +129,7 @@
 
 				<!-- Material Selection -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2"> 🎨 Material </label>
+					<p class="block text-sm font-semibold text-secondary mb-2">🎨 Material</p>
 					<div class="flex gap-2">
 						<button
 							class="flex-1 py-3 px-4 rounded border-2 transition-all text-center {materialType ===
@@ -153,9 +156,15 @@
 
 				<!-- Base Color -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2"> 🎨 Base Color </label>
+					<label
+						for="new-project-base-color"
+						class="block text-sm font-semibold text-secondary mb-2"
+					>
+						🎨 Base Color
+					</label>
 					<div class="flex gap-2 items-center">
 						<input
+							id="new-project-base-color"
 							bind:this={colorInput}
 							type="color"
 							bind:value={baseColor}
@@ -175,9 +184,7 @@
 
 				<!-- Fabrication Constraints -->
 				<div>
-					<label class="block text-sm font-semibold text-secondary mb-2">
-						🔒 Fabrication Constraints
-					</label>
+					<p class="block text-sm font-semibold text-secondary mb-2">🔒 Fabrication Constraints</p>
 					<div class="flex gap-2 flex-wrap">
 						<button
 							class="flex-1 min-w-[120px] py-2 px-3 text-xs rounded border transition-all {constraintMode ===

@@ -1,10 +1,6 @@
-import {
-	setCurrentSculpture,
-	sculptureStore,
-	updateSculptureColors
-} from './sculptureStore.svelte';
+import { setCurrentSculpture, sculptureStore } from './sculptureStore.svelte';
 import { resetAnalysis } from './analysisStore.svelte';
-import { createSculptureFromFrames, generateGlaze } from '$lib/engine/physicsMapping';
+import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
 

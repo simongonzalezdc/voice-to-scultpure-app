@@ -19,7 +19,8 @@ export function createRenderer(config: RendererConfig): WebGLRenderer {
 	});
 
 	renderer.shadowMap.enabled = true;
-	renderer.shadowMap.type = quality === 'high' ? 1 : 2; // PCF vs Basic
+	// High quality uses PCFSoft, low falls back to PCF (better than Basic but cheaper than soft)
+	renderer.shadowMap.type = quality === 'high' ? 2 : 1;
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, quality === 'high' ? 2 : 1));
 
 	return renderer;

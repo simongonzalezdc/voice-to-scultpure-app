@@ -9,8 +9,7 @@
 	import {
 		initializeAudioContext,
 		startMicrophoneCapture,
-		connectMicrophoneToWorklet,
-		stopMicrophoneCapture
+		connectMicrophoneToWorklet
 	} from '$lib/audio/audioContext';
 	import { createAnalysisWorkerClient } from '$lib/audio/analysisWorkerClient';
 	import { addAnalysisFrame } from '$lib/stores/recording.svelte';

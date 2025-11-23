@@ -8,21 +8,10 @@
 
 	let showScaleReference = $state(false);
 
-	// Get current sculpture or create defaults
-	let physicalHeight = $derived(sculptureStore.currentSculpture?.physical.height ?? 150);
-	let physicalUnits = $derived(sculptureStore.currentSculpture?.physical.units ?? 'mm');
-	let wallThickness = $derived(
-		sculptureStore.currentSculpture?.physical.wallThickness ?? undefined
-	);
-	let materialType = $derived(sculptureStore.currentSculpture?.surface.materialType ?? 'ceramic');
-	let baseColor = $derived(sculptureStore.currentSculpture?.surface.baseColor ?? '#E0C9A6');
-
 	// Local state for editing
-	let editingHeight = $state(physicalHeight);
-	let editingUnits = $state(physicalUnits);
-	let editingWallThickness = $state(wallThickness ?? 0);
-	let editingMaterialType = $state<'ceramic' | 'plastic'>('ceramic');
-	let editingBaseColor = $state('#E0C9A6');
+	let editingHeight = $state(0);
+	let editingUnits = $state<'mm' | 'inch'>('mm');
+	let editingWallThickness = $state(0);
 
 	// Sync with sculpture changes
 	$effect(() => {
@@ -30,8 +19,6 @@
 			editingHeight = sculptureStore.currentSculpture.physical.height;
 			editingUnits = sculptureStore.currentSculpture.physical.units;
 			editingWallThickness = sculptureStore.currentSculpture.physical.wallThickness ?? 0;
-			editingMaterialType = sculptureStore.currentSculpture.surface.materialType ?? 'ceramic';
-			editingBaseColor = sculptureStore.currentSculpture.surface.baseColor ?? '#E0C9A6';
 		}
 	});
 
@@ -61,24 +48,6 @@
 				...sculptureStore.currentSculpture.physical,
 				wallThickness: editingWallThickness > 0 ? editingWallThickness : undefined
 			}
-		};
-		setCurrentSculpture(updated);
-	}
-
-	function handleMaterialChange() {
-		if (!sculptureStore.currentSculpture) return;
-		const updated: SculptureDefinition = {
-			...sculptureStore.currentSculpture,
-			surface: { ...sculptureStore.currentSculpture.surface, materialType: editingMaterialType }
-		};
-		setCurrentSculpture(updated);
-	}
-
-	function handleColorChange() {
-		if (!sculptureStore.currentSculpture) return;
-		const updated: SculptureDefinition = {
-			...sculptureStore.currentSculpture,
-			surface: { ...sculptureStore.currentSculpture.surface, baseColor: editingBaseColor }
 		};
 		setCurrentSculpture(updated);
 	}

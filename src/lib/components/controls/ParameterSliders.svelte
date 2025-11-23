@@ -9,7 +9,7 @@
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
-	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
+	import { getConstraintDescription } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
 

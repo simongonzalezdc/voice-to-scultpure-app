@@ -60,7 +60,7 @@ describe('Fabrication Constraints', () => {
 			const constrained = applyConstraints(curve, 'ceramic');
 
 			// Check that most points enforce minimum radius (except rim - top 5%)
-			const nonRimPoints = constrained.filter((p, i) => p.y < 0.95);
+			const nonRimPoints = constrained.filter((p) => p.y < 0.95);
 			const minNonRimRadius = Math.min(...nonRimPoints.map((p) => p.x));
 
 			expect(minNonRimRadius).toBeGreaterThanOrEqual(0.035); // 35mm minimum

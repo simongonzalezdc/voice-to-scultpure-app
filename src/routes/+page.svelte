@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import Header from '$lib/components/layout/Header.svelte';
 	import MainScene from '$lib/components/scene/MainScene.svelte';
 	import Transport from '$lib/components/controls/Transport.svelte';
 	import { Canvas } from '@threlte/core';
@@ -19,8 +18,7 @@
 		startOnboarding,
 		togglePanel,
 		toggleOrientation,
-		setOrientation,
-		setToolMode
+		setOrientation
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
@@ -209,12 +207,13 @@
 		}
 
 		switch (event.key) {
-			case ' ':
+			case ' ': {
 				// Space: Toggle Recording (handles all states: idle -> start, recording -> stop, complete -> reset)
 				event.preventDefault();
 				const recordButton = document.querySelector('[data-record-button]') as HTMLButtonElement;
 				recordButton?.click();
 				break;
+			}
 			case '1':
 				// 1: Switch to Pottery (Vertical)
 				event.preventDefault();

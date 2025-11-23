@@ -1,21 +1,15 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { sculptureStore, setCurrentSculpture, updateSculptureColors } from '$lib/stores/sculptureStore.svelte';
+	import {
+		sculptureStore,
+		setCurrentSculpture,
+		updateSculptureColors
+	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import {
-		LatheGeometry,
-		Vector2,
-		Mesh,
-		BoxGeometry,
-		Color,
-		BufferGeometry,
-		BufferAttribute,
-		DynamicDrawUsage
-	} from 'three';
-	import * as THREE from 'three';
+	import { LatheGeometry, Vector2, Mesh, Color, BufferAttribute, DynamicDrawUsage } from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition } from '$lib/types';
@@ -31,12 +25,9 @@
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
 	// Raw mesh references (managed by bind:ref) to avoid Svelte 5 proxying issues
-	// eslint-disable-next-line svelte/valid-compile
-	let meshRef: Mesh;
-	// eslint-disable-next-line svelte/valid-compile
-	let ghostMeshRef: Mesh;
-	// eslint-disable-next-line svelte/valid-compile
-	let liveMeshRef: Mesh;
+	let meshRef = $state<Mesh | null>(null);
+	let ghostMeshRef = $state<Mesh | null>(null);
+	let liveMeshRef = $state<Mesh | null>(null);
 
 	/**
 	 * DIRECTIVE 2: Apply zone-based vertex colors to visualize the sculpt zone
@@ -98,7 +89,10 @@
 
 		// Enable vertex colors for rendering
 		geometry.setAttribute('color', new BufferAttribute(colors, 3));
-		geometry.attributes.color?.setUsage(DynamicDrawUsage);
+		const colorAttr = geometry.attributes.color;
+		if (colorAttr && colorAttr instanceof BufferAttribute) {
+			colorAttr.setUsage(DynamicDrawUsage);
+		}
 	}
 
 	/**
@@ -285,7 +279,7 @@
 		// When recording stops in glaze mode, extract colors from the mesh before recreating geometry
 		const isGlazeMode = uiStore.toolMode === 'glaze-mix' || uiStore.toolMode === 'glaze-paint';
 		const wasRecording = recordingStore.state === 'processing'; // Just transitioned from recording
-		
+
 		if (isGlazeMode && wasRecording && meshRef.geometry && meshRef.geometry.attributes.color) {
 			const colorAttr = meshRef.geometry.attributes.color;
 			if (colorAttr && colorAttr.array && colorAttr.array instanceof Float32Array) {
@@ -293,7 +287,9 @@
 				const savedColors = Array.from(colorAttr.array);
 				// Save them to the sculpture store
 				updateSculptureColors(new Float32Array(savedColors));
-				console.log(`🎨 [SCULPTURE] Captured ${savedColors.length / 3} vertex colors before geometry recreation`);
+				console.log(
+					`🎨 [SCULPTURE] Captured ${savedColors.length / 3} vertex colors before geometry recreation`
+				);
 			}
 		}
 

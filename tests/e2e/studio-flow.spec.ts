@@ -194,14 +194,14 @@ test.describe('Voice-to-Sculpture Studio - Main Flow', () => {
 	test('should respond to window resize', async ({ page }) => {
 		// Get initial canvas size
 		const canvas = page.locator('canvas').first();
-		const initialBox = await canvas.boundingBox();
+		const _initialBox = await canvas.boundingBox();
 
 		// Resize window
 		await page.setViewportSize({ width: 800, height: 600 });
 		await page.waitForTimeout(300);
 
 		// Check that canvas is still visible
-		const resizedBox = await canvas.boundingBox();
+		const _resizedBox = await canvas.boundingBox();
 		await expect(canvas).toBeVisible();
 
 		console.log('✅ Application responds to resize');

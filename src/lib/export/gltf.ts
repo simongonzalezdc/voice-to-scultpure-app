@@ -1,12 +1,5 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import {
-	LatheGeometry,
-	Vector2,
-	Mesh,
-	MeshPhysicalMaterial,
-	MeshStandardMaterial,
-	Color
-} from 'three';
+import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial } from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { applyDeformation } from '$lib/engine/physicsMapping';
 
@@ -42,7 +35,7 @@ export async function exportSculptureToGLB(
 			});
 		} else {
 			// Ceramic with glaze
-			const glazeColor = sculpture.surface.glazeColor || '#FFFFFF';
+			const glazeColor = sculpture.surface.baseColor || '#FFFFFF';
 			// Blend base color with glaze color based on transmission
 			const blendedColor = blendColors(baseColor, glazeColor, sculpture.surface.glazeTransmission);
 
@@ -74,6 +67,9 @@ export async function exportSculptureToGLB(
 					} else {
 						reject(new Error('GLTF export failed: Invalid result type'));
 					}
+				},
+				(error) => {
+					reject(error instanceof Error ? error : new Error(String(error)));
 				},
 				{ binary: true, includeCustomExtensions: false }
 			);

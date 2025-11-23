@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { T, Canvas } from '@threlte/core';
 	import { onMount } from 'svelte';
-	import { uiStore, setActiveGlaze } from '$lib/stores/uiStore.svelte';
+	import { setActiveGlaze } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { getAudioContext, startVisualizerBypass } from '$lib/audio/audioContext';
 	import { Color } from 'three';
@@ -75,9 +75,6 @@
 
 	// Reactive preview color (HSL format for smooth transitions)
 	// DIRECTIVE 2: Use dynamic saturation instead of fixed 100%
-	let previewColorHSL = $derived(
-		`hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${Math.round(lightness)}%)`
-	);
 	let previewColorHex = $derived(hslToHex(hue, saturation, lightness));
 
 	// Audio context state check

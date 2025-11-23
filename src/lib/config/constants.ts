@@ -47,4 +47,3 @@ export const ENERGY_MAX_DEFAULT = 0.8;
 // Pitch Range Defaults
 export const PITCH_MIN_DEFAULT = 80;
 export const PITCH_MAX_DEFAULT = 400;
-
