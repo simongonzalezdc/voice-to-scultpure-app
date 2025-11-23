@@ -12,6 +12,7 @@
 	import {
 		LatheGeometry,
 		Vector2,
+		Vector3,
 		Mesh,
 		Color,
 		BufferAttribute,
@@ -20,11 +21,14 @@
 		IcosahedronGeometry,
 		BoxGeometry,
 		PlaneGeometry,
-		BufferGeometry
+		BufferGeometry,
+		Raycaster,
+		MeshBasicMaterial,
+		DoubleSide
 	} from 'three';
-	import { useTask } from '@threlte/core';
+	import { useTask, useThrelte } from '@threlte/core';
 	import { spring } from 'svelte/motion';
-	import type { SculptureDefinition } from '$lib/types';
+	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
@@ -41,6 +45,28 @@
 	let meshRef = $state<Mesh | null>(null);
 	let ghostMeshRef = $state<Mesh | null>(null);
 	let liveMeshRef = $state<Mesh | null>(null);
+	let reticleRef = $state<Mesh | null>(null);
+
+	// Raycaster for Sonic Force mode
+	const raycaster = new Raycaster();
+	const pointer = new Vector2();
+	const { camera, renderer } = useThrelte();
+
+	// Track pointer for raycasting
+	$effect(() => {
+		if (!renderer?.domElement) return;
+		
+		const handlePointerMove = (event: MouseEvent) => {
+			const rect = renderer.domElement.getBoundingClientRect();
+			pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+			pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+		};
+
+		renderer.domElement.addEventListener('mousemove', handlePointerMove);
+		return () => {
+			renderer.domElement.removeEventListener('mousemove', handlePointerMove);
+		};
+	});
 
 	// State tracking for recording transitions
 	let previousRecordingState = $state<RecordingState>('idle');
@@ -260,7 +286,32 @@
 		}
 
 		// 1. START WITH BASE - Create a copy, never overwrite original
-		let basePoints = sculpture.radiusCurve.map((p) => ({ x: p.x, y: p.y }));
+		// DIRECTIVE 1: NaN Guard - Sanitize all points before processing
+		const safeRadius = (r: number): number => {
+			if (!Number.isFinite(r) || Number.isNaN(r)) return 0.5; // Default thickness
+			return Math.max(0.1, r); // Clamp minimum thickness
+		};
+
+		const safeHeight = (h: number): number => {
+			if (!Number.isFinite(h) || Number.isNaN(h)) return 0;
+			return Math.max(0, Math.min(2, h)); // Clamp to valid height range (0-2)
+		};
+
+		let basePoints = sculpture.radiusCurve
+			.map((p) => ({ x: safeRadius(p.x), y: safeHeight(p.y) }))
+			.filter((p) => p.x > 0 && p.y >= 0); // Remove any invalid points
+		
+		// Safety: If resulting array is empty, return default cylinder
+		// DIRECTIVE 1: Ensure user always sees something, even if geometry is invalid
+		if (basePoints.length < 2) {
+			// Return a simple cylinder as fallback (constant radius)
+			const defaultPoints: LathePoint[] = [];
+			for (let i = 0; i <= 10; i++) {
+				const t = i / 10;
+				defaultPoints.push({ x: 0.5, y: t * 2 }); // Constant radius 0.5, height 0-2
+			}
+			basePoints = defaultPoints;
+		}
 
 		// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
 		if (
@@ -485,6 +536,104 @@
 					}
 				}
 			}
+		}
+
+		// PHASE 3: Sonic Force Mode (Raycasting & Deformation)
+		if (uiStore.workspace === 'force') {
+			if (meshRef && reticleRef && camera.current) {
+				raycaster.setFromCamera(pointer, camera.current);
+				const intersects = raycaster.intersectObject(meshRef);
+
+				if (intersects.length > 0) {
+					const intersect = intersects[0];
+					const point = intersect.point;
+					const normal = intersect.face?.normal?.clone().transformDirection(meshRef.matrixWorld) || new Vector3(0, 1, 0);
+					
+					// Update Reticle
+					reticleRef.visible = true;
+					reticleRef.position.copy(point);
+					reticleRef.lookAt(point.clone().add(normal));
+					
+					// Reticle Radius (Pitch)
+					// Map Pitch (50-1000Hz) to Radius (0.5 - 0.05)
+					// Lower pitch = larger impact area
+					const pitch = analysisStore.latestFrame?.pitch || 200;
+					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 50) / 950));
+					const radius = 0.3 - (normalizedPitch * 0.25); // Range: 0.05 to 0.3
+					
+					// Map Energy to Visual Scale pulsing
+					const energy = analysisStore.latestFrame?.energy || 0;
+					const pulse = 1 + energy * 0.5;
+					
+					// Scale reticle ring to match radius
+					// RingGeometry default is inner 0.8, outer 1.0. We scale it.
+					const scale = radius * pulse;
+					reticleRef.scale.set(scale, scale, scale);
+
+					// Reticle Color
+					// Red = Push (Subtractive), Green = Pull (Additive)
+					// Default to Push if not specified, but check sculptMode
+					const isPull = uiStore.sculptMode === 'additive'; // Green
+					const reticleMat = reticleRef.material as MeshBasicMaterial;
+					reticleMat.color.set(isPull ? '#00ff00' : '#ff0000');
+
+					// DEFORMATION LOGIC (Only when recording)
+					if (recordingStore.state === 'recording') {
+						const geometry = meshRef.geometry;
+						const positions = geometry.attributes.position;
+						const normals = geometry.attributes.normal;
+						const localPoint = meshRef.worldToLocal(point.clone());
+						
+						// Parameters from Force Panel
+						const damping = uiStore.forceParams.damping; // 0-1
+						const hardness = uiStore.forceParams.hardness; // 0-1
+						
+						// Strength calculation
+						// Energy (0-1) * Multiplier
+						// Hardness reduces effect
+						const forceStrength = (energy * 0.1) * (1 - hardness * 0.8);
+						const direction = isPull ? 1 : -1;
+
+						const v = new Vector3();
+						const n = new Vector3();
+						let modified = false;
+
+						for (let i = 0; i < positions.count; i++) {
+							v.fromBufferAttribute(positions, i);
+							const dist = v.distanceTo(localPoint);
+							
+							if (dist < radius) {
+								// Falloff (Cosine window)
+								const falloff = 0.5 * (1 + Math.cos((Math.PI * dist) / radius));
+								
+								// Get normal
+								n.fromBufferAttribute(normals, i);
+								
+								// Displace
+								// pos += normal * strength * falloff
+								const displacement = forceStrength * falloff * direction;
+								
+								// Apply damping (viscosity) - maybe limit max displacement per frame?
+								// For now, direct displacement
+								v.addScaledVector(n, displacement);
+								
+								positions.setXYZ(i, v.x, v.y, v.z);
+								modified = true;
+							}
+						}
+
+						if (modified) {
+							positions.needsUpdate = true;
+							geometry.computeVertexNormals();
+						}
+					}
+
+				} else {
+					reticleRef.visible = false;
+				}
+			}
+		} else if (reticleRef) {
+			reticleRef.visible = false;
 		}
 
 		if (recordingStore.state === 'recording') {
@@ -804,10 +953,12 @@
 	</T.Group>
 
 	<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
+	<!-- DIRECTIVE 2: This recording ring should NOT conflict with AnalysisVisualizer -->
+	<!-- AnalysisVisualizer handles lathe shapes, so this ring only shows for non-lathe shapes -->
 	<!-- Recording ring is a horizontal disc (parallel to XZ floor) that moves up along Y-axis -->
 	<!-- RingGeometry normal is along Z by default (XY plane), rotate -90° around X to make normal along Y (XZ plane/floor) -->
 	<!-- Position and scale are updated in useTask based on recording progress and audio energy -->
-	{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt'}
+	{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt' && sculpture && (sculpture.baseShape || 'lathe') !== 'lathe'}
 		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
 			<!-- Fixed ring geometry: innerRadius=0.095, outerRadius=0.1, segments=32 -->
 			<!-- Scale is updated in useTask to change apparent radius -->
@@ -825,4 +976,11 @@
 			/>
 		</T.Mesh>
 	{/if}
+
+	<!-- PHASE 3: Reticle for Sonic Force Mode -->
+	<T.Mesh bind:ref={reticleRef} visible={false}>
+		<!-- Ring geometry for reticle -->
+		<T.RingGeometry args={[0.8, 1.0, 32]} />
+		<T.MeshBasicMaterial color="#ff0000" side={DoubleSide} transparent opacity={0.8} />
+	</T.Mesh>
 {/if}

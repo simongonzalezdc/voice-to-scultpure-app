@@ -5,7 +5,7 @@ export type OnboardingStep =
 	| 'first-recording'
 	| 'ai-tutorial';
 
-export type Workspace = 'sculpt' | 'glaze' | 'export';
+export type Workspace = 'sculpt' | 'glaze' | 'force' | 'export';
 
 export const uiStore = $state<{
 	panels: {
@@ -22,6 +22,10 @@ export const uiStore = $state<{
 	orientation: 'vertical' | 'horizontal';
 	sculptMode: 'additive' | 'subtractive';
 	// toolMode deprecated in favor of workspace + local state
+	forceParams: {
+		damping: number; // 0-1
+		hardness: number; // 0-1
+	};
 	activeGlaze: {
 		color: string; // Hex color
 		roughness: number; // 0-1
@@ -49,6 +53,10 @@ export const uiStore = $state<{
 	},
 	orientation: 'vertical',
 	sculptMode: 'additive',
+	forceParams: {
+		damping: 0.5,
+		hardness: 0.5
+	},
 	activeGlaze: {
 		color: '#FFFFFF',
 		roughness: 0.5
@@ -138,9 +146,10 @@ export function setSculptMode(mode: 'additive' | 'subtractive'): void {
 	uiStore.sculptMode = mode;
 }
 
-export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint'): void {
+export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint' | 'force'): void {
 	// uiStore.toolMode = mode;
 	if (mode === 'sculpt') uiStore.workspace = 'sculpt';
+	else if (mode === 'force') uiStore.workspace = 'force';
 	else uiStore.workspace = 'glaze';
 }
 

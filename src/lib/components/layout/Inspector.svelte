@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
+	import ForceParameters from '$lib/components/controls/ForceParameters.svelte';
 	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
 	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
 
@@ -16,6 +17,8 @@
 		<h2 class="text-sm font-semibold text-white uppercase tracking-wider">
 			{#if uiStore.workspace === 'sculpt'}
 				SHAPE PROPERTIES
+			{:else if uiStore.workspace === 'force'}
+				FORCE DYNAMICS
 			{:else if uiStore.workspace === 'glaze'}
 				MATERIAL & COLOR
 			{:else if uiStore.workspace === 'export'}
@@ -29,6 +32,10 @@
 		{#if uiStore.workspace === 'sculpt'}
 			<div class="p-4">
 				<ParameterSliders />
+			</div>
+		{:else if uiStore.workspace === 'force'}
+			<div class="p-4">
+				<ForceParameters />
 			</div>
 		{:else if uiStore.workspace === 'glaze'}
 			<div class="p-4">

@@ -24,11 +24,12 @@
 
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.workspace === 'glaze';
+		const isForceMode = uiStore.workspace === 'force';
 
 		if (recordingStore.state === 'idle') {
-			// Glaze mode: Require existing sculpture
-			if (isGlazeMode && !sculptureStore.currentSculpture) {
-				alert('Please create a sculpture first before painting.');
+			// Glaze/Force mode: Require existing sculpture
+			if ((isGlazeMode || isForceMode) && !sculptureStore.currentSculpture) {
+				alert(`Please create a sculpture first before ${isGlazeMode ? 'painting' : 'sculpting'}.`);
 				return;
 			}
 			await startRecordingFlow();
@@ -36,8 +37,8 @@
 			await stopRecordingFlow();
 		} else {
 			// Complete state: Reset behavior
-			// In glaze mode, we don't want to destroy the sculpture, just reset recording state
-			if (isGlazeMode) {
+			// In glaze/force mode, we don't want to destroy the sculpture, just reset recording state
+			if (isGlazeMode || isForceMode) {
 				// Non-destructive reset: Only reset recording state, keep sculpture
 				recordingStore.state = 'idle';
 				recordingStore.startTime = null;
@@ -144,25 +145,26 @@
 
 	function getButtonText(): string {
 		const isGlazeMode = uiStore.workspace === 'glaze';
+		const isForceMode = uiStore.workspace === 'force';
 
-		// Glaze Mode ALWAYS takes priority. It implies "Recording on top".
-		if (isGlazeMode) {
-			// Safety check: Can't paint without a sculpture
+		// Glaze/Force Mode ALWAYS takes priority. It implies "Recording on top".
+		if (isGlazeMode || isForceMode) {
+			// Safety check: Can't paint/force without a sculpture
 			if (!sculptureStore.currentSculpture && recordingStore.state === 'idle') {
-				return 'Paint (Disabled)';
+				return `${isGlazeMode ? 'Paint' : 'Force'} (Disabled)`;
 			}
 
 			switch (recordingStore.state) {
 				case 'idle':
-					return 'Paint';
+					return isGlazeMode ? 'Paint' : 'Active'; // Force mode: "Active"
 				case 'recording':
-					return 'Stop Painting';
+					return isGlazeMode ? 'Stop Painting' : 'Stop Force';
 				case 'processing':
 					return 'Processing...';
 				case 'complete':
-					return 'Paint Again'; // Non-destructive: allows painting again
+					return isGlazeMode ? 'Paint Again' : 'Push Again'; // Non-destructive
 				default:
-					return 'Paint';
+					return isGlazeMode ? 'Paint' : 'Active';
 			}
 		} else {
 			// Sculpt Mode behaves normally
@@ -183,11 +185,18 @@
 
 	function getButtonColor(): string {
 		const isGlazeMode = uiStore.workspace === 'glaze';
+		const isForceMode = uiStore.workspace === 'force';
+		
 		if (isGlazeMode) {
 			// Purple/Indigo for glaze mode
 			return recordingStore.state === 'recording'
 				? 'bg-[#6b46c1] hover:bg-[#7c3aed] border-[#8b5cf6]'
 				: 'bg-[#7c3aed] hover:bg-[#8b5cf6] border-[#a78bfa]';
+		} else if (isForceMode) {
+			// Orange for force mode
+			return recordingStore.state === 'recording'
+				? 'bg-[#dd6b20] hover:bg-[#ed8936] border-[#f6ad55]'
+				: 'bg-[#ed8936] hover:bg-[#f6ad55] border-[#fbd38d]';
 		} else {
 			// Red for sculpt mode
 			return recordingStore.state === 'recording'
@@ -208,7 +217,7 @@
 		type="button"
 		onclick={handleRecordClick}
 		disabled={recordingStore.state === 'processing' ||
-			(uiStore.workspace === 'glaze' &&
+			((uiStore.workspace === 'glaze' || uiStore.workspace === 'force') &&
 				!sculptureStore.currentSculpture &&
 				recordingStore.state === 'idle')}
 		aria-label={getButtonText()}
@@ -216,6 +225,8 @@
 	>
 		{#if uiStore.workspace === 'glaze' && recordingStore.state === 'idle'}
 			<span aria-hidden="true">🎨</span>
+		{:else if uiStore.workspace === 'force' && recordingStore.state === 'idle'}
+			<span aria-hidden="true">🖐️</span>
 		{:else if recordingStore.state === 'idle'}
 			<span aria-hidden="true">🔴</span>
 		{/if}

@@ -61,11 +61,13 @@
 </script>
 
 <!-- Ring visualizer - visible only during active recording -->
-<!-- Position: Follows the forming edge of the sculpture -->
+<!-- DIRECTIVE 3: Align visualizer based on orientation -->
+<!-- Pottery (Vertical): Ring flat on XZ plane - rotation={[Math.PI/2, 0, 0]} -->
+<!-- Lathe (Horizontal): Ring standing on YZ plane - rotation={[0, Math.PI/2, 0]} -->
 {#if isVisible}
 	<T.Group position={ringPosition}>
 		<!-- Outer ring (energy indicator) -->
-		<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, 0, Math.PI / 2] : [0, 0, 0]}>
+		<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}>
 			<T.TorusGeometry args={[currentScale, 0.02, 16, 32]} />
 			<T.MeshBasicMaterial color={ringColor} transparent opacity={0.6 + colorIntensity * 0.4} />
 		</T.Mesh>
@@ -73,7 +75,7 @@
 		<!-- Inner ring (pitch indicator) -->
 		{#if analysisStore.latestFrame?.pitch && analysisStore.latestFrame.pitch > 0}
 			{@const pitchScale = Math.min(1, analysisStore.latestFrame.pitch / 1000) * 0.5}
-			<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, 0, Math.PI / 2] : [0, 0, 0]}>
+			<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}>
 				<T.TorusGeometry args={[currentScale * pitchScale, 0.01, 8, 16]} />
 				<T.MeshBasicMaterial color="#ffffff" transparent opacity={0.4} />
 			</T.Mesh>

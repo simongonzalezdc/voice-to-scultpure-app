@@ -3,6 +3,7 @@
 
 	const workspaces: { id: Workspace; label: string; icon: string }[] = [
 		{ id: 'sculpt', label: 'Sculpt', icon: '🗿' },
+		{ id: 'force', label: 'Force', icon: '🖐️' },
 		{ id: 'glaze', label: 'Glaze', icon: '🎨' },
 		{ id: 'export', label: 'Export', icon: '📤' }
 	];

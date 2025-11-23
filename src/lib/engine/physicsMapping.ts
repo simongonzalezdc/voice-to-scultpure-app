@@ -24,6 +24,19 @@ function createHourglass(): LathePoint[] {
 	return points;
 }
 
+function createDefaultCylinder(): LathePoint[] {
+	// DIRECTIVE 1: Default cylinder fallback - ensures user always sees something
+	// Simple cylinder with constant radius from bottom to top
+	const steps = 10;
+	const points: LathePoint[] = [];
+	for (let i = 0; i <= steps; i++) {
+		const t = i / steps;
+		const radius = 0.5; // Default thickness
+		points.push({ x: radius, y: t * 2 }); // Height 0-2 range
+	}
+	return points;
+}
+
 export function generateLathe(
 	frames: AnalysisFrame[],
 	profile?: UserProfile,
@@ -149,7 +162,21 @@ export function generateLathe(
 		// Update previous frame for next iteration
 		previousFrame = frame;
 
-		return { x: Math.max(MIN_RADIUS, radius + totalJitter), y: normalizedHeight };
+		// DIRECTIVE 1: NaN Guard - Sanitize all values before returning
+		const safeRadius = (r: number): number => {
+			if (!Number.isFinite(r) || Number.isNaN(r)) return 0.5; // Default thickness
+			return Math.max(0.1, r); // Clamp minimum thickness
+		};
+
+		const safeHeight = (h: number): number => {
+			if (!Number.isFinite(h) || Number.isNaN(h)) return 0;
+			return Math.max(0, Math.min(2, h)); // Clamp to valid height range (0-2)
+		};
+
+		return { 
+			x: safeRadius(Math.max(MIN_RADIUS, radius + totalJitter)), 
+			y: safeHeight(normalizedHeight) 
+		};
 	});
 
 	// 4. DIRECTIVE 3: Apply Fabrication Constraints
@@ -157,7 +184,19 @@ export function generateLathe(
 	// Non-destructive: Original recording is preserved, but output geometry is sanitized
 	const constrainedCurve = applyConstraints(rawCurve, constraintMode);
 
-	return constrainedCurve;
+	// DIRECTIVE 1: Final sanitization pass - remove any invalid points
+	const sanitizedCurve = constrainedCurve.filter((p) => {
+		const safeX = Number.isFinite(p.x) && !Number.isNaN(p.x) && p.x > 0;
+		const safeY = Number.isFinite(p.y) && !Number.isNaN(p.y) && p.y >= 0;
+		return safeX && safeY;
+	});
+
+	// Safety: If resulting array is empty, return default cylinder so user always sees something
+	if (sanitizedCurve.length === 0) {
+		return createDefaultCylinder();
+	}
+
+	return sanitizedCurve;
 }
 
 export function applyDeformation(
