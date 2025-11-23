@@ -661,9 +661,13 @@
 					// Default to parameter, but allow pitch modulation if melodic mode
 					const pitch = analysisStore.latestFrame?.pitch || 200;
 					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 50) / 950));
+					
 					// Radius: 0.05 to 0.5. Controlled by Focus parameter (base) and Pitch (modulation)
 					// If melodic mode, pitch dominates. If standard, Focus dominates.
-					const radius = 0.05 + (radiusParam * 0.45); 
+					const isMelodic = uiStore.controlMode === 'melodic';
+					const radius = isMelodic
+						? 0.05 + (normalizedPitch * 0.45) // Melodic: Pitch dominates (low pitch = wide, high pitch = narrow)
+						: 0.05 + (radiusParam * 0.45); // Standard: Focus parameter dominates 
 					
 					// Strength calculation
 					// Energy (0-1) * Multiplier * Strength Param

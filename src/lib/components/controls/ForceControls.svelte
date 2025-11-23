@@ -33,7 +33,7 @@
 			<Activity size={20} /> 
 			FORCE PHYSICS
 		</h2>
-		<span class="text-xs font-mono text-secondary bg-surface-panel-alt px-2 py-1 rounded">
+		<span class="text-xs font-mono text-secondary surface-panel-alt px-2 py-1 rounded">
 			v2.0
 		</span>
 	</div>
@@ -99,7 +99,7 @@
 	</div>
 	
 	<!-- Mode Info Box -->
-	<div class="mt-auto bg-surface-panel-alt p-3 rounded border border-subtle">
+	<div class="mt-auto surface-panel-alt p-3 rounded">
 		<div class="flex items-center gap-2 text-xs font-bold text-brand-primary mb-2">
 			<Crosshair size={14} />
 			TARGETING SYSTEM ACTIVE
@@ -122,7 +122,8 @@
 
 <style>
 	input[type=range] {
-		@apply h-1 bg-surface-panel-alt rounded-lg appearance-none cursor-pointer;
+		@apply h-1 rounded-lg appearance-none cursor-pointer;
+		background-color: var(--bg-panel-alt);
 	}
 	
 	/* Custom Range Slider Styling would go here or via Tailwind plugins */
