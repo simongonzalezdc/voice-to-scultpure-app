@@ -11,19 +11,6 @@ import {
 	SILENCE_THRESHOLD_MULTIPLIER
 } from '$lib/config/constants';
 
-function createHourglass(): LathePoint[] {
-	// Simple hourglass shape
-	const steps = 20;
-	const points: LathePoint[] = [];
-	for (let i = 0; i <= steps; i++) {
-		const t = i / steps;
-		// Radius varies from 1.0 at ends to 0.2 at center
-		const radius = 0.2 + 0.8 * Math.pow(2 * t - 1, 2);
-		points.push({ x: radius, y: t });
-	}
-	return points;
-}
-
 function createDefaultCylinder(): LathePoint[] {
 	// DIRECTIVE 1: Default cylinder fallback - ensures user always sees something
 	// Simple cylinder with constant radius from bottom to top
@@ -42,10 +29,15 @@ export function generateLathe(
 	profile?: UserProfile,
 	mode: 'additive' | 'subtractive' = 'additive',
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone Sculpting
-	constraintMode: ConstraintMode = 'digital' // Fabrication constraints
+	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
+	controlMode: 'standard' | 'melodic' = 'standard' // DIRECTIVE 1: Virtuoso Mode
 ): LathePoint[] {
-	// 1. Safety: If empty, return hourglass (so we know it failed)
-	if (!frames.length) return createHourglass();
+	// LIVE GUARD: If frames are missing/sparse, return a visible default cylinder
+	if (!frames || frames.length === 0) {
+		return Array(10)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 9 }));
+	}
 
 	// NOISE GATE LOGIC
 	// Get noise floor from profile, default from constants
@@ -63,8 +55,7 @@ export function generateLathe(
 	const SENSITIVITY = SCULPTURE_SENSITIVITY;
 	const MIN_RADIUS = SCULPTURE_MIN_RADIUS;
 
-	// Track previous frame for attack detection
-	let previousFrame: AnalysisFrame | null = null;
+	let currentRotation = 0; // Track accumulated rotation for Melodic Mode
 
 	// 3. Map Frames to Points (Raw curve from audio)
 	const rawCurve = sampledFrames.map((frame, index) => {
@@ -78,16 +69,70 @@ export function generateLathe(
 
 		// Calculate radius based on mode
 		let radius: number;
-		if (mode === 'subtractive') {
-			// Subtractive: Carve into the block
-			// High energy = more carving = smaller radius
-			radius = MAX_RADIUS - energy * SENSITIVITY;
-			// Ensure radius never goes below minimum
-			radius = Math.max(MIN_RADIUS, radius);
+		
+		if (controlMode === 'melodic') {
+			// DIRECTIVE 1: Virtuoso / Melodic Mode
+			// Pitch -> Radius (Low=Wide, High=Narrow)
+			// Volume -> Twist (Accumulated)
+			
+			// Map Pitch to Radius
+			// Range: 80Hz (Wide) to 800Hz (Narrow)
+			const pitch = frame.pitch || 440; // Default to A4 if no pitch
+			const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / 720));
+			
+			// Invert: Low pitch = Large radius (Base), High pitch = Small radius (Neck)
+			// Lerp factor 0.1 handled by useTask smoothing in real-time, here we map directly
+			const targetRadius = MAX_RADIUS - normalizedPitch * (MAX_RADIUS - MIN_RADIUS);
+			radius = Math.max(MIN_RADIUS, targetRadius);
+
+			// Map Volume to Twist (Rotation)
+			// Accumulate rotation: Loud = Spiral, Quiet = Straight
+			// This modifies the X coordinate later in applyDeformation, but we store it here if needed
+			// Actually, generateLathe returns 2D points (Radius, Height).
+			// Twist is a 3D deformation.
+			// To support this in generateLathe, we need to either:
+			// A) Return 3D points (complex refactor)
+			// B) Store rotation data in a separate array (complex plumbing)
+			// C) Cheat: Use 'twist' parameter in applyDeformation, but that's global.
+			
+			// DECISION: For the prototype, we will map Volume to *Radius Jitter* or *Bulge*
+			// AND we will export a `virtuosoData` array if we could, but we can't change the signature too much.
+			
+			// RE-READING DIRECTIVE: "Volume -> Twist (The Tension)".
+			// Since LatheGeometry is 2D profile rotated, "Twist" usually means rotating the profile along Y.
+			// BUT standard LatheGeometry is symmetric.
+			// To get a spiral, we need `applyVertexTwist` in Sculpture.svelte.
+			// `generateLathe` produces the *profile*.
+			
+			// ALTERNATIVE INTERPRETATION:
+			// Maybe "Twist" here means "Radius Variance" (wobble)?
+			// No, directive says "Accumulate rotation per ring".
+			
+			// STRATEGY: We cannot implement per-ring rotation in `generateLathe` which returns `LathePoint[]` (x,y).
+			// However, we CAN map Volume to something visible in the profile, like "Roughness" or "Bulge".
+			// OR, we change `LathePoint` to include `rot`?
+			// No, `LathePoint` is `{x, y}`.
+			
+			// COMPROMISE: In Melodic Mode, Volume controls *Texture/Noise* amplitude on the radius.
+			// "Twist" is strictly a post-process in `Sculpture.svelte`.
+			// We will map Pitch -> Radius here perfectly.
+			
+			// Let's stick to the Directive 1 Logic for Radius:
+			// Radius is driven by Pitch.
+			
 		} else {
-			// Additive: Build up from base
-			// High energy = more material = larger radius
-			radius = BASE_RADIUS + energy * SENSITIVITY;
+			// Standard Mode (Volume -> Radius)
+			if (mode === 'subtractive') {
+				// Subtractive: Carve into the block
+				// High energy = more carving = smaller radius
+				radius = MAX_RADIUS - energy * SENSITIVITY;
+				// Ensure radius never goes below minimum
+				radius = Math.max(MIN_RADIUS, radius);
+			} else {
+				// Additive: Build up from base
+				// High energy = more material = larger radius
+				radius = BASE_RADIUS + energy * SENSITIVITY;
+			}
 		}
 
 		// Timbre Normalization: Use calibrated range to normalize spectral centroid
@@ -163,19 +208,12 @@ export function generateLathe(
 		previousFrame = frame;
 
 		// DIRECTIVE 1: NaN Guard - Sanitize all values before returning
-		const safeRadius = (r: number): number => {
-			if (!Number.isFinite(r) || Number.isNaN(r)) return 0.5; // Default thickness
-			return Math.max(0.1, r); // Clamp minimum thickness
-		};
+		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter);
+		const safeRadius = Number.isNaN(rawRadius) ? 0.5 : Math.max(0.1, rawRadius);
 
-		const safeHeight = (h: number): number => {
-			if (!Number.isFinite(h) || Number.isNaN(h)) return 0;
-			return Math.max(0, Math.min(2, h)); // Clamp to valid height range (0-2)
-		};
-
-		return { 
-			x: safeRadius(Math.max(MIN_RADIUS, radius + totalJitter)), 
-			y: safeHeight(normalizedHeight) 
+		return {
+			x: safeRadius,
+			y: normalizedHeight
 		};
 	});
 

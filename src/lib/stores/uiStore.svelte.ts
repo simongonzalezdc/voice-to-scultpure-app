@@ -22,6 +22,7 @@ export const uiStore = $state<{
 	orientation: 'vertical' | 'horizontal';
 	sculptMode: 'additive' | 'subtractive';
 	// toolMode deprecated in favor of workspace + local state
+	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius
 	forceParams: {
 		damping: number; // 0-1
 		hardness: number; // 0-1
@@ -34,6 +35,7 @@ export const uiStore = $state<{
 		lightingAngle: number;
 		zoom: number;
 	};
+	showGhost: boolean;
 	sculptZone: {
 		min: number; // 0.0 = bottom
 		max: number; // 1.0 = top
@@ -43,7 +45,7 @@ export const uiStore = $state<{
 	panels: {
 		aiPanel: false,
 		projectList: false,
-		settings: false,
+		settings: false
 	},
 	workspace: 'sculpt',
 	onboarding: {
@@ -53,6 +55,7 @@ export const uiStore = $state<{
 	},
 	orientation: 'vertical',
 	sculptMode: 'additive',
+	controlMode: 'standard',
 	forceParams: {
 		damping: 0.5,
 		hardness: 0.5
@@ -65,6 +68,7 @@ export const uiStore = $state<{
 		lightingAngle: 0,
 		zoom: 1.0
 	},
+	showGhost: true,
 	sculptZone: {
 		min: 0.0, // Default: entire height (bottom)
 		max: 1.0 // Default: entire height (top)
@@ -144,6 +148,10 @@ export function setZoom(zoom: number): void {
 
 export function setSculptMode(mode: 'additive' | 'subtractive'): void {
 	uiStore.sculptMode = mode;
+}
+
+export function setControlMode(mode: 'standard' | 'melodic'): void {
+	uiStore.controlMode = mode;
 }
 
 export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint' | 'force'): void {

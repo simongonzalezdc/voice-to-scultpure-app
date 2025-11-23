@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { uiStore, setWorkspace, type Workspace } from '$lib/stores/uiStore.svelte';
+	import type { ComponentType } from 'svelte';
 	import { Hammer, Hand, Palette, Download } from 'lucide-svelte';
 
-	const workspaces: { id: Workspace; label: string; icon: any }[] = [
+	const workspaces: { id: Workspace; label: string; icon: ComponentType }[] = [
 		{ id: 'sculpt', label: 'Sculpt', icon: Hammer },
 		{ id: 'force', label: 'Force', icon: Hand },
 		{ id: 'glaze', label: 'Glaze', icon: Palette },
@@ -16,7 +17,7 @@
 			class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded transition-all duration-200 {uiStore.workspace ===
 			ws.id
 				? 'bg-brand-primary text-white shadow-sm'
-				: 'text-secondary hover:text-white hover:bg-panel-alt'}"
+				: 'text-secondary hover:text-white hover:bg-panel'}"
 			onclick={() => setWorkspace(ws.id)}
 			aria-selected={uiStore.workspace === ws.id}
 			role="tab"
@@ -31,9 +32,6 @@
 	.bg-panel {
 		background-color: var(--bg-panel);
 	}
-	.bg-panel-alt {
-		background-color: var(--bg-panel-alt);
-	}
 	.border-subtle {
 		border-color: var(--border-subtle);
 	}
@@ -44,4 +42,3 @@
 		background-color: var(--brand-primary);
 	}
 </style>
-

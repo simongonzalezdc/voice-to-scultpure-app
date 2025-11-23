@@ -66,7 +66,7 @@
 		<T.SphereGeometry args={[0.1, 8, 8]} />
 		<T.MeshBasicMaterial color="#ff0000" />
 	</T.Mesh>
-	
+
 	<!-- Y Axis (Green) - Vertical, up-down (perpendicular to floor) -->
 	<T.Mesh position={[0, 1, 0]}>
 		<T.BoxGeometry args={[0.05, 2, 0.05]} />
@@ -76,7 +76,7 @@
 		<T.SphereGeometry args={[0.1, 8, 8]} />
 		<T.MeshBasicMaterial color="#00ff00" />
 	</T.Mesh>
-	
+
 	<!-- Z Axis (Blue) - Depth, forward-backward (parallel to floor) -->
 	<T.Mesh position={[0, 0, 1]}>
 		<T.BoxGeometry args={[0.05, 0.05, 2]} />
@@ -89,4 +89,6 @@
 </T.Group>
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
-<AnalysisVisualizer />
+<AnalysisVisualizer
+	rotation={uiStore.orientation === 'horizontal' ? [0, 0, -Math.PI / 2] : [0, 0, 0]}
+/>

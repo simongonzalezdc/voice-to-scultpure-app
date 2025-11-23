@@ -351,9 +351,12 @@
 				</div>
 
 				<p class="text-xs text-secondary mt-3">
-					<strong>GLB:</strong> Universal 3D format with vertex colors. Works in Blender, Unity, web viewers.<br />
-					<strong>PLY:</strong> For colored 3D printing. Includes vertex colors from glaze painting.<br />
-					<strong>STL:</strong> Standard 3D printing format (no colors). Includes wall thickness if specified.<br />
+					<strong>GLB:</strong> Universal 3D format with vertex colors. Works in Blender, Unity, web
+					viewers.<br />
+					<strong>PLY:</strong> For colored 3D printing. Includes vertex colors from glaze painting.<br
+					/>
+					<strong>STL:</strong> Standard 3D printing format (no colors). Includes wall thickness if
+					specified.<br />
 					<strong>Blueprint:</strong> Print at 1:1 scale, cut out, use as pottery wheel profile rib.
 				</p>
 			</div>

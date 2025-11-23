@@ -6,34 +6,31 @@
 		updateSculptureColors
 	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore, getCapturedFrames, type RecordingState } from '$lib/stores/recording.svelte';
+	import {
+		recordingStore,
+		getCapturedFrames,
+		type RecordingState
+	} from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
-	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import {
 		LatheGeometry,
 		Vector2,
-		Vector3,
 		Mesh,
 		Color,
 		BufferAttribute,
 		DynamicDrawUsage,
-		RingGeometry,
+		BufferGeometry,
 		IcosahedronGeometry,
 		BoxGeometry,
 		PlaneGeometry,
-		CylinderGeometry,
-		BufferGeometry,
-		Raycaster,
-		MeshBasicMaterial,
-		DoubleSide
+		CylinderGeometry
 	} from 'three';
-	import { useTask, useThrelte } from '@threlte/core';
+	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
-	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
+	import { applyDeformation, generateGlaze } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
-	import { SCULPTURE_BASE_RADIUS, SCULPTURE_MAX_RADIUS, SCULPTURE_SENSITIVITY } from '$lib/config/constants';
 	import {
 		voiceLinksStore,
 		pitchToTwist,
@@ -45,29 +42,6 @@
 	// Raw mesh references (managed by bind:ref) to avoid Svelte 5 proxying issues
 	let meshRef = $state<Mesh | null>(null);
 	let ghostMeshRef = $state<Mesh | null>(null);
-	let liveMeshRef = $state<Mesh | null>(null);
-	let reticleRef = $state<Mesh | null>(null);
-
-	// Raycaster for Sonic Force mode
-	const raycaster = new Raycaster();
-	const pointer = new Vector2();
-	const { camera, renderer } = useThrelte();
-
-	// Track pointer for raycasting
-	$effect(() => {
-		if (!renderer?.domElement) return;
-		
-		const handlePointerMove = (event: MouseEvent) => {
-			const rect = renderer.domElement.getBoundingClientRect();
-			pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-			pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-		};
-
-		renderer.domElement.addEventListener('mousemove', handlePointerMove);
-		return () => {
-			renderer.domElement.removeEventListener('mousemove', handlePointerMove);
-		};
-	});
 
 	// State tracking for recording transitions
 	let previousRecordingState = $state<RecordingState>('idle');
@@ -81,7 +55,11 @@
 	 */
 	// DIRECTIVE 4: Visualize "Active Layer" when using Zone Sculpting
 	// Shows the active zone at full brightness and locks dimmed/desaturated
-	function applyZoneVisualization(geometry: LatheGeometry, zoneMin: number, zoneMax: number): void {
+	function applyZoneVisualization(
+		geometry: BufferGeometry,
+		zoneMin: number,
+		zoneMax: number
+	): void {
 		if (zoneMin === 0 && zoneMax === 1) return; // Full zone, no need to visualize
 
 		const positions = geometry.attributes.position;
@@ -168,11 +146,11 @@
 		for (let i = 0; i < newVertexCount; i++) {
 			const y = posArray[i * 3 + 1];
 			const normalizedHeight = (y - minY) / totalHeight; // 0 = bottom, 1 = top
-			
+
 			// Find corresponding old vertex index
 			const oldVertexIdx = Math.floor(normalizedHeight * (oldVertexCount - 1));
 			const clampedIdx = Math.max(0, Math.min(oldVertexCount - 1, oldVertexIdx));
-			
+
 			// Copy color from old vertex
 			const colorIdx = clampedIdx * 3;
 			colors[i * 3] = savedColors[colorIdx] ?? 1.0;
@@ -247,15 +225,14 @@
 	// DIRECTIVE 2: Safe Cylinder Fallback - NEVER return null, always return valid geometry
 	function createGeometryFromSculpture(sculpture: SculptureDefinition): BufferGeometry {
 		const baseShape = sculpture.baseShape || 'lathe';
-		
+
 		// DIRECTIVE 2: Wrap entire function in try-catch with fallback cylinder
 		try {
 			// Handle non-lathe shapes
 			if (baseShape !== 'lathe') {
 				const height = sculpture.physical.height || 150;
 				const heightInUnits = height / 150; // Normalize to 0-2 range (matching lathe)
-				const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
-				
+
 				switch (baseShape) {
 					case 'sphere': {
 						// Sphere: IcosahedronGeometry with high detail for smooth sculpting
@@ -285,7 +262,7 @@
 						throw new Error(`Unknown base shape: ${baseShape}`);
 				}
 			}
-			
+
 			// LATHE SHAPE: Original logic
 			// Safety check
 			if (
@@ -296,172 +273,174 @@
 				throw new Error('Invalid radiusCurve');
 			}
 
-		// 1. START WITH BASE - Create a copy, never overwrite original
-		// DIRECTIVE 1: NaN Guard - Sanitize all points before processing
-		const safeRadius = (r: number): number => {
-			if (!Number.isFinite(r) || Number.isNaN(r)) return 0.5; // Default thickness
-			return Math.max(0.1, r); // Clamp minimum thickness
-		};
+			// 1. START WITH BASE - Create a copy, never overwrite original
+			// DIRECTIVE 1: NaN Guard - Sanitize all points before processing
+			const safeRadius = (r: number): number => {
+				if (!Number.isFinite(r) || Number.isNaN(r)) return 0.5; // Default thickness
+				return Math.max(0.1, r); // Clamp minimum thickness
+			};
 
-		const safeHeight = (h: number): number => {
-			if (!Number.isFinite(h) || Number.isNaN(h)) return 0;
-			return Math.max(0, Math.min(2, h)); // Clamp to valid height range (0-2)
-		};
+			const safeHeight = (h: number): number => {
+				if (!Number.isFinite(h) || Number.isNaN(h)) return 0;
+				return Math.max(0, Math.min(2, h)); // Clamp to valid height range (0-2)
+			};
 
-		let basePoints = sculpture.radiusCurve
-			.map((p) => ({ x: safeRadius(p.x), y: safeHeight(p.y) }))
-			.filter((p) => p.x > 0 && p.y >= 0); // Remove any invalid points
-		
-		// Safety: If resulting array is empty, return default cylinder
-		// DIRECTIVE 1: Ensure user always sees something, even if geometry is invalid
-		if (basePoints.length < 2) {
-			// Return a simple cylinder as fallback (constant radius)
-			const defaultPoints: LathePoint[] = [];
-			for (let i = 0; i <= 10; i++) {
-				const t = i / 10;
-				defaultPoints.push({ x: 0.5, y: t * 2 }); // Constant radius 0.5, height 0-2
+			let basePoints = sculpture.radiusCurve
+				.map((p) => ({ x: safeRadius(p.x), y: safeHeight(p.y) }))
+				.filter((p) => p.x > 0 && p.y >= 0); // Remove any invalid points
+
+			// Safety: If resulting array is empty, return default cylinder
+			// DIRECTIVE 1: Ensure user always sees something, even if geometry is invalid
+			if (basePoints.length < 2) {
+				// Return a simple cylinder as fallback (constant radius)
+				const defaultPoints: LathePoint[] = [];
+				for (let i = 0; i <= 10; i++) {
+					const t = i / 10;
+					defaultPoints.push({ x: 0.5, y: t * 2 }); // Constant radius 0.5, height 0-2
+				}
+				basePoints = defaultPoints;
 			}
-			basePoints = defaultPoints;
-		}
 
-		// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
-		if (
-			sculpture.deformation &&
-			(sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)
-		) {
-			basePoints = applyDeformation(basePoints, sculpture.deformation);
-		}
+			// 2. Apply Deformations (Twist/Compression from sliders) - on the COPY
+			if (
+				sculpture.deformation &&
+				(sculpture.deformation.twist !== 0 || sculpture.deformation.compression !== 0)
+			) {
+				basePoints = applyDeformation(basePoints, sculpture.deformation);
+			}
 
-		// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
-		// Only applies to lathe shapes (non-lathe shapes use Sonic Force mode instead)
-		if (recordingStore.state === 'recording' && baseShape === 'lathe') {
-			const frame = analysisStore.latestFrame;
+			// 3. Physics Bridge - Live Audio Modulation (BREATHING EFFECT)
+			// Only applies to lathe shapes (non-lathe shapes use Sonic Force mode instead)
+			if (recordingStore.state === 'recording' && baseShape === 'lathe') {
+				const frame = analysisStore.latestFrame;
 
-			// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
-			const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
+				// FALLBACK LOGIC: If worker energy is dead, use the visualizer bypass
+				const rawEnergy = frame?.energy || analysisStore.micLevel || 0;
 
-			// Apply sensitivity boost (match physicsMapping.ts line 74)
-			const energy = rawEnergy * 2.0;
+				// Apply sensitivity boost (match physicsMapping.ts line 74)
+				const energy = rawEnergy * 2.0;
 
-			// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
-			const breathScale = 1.0 + energy * 0.3; // 0-30% radial expansion
-			basePoints = basePoints.map((p) => ({
-				x: p.x * breathScale,
-				y: p.y
-			}));
-		}
+				// Radial "breathing" effect - modulate all points uniformly (compression is a multiplier)
+				const breathScale = 1.0 + energy * 0.3; // 0-30% radial expansion
+				basePoints = basePoints.map((p) => ({
+					x: p.x * breathScale,
+					y: p.y
+				}));
+			}
 
-		// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
-		// Only applies to lathe shapes (non-lathe shapes don't use radiusCurve)
-		// These constraints persist through twist, compression, height changes, etc.
-		// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
-		if (baseShape === 'lathe') {
-			basePoints = applyConstraints(basePoints, uiStore.constraintMode);
-		}
+			// 3.5. PERSISTENT CONSTRAINTS: Apply fabrication constraints AFTER all deformations
+			// Only applies to lathe shapes (non-lathe shapes don't use radiusCurve)
+			// These constraints persist through twist, compression, height changes, etc.
+			// This ensures ceramic vessels never pinch, no matter how many sliders are adjusted
+			if (baseShape === 'lathe') {
+				basePoints = applyConstraints(basePoints, uiStore.constraintMode);
+			}
 
-		// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
-		// NOT here in the geometry, to avoid double-scaling (heightScale²)
+			// NOTE: Height scaling is applied at the T.Group transform level (scale={[1, heightScale, 1]})
+			// NOT here in the geometry, to avoid double-scaling (heightScale²)
 
-		// 5. Low Poly / Resolution Logic
-		// DIRECTIVE 2: Resolution Slider controls Geometry Segments
-		// roughness input (0-1) maps to segments:
-		// 0 = Low Poly (6 segments - hexagonal/blocky)
-		// 1 = High Poly (64 segments - smooth)
-		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+			// 5. Low Poly / Resolution Logic
+			// DIRECTIVE 2: Resolution Slider controls Geometry Segments
+			// roughness input (0-1) maps to segments:
+			// 0 = Low Poly (6 segments - hexagonal/blocky)
+			// 1 = High Poly (64 segments - smooth)
+			const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
 
-		// Map 0-1 to 6-64 segments
-		// Use floor to get integer segments
-		// Resolution 0.0 -> 6 segments
-		// Resolution 1.0 -> 64 segments
-		const segments = Math.floor(6 + roughnessInput * 58);
+			// Map 0-1 to 6-64 segments
+			// Use floor to get integer segments
+			// Resolution 0.0 -> 6 segments
+			// Resolution 1.0 -> 64 segments
+			const segments = Math.floor(6 + roughnessInput * 58);
 
-		// Apply flat shading effect if low resolution (poly look)
-		// When resolution is low (< 0.3 / segments < 20), enable flat shading for style
-		// Note: Material update happens in the template, geometry update happens here
+			// Apply flat shading effect if low resolution (poly look)
+			// When resolution is low (< 0.3 / segments < 20), enable flat shading for style
+			// Note: Material update happens in the template, geometry update happens here
 
-		if (basePoints.length < 2) {
-			throw new Error('Not enough points after processing');
-		}
+			if (basePoints.length < 2) {
+				throw new Error('Not enough points after processing');
+			}
 
-		// DIRECTIVE 2: Validate points for NaN before geometry creation
-		const hasNaN = basePoints.some(p => isNaN(p.x) || isNaN(p.y));
-		if (hasNaN) {
-			throw new Error('NaN detected in points');
-		}
+			// DIRECTIVE 2: Validate points for NaN before geometry creation
+			const hasNaN = basePoints.some((p) => isNaN(p.x) || isNaN(p.y));
+			if (hasNaN) {
+				throw new Error('NaN detected in points');
+			}
 
-		// 6. Generate Geometry from final deformed + modulated points
-		const vectors = basePoints.map((p) => new Vector2(p.x, p.y));
-		// Use dynamic segments count for Low Poly effect
-		const geometry = new LatheGeometry(vectors, segments);
+			// 6. Generate Geometry from final deformed + modulated points
+			const vectors = basePoints.map((p) => new Vector2(p.x, p.y));
+			// Use dynamic segments count for Low Poly effect
+			const geometry = new LatheGeometry(vectors, segments);
 
-		// DIRECTIVE 2: Validate geometry after creation
-		if (!geometry || !geometry.attributes.position) {
-			throw new Error('Geometry generation returned invalid geometry');
-		}
+			// DIRECTIVE 2: Validate geometry after creation
+			if (!geometry || !geometry.attributes.position) {
+				throw new Error('Geometry generation returned invalid geometry');
+			}
 
-		// Check for NaN in positions
-		const positions = geometry.attributes.position;
-		const posArray = positions.array as Float32Array;
-		const hasNaNInGeometry = Array.from(posArray).some((v) => !Number.isFinite(v) || Number.isNaN(v));
-		if (hasNaNInGeometry) {
-			throw new Error('NaN detected in geometry positions');
-		}
+			// Check for NaN in positions
+			const positions = geometry.attributes.position;
+			const posArray = positions.array as Float32Array;
+			const hasNaNInGeometry = Array.from(posArray).some(
+				(v) => !Number.isFinite(v) || Number.isNaN(v)
+			);
+			if (hasNaNInGeometry) {
+				throw new Error('NaN detected in geometry positions');
+			}
 
-		// DIRECTIVE 2B: Initialize vertex colors if saved colors exist or in glaze mode
-		if (geometry.attributes.position) {
-			const vertexCount = positions.count;
+			// DIRECTIVE 2B: Initialize vertex colors if saved colors exist or in glaze mode
+			if (geometry.attributes.position) {
+				const vertexCount = positions.count;
 
-			// Check if sculpture has saved vertex colors
-			if (sculpture.vertexColors && sculpture.vertexColors.length > 0) {
-				const savedColorCount = sculpture.vertexColors.length / 3;
-				
-				if (savedColorCount === vertexCount) {
-					// Perfect match - use saved colors directly
-					const colors = new Float32Array(sculpture.vertexColors);
+				// Check if sculpture has saved vertex colors
+				if (sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+					const savedColorCount = sculpture.vertexColors.length / 3;
+
+					if (savedColorCount === vertexCount) {
+						// Perfect match - use saved colors directly
+						const colors = new Float32Array(sculpture.vertexColors);
+						const colorAttr = new BufferAttribute(colors, 3);
+						colorAttr.setUsage(DynamicDrawUsage);
+						geometry.setAttribute('color', colorAttr);
+					} else {
+						// Vertex count changed - resample colors by height
+						console.log(
+							`🎨 [SCULPTURE] Resampling colors: ${savedColorCount} → ${vertexCount} vertices`
+						);
+						const resampledColors = resampleVertexColors(
+							sculpture.vertexColors,
+							savedColorCount,
+							vertexCount,
+							geometry
+						);
+						const colorAttr = new BufferAttribute(resampledColors, 3);
+						colorAttr.setUsage(DynamicDrawUsage);
+						geometry.setAttribute('color', colorAttr);
+					}
+				} else if (uiStore.workspace === 'glaze') {
+					// Initialize with base color if no saved colors
+					const colors = new Float32Array(vertexCount * 3);
+					const baseColorObj = new Color(materialColor);
+
+					for (let i = 0; i < vertexCount; i++) {
+						colors[i * 3] = baseColorObj.r;
+						colors[i * 3 + 1] = baseColorObj.g;
+						colors[i * 3 + 2] = baseColorObj.b;
+					}
+
 					const colorAttr = new BufferAttribute(colors, 3);
 					colorAttr.setUsage(DynamicDrawUsage);
 					geometry.setAttribute('color', colorAttr);
-				} else {
-					// Vertex count changed - resample colors by height
-					console.log(
-						`🎨 [SCULPTURE] Resampling colors: ${savedColorCount} → ${vertexCount} vertices`
-					);
-					const resampledColors = resampleVertexColors(
-						sculpture.vertexColors,
-						savedColorCount,
-						vertexCount,
-						geometry
-					);
-					const colorAttr = new BufferAttribute(resampledColors, 3);
-					colorAttr.setUsage(DynamicDrawUsage);
-					geometry.setAttribute('color', colorAttr);
 				}
-			} else if (uiStore.workspace === 'glaze') {
-				// Initialize with base color if no saved colors
-				const colors = new Float32Array(vertexCount * 3);
-				const baseColorObj = new Color(materialColor);
-
-				for (let i = 0; i < vertexCount; i++) {
-					colors[i * 3] = baseColorObj.r;
-					colors[i * 3 + 1] = baseColorObj.g;
-					colors[i * 3 + 2] = baseColorObj.b;
-				}
-
-				const colorAttr = new BufferAttribute(colors, 3);
-				colorAttr.setUsage(DynamicDrawUsage);
-				geometry.setAttribute('color', colorAttr);
 			}
-		}
 
-		// DIRECTIVE 1: Apply TRUE vertex-level twist (spiral deformation)
-		if (sculpture.deformation && Math.abs(sculpture.deformation.twist) > 0.001) {
-			applyVertexTwist(geometry, sculpture.deformation.twist);
-		}
+			// DIRECTIVE 1: Apply TRUE vertex-level twist (spiral deformation)
+			if (sculpture.deformation && Math.abs(sculpture.deformation.twist) > 0.001) {
+				applyVertexTwist(geometry, sculpture.deformation.twist);
+			}
 
-		// Recalculate normals for proper lighting
-		geometry.computeVertexNormals();
+			// Recalculate normals for proper lighting
+			geometry.computeVertexNormals();
 
-		return geometry;
+			return geometry;
 		} catch (e) {
 			// DIRECTIVE 2: Safe Cylinder Fallback - ensure user always sees something
 			console.warn('⚠️ [SCULPTURE] Geometry Generation Failed:', e);
@@ -516,7 +495,7 @@
 		// DIRECTIVE 2: Safe Cylinder Fallback is now handled inside createGeometryFromSculpture
 		// Function now NEVER returns null - always returns valid geometry (fallback cylinder if needed)
 		const geometryToRender = createGeometryFromSculpture(currentSculpture);
-		
+
 		if (geometryToRender && meshRef) {
 			// DIRECTIVE 2: Apply zone visualization if zone is restricted
 			// Show zone dimming when zone sliders are being adjusted
@@ -529,7 +508,7 @@
 			const oldGeom = meshRef.geometry;
 			meshRef.geometry = geometryToRender;
 			if (oldGeom) oldGeom.dispose();
-			
+
 			// Recalculate normals for lighting
 			geometryToRender.computeVertexNormals();
 		}
@@ -584,114 +563,6 @@
 			}
 		}
 
-		// PHASE 3: Sonic Force Mode (Raycasting & Deformation)
-		if (uiStore.workspace === 'force') {
-			if (meshRef && reticleRef && camera.current) {
-				raycaster.setFromCamera(pointer, camera.current);
-				const intersects = raycaster.intersectObject(meshRef);
-
-				if (intersects.length > 0) {
-					const intersect = intersects[0];
-					const point = intersect.point;
-					const normal = intersect.face?.normal?.clone().transformDirection(meshRef.matrixWorld) || new Vector3(0, 1, 0);
-					
-					// Update Reticle
-					reticleRef.visible = true;
-					reticleRef.position.copy(point);
-					reticleRef.lookAt(point.clone().add(normal));
-					
-					// Reticle Radius (Pitch)
-					// Map Pitch (50-1000Hz) to Radius (0.5 - 0.05)
-					// Lower pitch = larger impact area
-					const pitch = analysisStore.latestFrame?.pitch || 200;
-					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 50) / 950));
-					const radius = 0.5 - (normalizedPitch * 0.45); // Range: 0.5 (low pitch) to 0.05 (high pitch)
-					
-					// Map Energy to Visual Scale pulsing
-					const energy = analysisStore.latestFrame?.energy || 0;
-					const pulse = 1 + energy * 0.5;
-					
-					// Scale reticle ring to match radius
-					// RingGeometry default is inner 0.8, outer 1.0. We scale it.
-					const scale = radius * pulse;
-					reticleRef.scale.set(scale, scale, scale);
-
-					// Reticle Color
-					// Red = Push (Subtractive), Green = Pull (Additive)
-					// Default to Push if not specified, but check sculptMode
-					const isPull = uiStore.sculptMode === 'additive'; // Green
-					const reticleMat = reticleRef.material as MeshBasicMaterial;
-					reticleMat.color.set(isPull ? '#00ff00' : '#ff0000');
-
-					// DEFORMATION LOGIC (Only when recording)
-					if (recordingStore.state === 'recording') {
-						const geometry = meshRef.geometry;
-						const positions = geometry.attributes.position;
-						const normals = geometry.attributes.normal;
-						const localPoint = meshRef.worldToLocal(point.clone());
-						
-						// Parameters from Force Panel
-						const damping = uiStore.forceParams.damping; // 0-1
-						const hardness = uiStore.forceParams.hardness; // 0-1
-						
-						// Strength calculation
-						// Energy (0-1) * Multiplier
-						// Hardness reduces effect
-						const forceStrength = (energy * 0.1) * (1 - hardness * 0.8);
-						const direction = isPull ? 1 : -1;
-
-						// DIRECTIVE: Apply damping to limit maximum displacement per frame
-						// Damping (0-1): 0 = no limit (instant), 1 = very viscous (slow, smooth)
-						// Higher damping = lower max displacement per frame = smoother deformation
-						const maxDisplacementPerFrame = 0.05 * (1 - damping * 0.9); // Range: 0.05 (no damping) to 0.005 (max damping)
-
-						const v = new Vector3();
-						const n = new Vector3();
-						let modified = false;
-
-						for (let i = 0; i < positions.count; i++) {
-							v.fromBufferAttribute(positions, i);
-							const dist = v.distanceTo(localPoint);
-							
-							if (dist < radius) {
-								// Falloff (Cosine window)
-								const falloff = 0.5 * (1 + Math.cos((Math.PI * dist) / radius));
-								
-								// Get normal
-								n.fromBufferAttribute(normals, i);
-								
-								// Calculate desired displacement
-								const desiredDisplacement = forceStrength * falloff * direction;
-								
-								// Apply damping: clamp displacement to max per frame
-								// This creates a viscous effect - higher damping = slower, smoother deformation
-								const clampedDisplacement = Math.max(
-									-maxDisplacementPerFrame,
-									Math.min(maxDisplacementPerFrame, desiredDisplacement)
-								);
-								
-								// Apply clamped displacement
-								v.addScaledVector(n, clampedDisplacement);
-								
-								positions.setXYZ(i, v.x, v.y, v.z);
-								modified = true;
-							}
-						}
-
-						if (modified) {
-							positions.needsUpdate = true;
-							geometry.computeVertexNormals();
-						}
-					}
-
-				} else {
-					reticleRef.visible = false;
-				}
-			}
-		} else if (reticleRef) {
-			reticleRef.visible = false;
-		}
-
 		if (recordingStore.state === 'recording') {
 			const frames = getCapturedFrames();
 			const isGlazeMode = uiStore.workspace === 'glaze';
@@ -738,7 +609,7 @@
 						const colorAttr = new BufferAttribute(colors, 3);
 						colorAttr.setUsage(DynamicDrawUsage);
 						existingGeom.setAttribute('color', colorAttr);
-						
+
 						// Mark for update
 						const existingColorAttr = existingGeom.attributes.color;
 						if (existingColorAttr) {
@@ -746,37 +617,12 @@
 						}
 					}
 				}
-			} else {
-				// SCULPT MODE: Update recording ring position and scale
-				if (frames.length > 0 && liveMeshRef) {
-					// Get the latest frame for current radius
-					const latestFrame = frames[frames.length - 1];
-					if (!latestFrame) return;
-
-					// Calculate radius from latest frame energy
-					const energy = latestFrame.energy || 0;
-					const radius = SCULPTURE_BASE_RADIUS + energy * SCULPTURE_SENSITIVITY;
-					const clampedRadius = Math.max(0.05, Math.min(SCULPTURE_MAX_RADIUS, radius));
-
-					// Calculate Y position based on recording progress (0 to 2, matching sculpture height)
-					// Progress is based on number of frames captured
-					const maxFrames = 1200; // ~20 seconds at 60fps
-					const progress = Math.min(1, frames.length / maxFrames);
-					const yPosition = progress * 2.0; // Scale to 0-2 range
-
-					// Update position to move up along Y-axis
-					liveMeshRef.position.y = yPosition;
-					
-					// Update scale to change radius (RingGeometry has inner/outer radius of ~0.095-0.1, so scale to match target)
-					const scale = clampedRadius * 10; // Scale up from 0.1 base radius
-					liveMeshRef.scale.set(scale, scale, scale);
-				}
+			} else if (sculpture && meshRef) {
+				// Modulate existing sculpture if needed (breathing effect)
+				// Only need to re-run if we want the breathing effect on the *static* sculpture during playback
+				// Currently createGeometryFromSculpture handles this if state is 'recording', but
+				// if we are using the separate Live Mesh, we might not need this block.
 			}
-		} else if (sculpture && meshRef) {
-			// Modulate existing sculpture if needed (breathing effect)
-			// Only need to re-run if we want the breathing effect on the *static* sculpture during playback
-			// Currently createGeometryFromSculpture handles this if state is 'recording', but
-			// if we are using the separate Live Mesh, we might not need this block.
 		}
 	});
 
@@ -974,7 +820,9 @@
 						(recordingStore.state === 'recording' &&
 							(uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					<T.MeshPhysicalMaterial
-						transmission={recordingStore.state === 'recording' ? 0 : sculpture.surface.glazeTransmission * 0.8}
+						transmission={recordingStore.state === 'recording'
+							? 0
+							: sculpture.surface.glazeTransmission * 0.8}
 						thickness={0.5}
 						roughness={sculpture.surface.textureRoughness}
 						clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
@@ -991,12 +839,13 @@
 			</T.Mesh>
 		{/if}
 
-		<!-- Ghost Mesh - Now sibling to Main Mesh, shares parent scale/rotation -->
-		<!-- DIRECTIVE 1 FIX: Ghost is now inside parent rig with main mesh (no more matcha whisk!) -->
-		<!-- DIRECTIVE 3 FIX: Ghost material now subtle - transparent, low opacity, wireframe blueprint style -->
-		<!-- DIRECTIVE 1: Disable frustum culling to prevent invisible mesh when bounding box is invalid -->
+		<!-- Ghost Mesh - Visible when enabled and not during recording -->
 		{#if sculptureStore.ghostSculpture}
-			<T.Mesh bind:ref={ghostMeshRef} frustumCulled={false}>
+			<T.Mesh
+				bind:ref={ghostMeshRef}
+				frustumCulled={false}
+				visible={uiStore.showGhost && recordingStore.state !== 'recording'}
+			>
 				<T.MeshPhysicalMaterial
 					color={ghostMaterialColor}
 					opacity={0.15}
@@ -1008,52 +857,5 @@
 				/>
 			</T.Mesh>
 		{/if}
-
-		<!-- PHASE 4.1: Subtractive Mode Visualization -->
-		<!-- Show a faint block wireframe when in subtractive mode to show what's being carved from -->
-		{#if sculpture?.physical.sculptMode === 'subtractive'}
-			<T.Mesh position={[0.15, 1, 0]}>
-				<T.BoxGeometry args={[0.3, 2, 0.3]} />
-				<T.MeshBasicMaterial
-					color="#888"
-					opacity={0.1}
-					transparent={true}
-					wireframe={true}
-					depthWrite={false}
-				/>
-			</T.Mesh>
-		{/if}
 	</T.Group>
-
-	<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
-	<!-- DIRECTIVE 2: This recording ring should NOT conflict with AnalysisVisualizer -->
-	<!-- AnalysisVisualizer handles lathe shapes, so this ring only shows for non-lathe shapes -->
-	<!-- Recording ring is a horizontal disc (parallel to XZ floor) that moves up along Y-axis -->
-	<!-- RingGeometry normal is along Z by default (XY plane), rotate -90° around X to make normal along Y (XZ plane/floor) -->
-	<!-- Position and scale are updated in useTask based on recording progress and audio energy -->
-	{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt' && sculpture && (sculpture.baseShape || 'lathe') !== 'lathe'}
-		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-			<!-- Fixed ring geometry: innerRadius=0.095, outerRadius=0.1, segments=32 -->
-			<!-- Scale is updated in useTask to change apparent radius -->
-			<T.RingGeometry args={[0.095, 0.1, 32]} />
-			<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
-			<T.MeshPhysicalMaterial
-				color="#ff4081"
-				emissive="#ff4081"
-				emissiveIntensity={0.2}
-				transmission={0.6}
-				thickness={0.2}
-				roughness={0.4}
-				clearcoat={0.5}
-				wireframe={false}
-			/>
-		</T.Mesh>
-	{/if}
-
-	<!-- PHASE 3: Reticle for Sonic Force Mode -->
-	<T.Mesh bind:ref={reticleRef} visible={false}>
-		<!-- Ring geometry for reticle -->
-		<T.RingGeometry args={[0.8, 1.0, 32]} />
-		<T.MeshBasicMaterial color="#ff0000" side={DoubleSide} transparent opacity={0.8} />
-	</T.Mesh>
 {/if}

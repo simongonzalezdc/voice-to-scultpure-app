@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { Info } from 'lucide-svelte';
-	
+
 	let damping = $state(uiStore.forceParams.damping);
 	let hardness = $state(uiStore.forceParams.hardness);
 

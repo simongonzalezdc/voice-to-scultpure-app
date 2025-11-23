@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	let { isOpen, onClose } = $props<{ isOpen: boolean; onClose: () => void }>();
 
 	const shortcuts = [
@@ -93,4 +91,3 @@
 		</div>
 	</div>
 {/if}
-

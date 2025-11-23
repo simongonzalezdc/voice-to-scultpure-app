@@ -12,7 +12,19 @@
 	import { getConstraintDescription } from '$lib/engine/constraints';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
-	import { Info, Cylinder, Circle, Box, FileText, Link, Mic, Lock, Sparkles, Wand, Printer } from 'lucide-svelte';
+	import {
+		Info,
+		Cylinder,
+		Circle,
+		Box,
+		FileText,
+		Link,
+		Mic,
+		Lock,
+		Sparkles,
+		Wand,
+		Printer
+	} from 'lucide-svelte';
 
 	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
@@ -25,6 +37,7 @@
 	let zoneMin = $state(0.0);
 	let zoneMax = $state(1.0);
 	let constraintMode = $derived(uiStore.constraintMode); // DIRECTIVE: Constraints in Design tab
+	let controlMode = $state(uiStore.controlMode);
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
@@ -53,6 +66,9 @@
 			zoneMin = uiStore.sculptZone.min;
 			zoneMax = uiStore.sculptZone.max;
 		}
+		
+		// Sync control mode from uiStore
+		controlMode = uiStore.controlMode;
 	});
 
 	function handlePointerDown() {
@@ -241,13 +257,47 @@
 <div class="surface-panel p-4 rounded-lg">
 	<h2 class="text-lg font-semibold mb-4">Sculpture Parameters</h2>
 	<div class="space-y-4">
+		<!-- Control Mode Selector (DIRECTIVE 3) -->
+		<div>
+			<p class="text-sm text-secondary block mb-2">Control Mode</p>
+			<div class="flex gap-2 mb-4">
+				<button
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
+					'standard'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						controlMode = 'standard';
+						setControlMode('standard');
+					}}
+					title="Standard Mode: Volume controls Radius"
+				>
+					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span>
+				</button>
+				<button
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
+					'melodic'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						controlMode = 'melodic';
+						setControlMode('melodic');
+					}}
+					title="Virtuoso Mode: Pitch controls Radius, Volume controls Twist"
+				>
+					<span class="flex items-center justify-center gap-2"><Music size={16} /> Virtuoso</span>
+				</button>
+			</div>
+		</div>
+
 		<!-- Base Shape Selector (DIRECTIVE 3: Sonic Force Mode) -->
 		<div>
-			<label class="text-sm text-secondary block mb-2">Base Shape</label>
+			<p class="text-sm text-secondary block mb-2">Base Shape</p>
 			<div class="grid grid-cols-4 gap-2">
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors {(!sculptureStore.currentSculpture?.baseShape || sculptureStore.currentSculpture?.baseShape === 'lathe')
+					class="px-3 py-2 text-sm rounded transition-colors {!sculptureStore.currentSculpture
+						?.baseShape || sculptureStore.currentSculpture?.baseShape === 'lathe'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => handleBaseShapeChange('lathe')}
@@ -257,7 +307,8 @@
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'sphere'
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture
+						?.baseShape === 'sphere'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => handleBaseShapeChange('sphere')}
@@ -267,7 +318,8 @@
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'cube'
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture
+						?.baseShape === 'cube'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => handleBaseShapeChange('cube')}
@@ -277,7 +329,8 @@
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture?.baseShape === 'plane'
+					class="px-3 py-2 text-sm rounded transition-colors {sculptureStore.currentSculpture
+						?.baseShape === 'plane'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => handleBaseShapeChange('plane')}
@@ -334,7 +387,10 @@
 						: '🔗 Link Twist to PITCH (hands-free control)'}
 					disabled={voiceLinksStore.twist === 'pitch'}
 				>
-					<Link size={14} class={voiceLinksStore.twist === 'pitch' ? 'opacity-100' : 'opacity-50'} />
+					<Link
+						size={14}
+						class={voiceLinksStore.twist === 'pitch' ? 'opacity-100' : 'opacity-50'}
+					/>
 				</button>
 				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
@@ -354,7 +410,9 @@
 				<span>-5 turns</span>
 				<span>+5 turns</span>
 				{#if voiceLinksStore.twist === 'pitch'}
-					<span class="text-brand-primary font-semibold flex items-center gap-1"><Mic size={12} /> Pitch Control</span>
+					<span class="text-brand-primary font-semibold flex items-center gap-1"
+						><Mic size={12} /> Pitch Control</span
+					>
 				{/if}
 			</div>
 		</div>
@@ -405,7 +463,10 @@
 						: '🔗 Link Roughness to TIMBRE (hands-free control)'}
 					disabled={voiceLinksStore.roughness === 'timbre'}
 				>
-					<Link size={14} class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100' : 'opacity-50'} />
+					<Link
+						size={14}
+						class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100' : 'opacity-50'}
+					/>
 				</button>
 				<span class="text-subtle opacity-50"><Info size={12} /></span>
 			</label>
@@ -425,7 +486,9 @@
 				<span>Low Poly</span>
 				<span>Smooth</span>
 				{#if voiceLinksStore.roughness === 'timbre'}
-					<span class="text-brand-primary font-semibold flex items-center gap-1"><Mic size={12} /> Timbre Control</span>
+					<span class="text-brand-primary font-semibold flex items-center gap-1"
+						><Mic size={12} /> Timbre Control</span
+					>
 				{/if}
 			</div>
 		</div>
@@ -579,7 +642,9 @@
 			<!-- Ceramic-specific info -->
 			{#if constraintMode === 'ceramic'}
 				<div class="p-2 rounded bg-[#2a1a1a] border border-[#8f3e48] text-xs">
-					<p class="text-[#e0a090] font-medium mb-1 flex items-center gap-1"><Cylinder size={12} /> Persistent Constraints:</p>
+					<p class="text-[#e0a090] font-medium mb-1 flex items-center gap-1">
+						<Cylinder size={12} /> Persistent Constraints:
+					</p>
 					<ul class="text-[#d0908a] space-y-0.5 list-disc list-inside text-xs">
 						<li>Min Width: 70mm (hand access)</li>
 						<li>Clay Smoothing: Audio jitter → smooth flow</li>

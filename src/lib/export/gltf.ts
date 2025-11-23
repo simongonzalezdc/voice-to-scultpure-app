@@ -1,12 +1,5 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import {
-	LatheGeometry,
-	Vector2,
-	Mesh,
-	MeshPhysicalMaterial,
-	BufferAttribute,
-	Color
-} from 'three';
+import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, BufferAttribute } from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { applyDeformation } from '$lib/engine/physicsMapping';
 
@@ -45,7 +38,7 @@ export async function exportSculptureToGLB(
 				// Resample colors by height (similar to Sculpture.svelte logic)
 				const colors = new Float32Array(vertexCount * 3);
 				const posArray = positions.array as Float32Array;
-				
+
 				// Find min/max Y for height normalization
 				let minY = Infinity;
 				let maxY = -Infinity;
@@ -55,21 +48,21 @@ export async function exportSculptureToGLB(
 					if (y > maxY) maxY = y;
 				}
 				const totalHeight = maxY - minY;
-				
+
 				if (totalHeight > 0) {
 					for (let i = 0; i < vertexCount; i++) {
 						const y = posArray[i * 3 + 1];
 						const normalizedHeight = (y - minY) / totalHeight;
 						const oldVertexIdx = Math.floor(normalizedHeight * (colorCount - 1));
 						const clampedIdx = Math.max(0, Math.min(colorCount - 1, oldVertexIdx));
-						
+
 						const colorIdx = clampedIdx * 3;
 						colors[i * 3] = sculpture.vertexColors[colorIdx] ?? 1.0;
 						colors[i * 3 + 1] = sculpture.vertexColors[colorIdx + 1] ?? 1.0;
 						colors[i * 3 + 2] = sculpture.vertexColors[colorIdx + 2] ?? 1.0;
 					}
 				}
-				
+
 				geometry.setAttribute('color', new BufferAttribute(colors, 3));
 			}
 		}

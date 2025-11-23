@@ -21,7 +21,6 @@
 		uiStore,
 		startOnboarding,
 		togglePanel,
-		toggleOrientation,
 		setOrientation,
 		setWorkspace
 	} from '$lib/stores/uiStore.svelte';
@@ -35,8 +34,7 @@
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import NewProjectModal from '$lib/components/modals/NewProjectModal.svelte';
 	import type { SculptureDefinition } from '$lib/types';
-	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
-	import { applyDeformation, createSculptureFromFrames } from '$lib/engine/physicsMapping';
+	import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 	import { Mic, MoveVertical, Orbit, Hammer, Palette } from 'lucide-svelte';
@@ -181,32 +179,6 @@
 		setCurrentSculpture(testSculpture);
 	}
 
-	function handleExportSTL() {
-		const sculpture = sculptureStore.currentSculpture;
-		if (!sculpture) {
-			alert('No sculpture to export. Please generate a test mesh or record audio first.');
-			return;
-		}
-
-		try {
-			// Apply current deformation parameters before export
-			const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
-
-			// Create a temporary sculpture with deformed curve for export
-			const exportSculpture: SculptureDefinition = {
-				...sculpture,
-				radiusCurve: deformedCurve
-			};
-
-			const stlContent = lathePointsToSTL(exportSculpture);
-			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
-			downloadSTL(stlContent, filename);
-		} catch (error) {
-			console.error('Export failed:', error);
-			alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
-		}
-	}
-
 	// Keyboard Shortcuts Modal
 	let showKeyboardShortcuts = $state(false);
 
@@ -299,11 +271,11 @@
 				<header class="app-header">
 					<div class="flex items-center gap-4">
 						<h1 class="text-lg font-semibold text-white mr-4">Voice-to-Sculpture Studio</h1>
-						
+
 						<!-- Central Workspace Switcher -->
 						<WorkspaceSwitcher />
 					</div>
-					
+
 					<div class="flex items-center gap-4">
 						<button
 							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
@@ -325,7 +297,7 @@
 					<div
 						role="region"
 						aria-label="3D Sculpture Canvas. Use mouse to rotate, scroll to zoom."
-						tabindex="0"
+						tabindex="-1"
 						class="w-full h-full focus:outline-none focus:ring-2 focus:ring-brand-primary"
 					>
 						<Canvas>
@@ -399,9 +371,13 @@
 						<!-- Status Bar (Right) - Context-Aware Legend -->
 						<div class="text-xs text-[#888] whitespace-nowrap flex items-center gap-2">
 							{#if uiStore.workspace === 'sculpt'}
-								<span class="flex items-center gap-1"><Hammer size={12} /> Pitch: Twist | Vol: Thickness | Attack: Cut</span>
+								<span class="flex items-center gap-1"
+									><Hammer size={12} /> Pitch: Twist | Vol: Thickness | Attack: Cut</span
+								>
 							{:else if uiStore.workspace === 'glaze'}
-								<span class="flex items-center gap-1"><Palette size={12} /> Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss</span>
+								<span class="flex items-center gap-1"
+									><Palette size={12} /> Pitch: Color | Vol: Opacity | Timbre: Matte/Gloss</span
+								>
 							{:else}
 								FPS: 60 | GPU: Ready
 							{/if}
@@ -416,10 +392,7 @@
 					class="fixed inset-0 flex items-center justify-center bg-black/50"
 					style="z-index: var(--z-modal-backdrop)"
 				>
-					<div
-						class="surface-panel p-6 rounded max-w-md w-full"
-						style="z-index: var(--z-modal)"
-					>
+					<div class="surface-panel p-6 rounded max-w-md w-full" style="z-index: var(--z-modal)">
 						<AIPanel />
 					</div>
 				</div>
@@ -429,10 +402,7 @@
 					class="fixed inset-0 flex items-center justify-center bg-black/50"
 					style="z-index: var(--z-modal-backdrop)"
 				>
-					<div
-						class="surface-panel p-6 rounded max-w-2xl w-full"
-						style="z-index: var(--z-modal)"
-					>
+					<div class="surface-panel p-6 rounded max-w-2xl w-full" style="z-index: var(--z-modal)">
 						<ProjectList />
 					</div>
 				</div>

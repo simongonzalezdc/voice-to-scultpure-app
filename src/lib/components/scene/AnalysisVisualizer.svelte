@@ -5,6 +5,8 @@
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
+	let { rotation = [0, 0, 0] } = $props<{ rotation?: [number, number, number] }>();
+
 	// Ring visualizer that scales with energy/mic level
 	// Base scale and responsive range
 	const BASE_SCALE = 0.3;
@@ -51,13 +53,79 @@
 	// DIRECTIVE 4: Hide ring visualizer for non-lathe shapes (especially sphere)
 	// In Force Mode, the "Reticle" (cursor ring) IS the visualizer
 	const baseShape = $derived(sculptureStore.currentSculpture?.baseShape || 'lathe');
-	
+
 	// Visibility check: only show during active recording AND for lathe shapes
 	let isVisible = $derived(
-		recordingStore.state === 'recording' && 
-		analysisStore.micLevel > 0.01 &&
-		baseShape === 'lathe' // Only show ring visualizer for lathe shapes
+		recordingStore.state === 'recording' && analysisStore.micLevel > 0.01 && baseShape === 'lathe' // Only show ring visualizer for lathe shapes
 	);
+
+	// DIRECTIVE 2: Virtuoso Visualizer
+	// If Virtuoso Mode is active, the visualizer behaves differently:
+	// Radius = Pitch
+	// Rotation = Volume
+	// Color = Timbre
+	let isVirtuoso = $derived(uiStore.controlMode === 'melodic');
+
+	// Scale Logic
+	// Standard: Scale = Volume
+	// Virtuoso: Scale = Pitch (Low pitch = Wide, High pitch = Narrow)
+	let virtuosoScale = $derived.by(() => {
+		if (!analysisStore.latestFrame?.pitch || analysisStore.latestFrame.pitch === 0) return BASE_SCALE;
+		// Map 80Hz-800Hz to Scale 1.5-0.3
+		const pitch = analysisStore.latestFrame.pitch;
+		const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / 720));
+		return 1.5 - normalizedPitch * 1.2;
+	});
+
+	let targetVisualScale = $derived(
+		isVirtuoso 
+			? virtuosoScale
+			: BASE_SCALE + analysisStore.micLevel * (MAX_SCALE - BASE_SCALE)
+	);
+
+	// Smooth interpolation for visual feedback using useTask (runs every frame)
+	useTask((delta) => {
+		const diff = targetVisualScale - currentScale;
+		currentScale += diff * SCALE_RESPONSIVENESS;
+
+		// Virtuoso Rotation: Spin based on volume
+		if (isVirtuoso) {
+			// Spin faster with more energy
+			const spinSpeed = analysisStore.micLevel * 5 * delta;
+			// Mutating props is generally not recommended if they are passed down, but here 'rotation' is a prop to T.Group
+			// We need a local rotation state.
+			// Ideally we'd bind rotation to a local state variable.
+		}
+	});
+	
+	// Local rotation state for Virtuoso spin
+	let spinRotation = $state(0);
+	
+	useTask((delta) => {
+		if (isVirtuoso) {
+			spinRotation += analysisStore.micLevel * 10 * delta;
+		} else {
+			spinRotation = 0;
+		}
+	});
+
+	// Virtuoso Color: Timbre -> Color
+	// Standard: Red/Garnet intensity
+	// Virtuoso: Blue (Pure) -> Orange (Raspy)
+	let virtuosoColor = $derived.by(() => {
+		const centroid = analysisStore.latestFrame?.timbre?.spectralCentroid || 0;
+		// Normalize 0-5000Hz
+		const t = Math.min(1, centroid / 5000);
+		// Lerp Blue to Orange
+		// Blue: rgb(50, 100, 255)
+		// Orange: rgb(255, 150, 50)
+		const r = Math.floor(50 + t * 205);
+		const g = Math.floor(100 + t * 50);
+		const b = Math.floor(255 - t * 205);
+		return `rgb(${r}, ${g}, ${b})`;
+	});
+
+	let finalColor = $derived(isVirtuoso ? virtuosoColor : ringColor);
 </script>
 
 <!-- Ring visualizer - visible only during active recording -->
@@ -65,18 +133,22 @@
 <!-- Pottery (Vertical): Ring flat on XZ plane - rotation={[Math.PI/2, 0, 0]} -->
 <!-- Lathe (Horizontal): Ring standing on YZ plane - rotation={[0, Math.PI/2, 0]} -->
 {#if isVisible}
-	<T.Group position={ringPosition}>
-		<!-- Outer ring (energy indicator) -->
-		<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}>
+	<T.Group position={ringPosition} rotation={[rotation[0], rotation[1] + spinRotation, rotation[2]]}>
+		<!-- Outer ring (energy/pitch indicator) -->
+		<T.Mesh
+			rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}
+		>
 			<T.TorusGeometry args={[currentScale, 0.02, 16, 32]} />
-			<T.MeshBasicMaterial color={ringColor} transparent opacity={0.6 + colorIntensity * 0.4} />
+			<T.MeshBasicMaterial color={finalColor} transparent opacity={0.6 + colorIntensity * 0.4} />
 		</T.Mesh>
 
-		<!-- Inner ring (pitch indicator) -->
+		<!-- Inner ring (pitch/timbre indicator) -->
 		{#if analysisStore.latestFrame?.pitch && analysisStore.latestFrame.pitch > 0}
 			{@const pitchScale = Math.min(1, analysisStore.latestFrame.pitch / 1000) * 0.5}
-			<T.Mesh rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}>
-				<T.TorusGeometry args={[currentScale * pitchScale, 0.01, 8, 16]} />
+			<T.Mesh
+				rotation={uiStore.orientation === 'horizontal' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]}
+			>
+				<T.TorusGeometry args={[currentScale * (isVirtuoso ? 0.8 : pitchScale), 0.01, 8, 16]} />
 				<T.MeshBasicMaterial color="#ffffff" transparent opacity={0.4} />
 			</T.Mesh>
 		{/if}

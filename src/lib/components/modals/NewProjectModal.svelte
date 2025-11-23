@@ -5,7 +5,6 @@
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { generateLathe } from '$lib/engine/physicsMapping';
 	import type { AnalysisFrame } from '$lib/types';
-	import { onMount } from 'svelte';
 
 	// Modal state
 	let isOpen = $derived(!sculptureStore.currentSculpture); // Show when no project active
@@ -147,7 +146,9 @@
 			aria-labelledby="modal-title"
 		>
 			<!-- Header -->
-			<h1 id="modal-title" class="text-2xl font-bold text-primary mb-2">🏺 New Sculpture Project</h1>
+			<h1 id="modal-title" class="text-2xl font-bold text-primary mb-2">
+				🏺 New Sculpture Project
+			</h1>
 			<p class="text-sm text-secondary mb-6">
 				Start with a canvas. Customize your initial parameters, then refine with the sliders.
 			</p>

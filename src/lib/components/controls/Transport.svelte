@@ -17,7 +17,7 @@
 	import { analysisStore as analysis } from '$lib/stores/analysisStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-	import { Mic, Circle, Palette, Hand, MoveVertical, Orbit } from 'lucide-svelte';
+	import { Circle, Palette, Hand } from 'lucide-svelte';
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
@@ -187,7 +187,7 @@
 	function getButtonColor(): string {
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		const isForceMode = uiStore.workspace === 'force';
-		
+
 		if (isGlazeMode) {
 			// Purple/Indigo for glaze mode
 			return recordingStore.state === 'recording'

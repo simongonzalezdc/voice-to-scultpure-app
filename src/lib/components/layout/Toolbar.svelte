@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { uiStore, togglePanel, toggleOrientation, openPanel } from '$lib/stores/uiStore.svelte';
+	import { uiStore, togglePanel, toggleOrientation } from '$lib/stores/uiStore.svelte';
 	import { Folder, Bot, MoveVertical, Orbit, Settings, HelpCircle, Gem } from 'lucide-svelte';
 
 	// Tool definitions
@@ -35,9 +35,7 @@
 	]);
 </script>
 
-<div
-	class="flex flex-col items-center w-16 bg-panel border-r border-subtle py-4 gap-4 z-toolbar"
->
+<div class="flex flex-col items-center w-16 bg-panel border-r border-subtle py-4 gap-4 z-toolbar">
 	<!-- Logo / Home -->
 	<div class="w-10 h-10 flex items-center justify-center text-brand-primary mb-4">
 		<Gem size={28} />
@@ -49,7 +47,7 @@
 			<button
 				class="w-full aspect-square flex flex-col items-center justify-center rounded transition-all duration-200 {tool.active
 					? 'bg-brand-primary text-white'
-					: 'text-secondary hover:text-white hover:bg-panel-alt'}"
+					: 'text-secondary hover:text-white hover:bg-panel'}"
 				onclick={tool.action}
 				title={tool.label}
 				aria-label={tool.label}
@@ -76,9 +74,6 @@
 	.bg-panel {
 		background-color: var(--bg-panel);
 	}
-	.bg-panel-alt {
-		background-color: var(--bg-panel-alt);
-	}
 	.border-subtle {
 		border-color: var(--border-subtle);
 	}
@@ -88,11 +83,7 @@
 	.bg-brand-primary {
 		background-color: var(--brand-primary);
 	}
-	.hover\:bg-panel-alt:hover {
-		background-color: var(--bg-panel-alt);
-	}
 	.z-toolbar {
 		z-index: var(--z-toolbar);
 	}
 </style>
-
