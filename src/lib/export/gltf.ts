@@ -1,5 +1,12 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial } from 'three';
+import {
+	LatheGeometry,
+	Vector2,
+	Mesh,
+	MeshPhysicalMaterial,
+	BufferAttribute,
+	Color
+} from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { applyDeformation } from '$lib/engine/physicsMapping';
 
@@ -16,9 +23,56 @@ export async function exportSculptureToGLB(
 		// Apply current deformation parameters before export
 		const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
 
+		// Determine segment count (match main sculpture logic)
+		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+		const segments = Math.floor(6 + roughnessInput * 58);
+
 		// Create geometry from deformed curve
 		const vectors = deformedCurve.map((p) => new Vector2(p.x, p.y));
-		const geometry = new LatheGeometry(vectors, 32);
+		const geometry = new LatheGeometry(vectors, segments);
+
+		// Apply vertex colors if available
+		if (sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+			const positions = geometry.attributes.position;
+			const vertexCount = positions.count;
+			const colorCount = sculpture.vertexColors.length / 3;
+
+			if (colorCount === vertexCount) {
+				// Perfect match - use saved colors directly
+				const colors = new Float32Array(sculpture.vertexColors);
+				geometry.setAttribute('color', new BufferAttribute(colors, 3));
+			} else if (colorCount > 0) {
+				// Resample colors by height (similar to Sculpture.svelte logic)
+				const colors = new Float32Array(vertexCount * 3);
+				const posArray = positions.array as Float32Array;
+				
+				// Find min/max Y for height normalization
+				let minY = Infinity;
+				let maxY = -Infinity;
+				for (let i = 0; i < vertexCount; i++) {
+					const y = posArray[i * 3 + 1];
+					if (y < minY) minY = y;
+					if (y > maxY) maxY = y;
+				}
+				const totalHeight = maxY - minY;
+				
+				if (totalHeight > 0) {
+					for (let i = 0; i < vertexCount; i++) {
+						const y = posArray[i * 3 + 1];
+						const normalizedHeight = (y - minY) / totalHeight;
+						const oldVertexIdx = Math.floor(normalizedHeight * (colorCount - 1));
+						const clampedIdx = Math.max(0, Math.min(colorCount - 1, oldVertexIdx));
+						
+						const colorIdx = clampedIdx * 3;
+						colors[i * 3] = sculpture.vertexColors[colorIdx] ?? 1.0;
+						colors[i * 3 + 1] = sculpture.vertexColors[colorIdx + 1] ?? 1.0;
+						colors[i * 3 + 2] = sculpture.vertexColors[colorIdx + 2] ?? 1.0;
+					}
+				}
+				
+				geometry.setAttribute('color', new BufferAttribute(colors, 3));
+			}
+		}
 
 		// Create material based on sculpture type
 		const isPlastic = sculpture.surface.materialType === 'plastic';
@@ -39,15 +93,20 @@ export async function exportSculptureToGLB(
 			// Blend base color with glaze color based on transmission
 			const blendedColor = blendColors(baseColor, glazeColor, sculpture.surface.glazeTransmission);
 
+			// Check if vertex colors are available
+			const hasVertexColors =
+				sculpture.vertexColors && sculpture.vertexColors.length > 0 && !!geometry.attributes.color;
+
 			material = new MeshPhysicalMaterial({
-				color: blendedColor,
+				color: hasVertexColors ? 'white' : blendedColor,
 				transmission: sculpture.surface.glazeTransmission * 0.8,
 				thickness: 0.5,
 				roughness: sculpture.surface.textureRoughness,
 				clearcoat: Math.max(0, sculpture.surface.glazeTransmission),
 				clearcoatRoughness: 0.1,
 				metalness: 0.1,
-				ior: 1.5
+				ior: 1.5,
+				vertexColors: hasVertexColors
 			});
 		}
 

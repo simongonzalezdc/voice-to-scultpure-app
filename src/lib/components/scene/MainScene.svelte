@@ -55,5 +55,38 @@
 <!-- Ghost Machines: Contextual Rigs (Pottery Wheel / Lathe) -->
 <GhostMachines />
 
+<!-- Axis Labels for Debugging - Colored lines with labels -->
+<T.Group position={[-3, 0, -3]}>
+	<!-- X Axis (Red) - Horizontal, left-right (parallel to floor) -->
+	<T.Mesh position={[1, 0, 0]}>
+		<T.BoxGeometry args={[2, 0.05, 0.05]} />
+		<T.MeshBasicMaterial color="#ff0000" />
+	</T.Mesh>
+	<T.Mesh position={[2.5, 0, 0]}>
+		<T.SphereGeometry args={[0.1, 8, 8]} />
+		<T.MeshBasicMaterial color="#ff0000" />
+	</T.Mesh>
+	
+	<!-- Y Axis (Green) - Vertical, up-down (perpendicular to floor) -->
+	<T.Mesh position={[0, 1, 0]}>
+		<T.BoxGeometry args={[0.05, 2, 0.05]} />
+		<T.MeshBasicMaterial color="#00ff00" />
+	</T.Mesh>
+	<T.Mesh position={[0, 2.5, 0]}>
+		<T.SphereGeometry args={[0.1, 8, 8]} />
+		<T.MeshBasicMaterial color="#00ff00" />
+	</T.Mesh>
+	
+	<!-- Z Axis (Blue) - Depth, forward-backward (parallel to floor) -->
+	<T.Mesh position={[0, 0, 1]}>
+		<T.BoxGeometry args={[0.05, 0.05, 2]} />
+		<T.MeshBasicMaterial color="#0000ff" />
+	</T.Mesh>
+	<T.Mesh position={[0, 0, 2.5]}>
+		<T.SphereGeometry args={[0.1, 8, 8]} />
+		<T.MeshBasicMaterial color="#0000ff" />
+	</T.Mesh>
+</T.Group>
+
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
 <AnalysisVisualizer />

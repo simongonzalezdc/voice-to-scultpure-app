@@ -3,6 +3,7 @@
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
+	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition } from '$lib/types';
 
@@ -108,6 +109,23 @@
 		} catch (error) {
 			console.error('GLB export failed:', error);
 			alert(`GLB export failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
+	function handleExportPLY() {
+		const sculpture = sculptureStore.currentSculpture;
+		if (!sculpture) {
+			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			return;
+		}
+
+		try {
+			const plyContent = exportSculptureToPLY(sculpture);
+			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.ply`;
+			downloadPLY(plyContent, filename);
+		} catch (error) {
+			console.error('PLY export failed:', error);
+			alert(`PLY export failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
@@ -295,22 +313,31 @@
 				<h3 class="text-sm font-semibold mb-3">Export</h3>
 
 				<div class="space-y-2">
-					<!-- STL Export (3D Printing) -->
-					<button
-						class="button-primary px-4 py-2 w-full text-sm"
-						type="button"
-						onclick={handleExportSTL}
-					>
-						Export STL (3D Print)
-					</button>
-
-					<!-- GLB Export (Universal 3D Format) -->
+					<!-- GLB Export (Universal 3D Format with Colors) -->
 					<button
 						class="button-primary px-4 py-2 w-full text-sm"
 						type="button"
 						onclick={handleExportGLB}
 					>
-						Export GLB (Universal 3D)
+						Export GLB (Universal 3D + Colors)
+					</button>
+
+					<!-- PLY Export (3D Printing with Colors) -->
+					<button
+						class="button-primary px-4 py-2 w-full text-sm"
+						type="button"
+						onclick={handleExportPLY}
+					>
+						Export PLY (3D Print + Colors)
+					</button>
+
+					<!-- STL Export (3D Printing, No Colors) -->
+					<button
+						class="button-secondary px-4 py-2 w-full text-sm"
+						type="button"
+						onclick={handleExportSTL}
+					>
+						Export STL (3D Print, No Colors)
 					</button>
 
 					<!-- Blueprint Export (Ceramic) -->
@@ -324,7 +351,9 @@
 				</div>
 
 				<p class="text-xs text-secondary mt-3">
-					<strong>STL:</strong> For 3D printing. Includes wall thickness if specified.<br />
+					<strong>GLB:</strong> Universal 3D format with vertex colors. Works in Blender, Unity, web viewers.<br />
+					<strong>PLY:</strong> For colored 3D printing. Includes vertex colors from glaze painting.<br />
+					<strong>STL:</strong> Standard 3D printing format (no colors). Includes wall thickness if specified.<br />
 					<strong>Blueprint:</strong> Print at 1:1 scale, cut out, use as pottery wheel profile rib.
 				</p>
 			</div>

@@ -9,13 +9,14 @@
 	import { recordingStore, getCapturedFrames, type RecordingState } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { LatheGeometry, Vector2, Mesh, Color, BufferAttribute, DynamicDrawUsage } from 'three';
+	import { LatheGeometry, Vector2, Mesh, Color, BufferAttribute, DynamicDrawUsage, RingGeometry } from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
+	import { SCULPTURE_BASE_RADIUS, SCULPTURE_MAX_RADIUS, SCULPTURE_SENSITIVITY } from '$lib/config/constants';
 	import {
 		voiceLinksStore,
 		pitchToTwist,
@@ -493,39 +494,29 @@
 					}
 				}
 			} else {
-				// SCULPT MODE: Update geometry from frames
+				// SCULPT MODE: Update recording ring position and scale
 				if (frames.length > 0 && liveMeshRef) {
-					// Get sculpt mode from current sculpture or default to 'additive'
-					const mode = sculpture?.physical.sculptMode ?? 'additive';
+					// Get the latest frame for current radius
+					const latestFrame = frames[frames.length - 1];
+					if (!latestFrame) return;
 
-					// DIRECTIVE 4: Pass zone parameter for zone sculpting
-					const zone =
-						uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1
-							? uiStore.sculptZone
-							: undefined;
+					// Calculate radius from latest frame energy
+					const energy = latestFrame.energy || 0;
+					const radius = SCULPTURE_BASE_RADIUS + energy * SCULPTURE_SENSITIVITY;
+					const clampedRadius = Math.max(0.05, Math.min(SCULPTURE_MAX_RADIUS, radius));
 
-					// Generate geometry on the fly from current frames with sculpt mode, zone, and constraints
-					const profile = generateLathe(
-						frames,
-						appSettings.userProfile,
-						mode,
-						zone,
-						uiStore.constraintMode
-					);
+					// Calculate Y position based on recording progress (0 to 2, matching sculpture height)
+					// Progress is based on number of frames captured
+					const maxFrames = 1200; // ~20 seconds at 60fps
+					const progress = Math.min(1, frames.length / maxFrames);
+					const yPosition = progress * 2.0; // Scale to 0-2 range
 
-					// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
-					if (!profile || profile.length === 0) return;
-					const validProfile = profile.filter(
-						(p) => p && typeof p.x === 'number' && typeof p.y === 'number'
-					);
-					if (validProfile.length < 2) return;
-
-					const vectors = validProfile.map((p) => new Vector2(p.x, p.y));
-					const newGeom = new LatheGeometry(vectors, 32);
-
-					const oldGeom = liveMeshRef.geometry;
-					liveMeshRef.geometry = newGeom;
-					if (oldGeom) oldGeom.dispose();
+					// Update position to move up along Y-axis
+					liveMeshRef.position.y = yPosition;
+					
+					// Update scale to change radius (RingGeometry has inner/outer radius of ~0.095-0.1, so scale to match target)
+					const scale = clampedRadius * 10; // Scale up from 0.1 base radius
+					liveMeshRef.scale.set(scale, scale, scale);
 				}
 			}
 		} else if (sculpture && meshRef) {
@@ -685,8 +676,8 @@
 {#if sculpture || recordingStore.state === 'recording'}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
-		<!-- Main Sculpture (Visible during glaze mode recording, hidden during sculpt mode recording) -->
-		{#if sculpture && (recordingStore.state !== 'recording' || uiStore.workspace === 'glaze')}
+		<!-- Main Sculpture (Always visible when sculpture exists) -->
+		{#if sculpture}
 			<T.Mesh bind:ref={meshRef} castShadow receiveShadow>
 				<!-- DIRECTIVE 3: Material Optimization
 				     Threlte's <T.MeshPhysicalMaterial> uses Svelte's reactivity system.
@@ -714,7 +705,7 @@
 						(recordingStore.state === 'recording' &&
 							(uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1))}
 					<T.MeshPhysicalMaterial
-						transmission={sculpture.surface.glazeTransmission * 0.8}
+						transmission={recordingStore.state === 'recording' ? 0 : sculpture.surface.glazeTransmission * 0.8}
 						thickness={0.5}
 						roughness={sculpture.surface.textureRoughness}
 						clearcoat={Math.max(0, sculpture.surface.glazeTransmission)}
@@ -724,25 +715,10 @@
 						ior={1.5}
 						envMapIntensity={1.0}
 						vertexColors={hasVertexColors}
+						opacity={1.0}
+						transparent={false}
 					/>
 				{/if}
-			</T.Mesh>
-		{/if}
-
-		<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
-		{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt'}
-			<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow>
-				<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
-				<T.MeshPhysicalMaterial
-					color="#ff4081"
-					emissive="#ff4081"
-					emissiveIntensity={0.2}
-					transmission={0.6}
-					thickness={0.2}
-					roughness={0.4}
-					clearcoat={0.5}
-					wireframe={false}
-				/>
 			</T.Mesh>
 		{/if}
 
@@ -778,4 +754,27 @@
 			</T.Mesh>
 		{/if}
 	</T.Group>
+
+	<!-- Live Sculpture (Visible ONLY during sculpt mode recording) -->
+	<!-- Recording ring is a horizontal disc (parallel to XZ floor) that moves up along Y-axis -->
+	<!-- RingGeometry normal is along Z by default (XY plane), rotate -90° around X to make normal along Y (XZ plane/floor) -->
+	<!-- Position and scale are updated in useTask based on recording progress and audio energy -->
+	{#if recordingStore.state === 'recording' && uiStore.workspace === 'sculpt'}
+		<T.Mesh bind:ref={liveMeshRef} castShadow receiveShadow position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+			<!-- Fixed ring geometry: innerRadius=0.095, outerRadius=0.1, segments=32 -->
+			<!-- Scale is updated in useTask to change apparent radius -->
+			<T.RingGeometry args={[0.095, 0.1, 32]} />
+			<!-- Live Material: Ghostly/Holographic representation of the incoming voice -->
+			<T.MeshPhysicalMaterial
+				color="#ff4081"
+				emissive="#ff4081"
+				emissiveIntensity={0.2}
+				transmission={0.6}
+				thickness={0.2}
+				roughness={0.4}
+				clearcoat={0.5}
+				wireframe={false}
+			/>
+		</T.Mesh>
+	{/if}
 {/if}
