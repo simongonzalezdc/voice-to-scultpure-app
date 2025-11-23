@@ -33,6 +33,7 @@ export const uiStore = $state<{
 		min: number; // 0.0 = bottom
 		max: number; // 1.0 = top
 	};
+	constraintMode: 'digital' | 'ceramic' | '3d_print';
 }>({
 	panels: {
 		aiPanel: false,
@@ -60,7 +61,8 @@ export const uiStore = $state<{
 	sculptZone: {
 		min: 0.0, // Default: entire height (bottom)
 		max: 1.0  // Default: entire height (top)
-	}
+	},
+	constraintMode: 'digital' // Default: no constraints
 });
 
 export function togglePanel(panel: keyof typeof uiStore.panels): void {
@@ -153,5 +155,9 @@ export function setSculptZone(min: number, max: number): void {
 		min: Math.max(0, Math.min(1, min)),
 		max: Math.max(0, Math.min(1, max))
 	};
+}
+
+export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
+	uiStore.constraintMode = mode;
 }
 

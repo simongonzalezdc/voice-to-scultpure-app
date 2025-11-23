@@ -8,7 +8,24 @@
 
 	// Live monitoring: Reactive color based on voice input (no recording needed)
 	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
-	let liveEnergy = $derived(analysisStore.micLevel);
+	
+	// DIRECTIVE 1: Apply Exponential Noise Gate (matches physicsMapping.ts)
+	// Cut off bottom 10% and apply exponential curve to ignore background noise
+	const NOISE_FLOOR = 0.1;
+	const EXPONENT = 2.5;
+	const ENERGY_MULTIPLIER = 4.0;
+	
+	let rawEnergy = $derived(analysisStore.micLevel);
+	let liveEnergy = $derived.by(() => {
+		// 1. Apply Noise Gate (Cut off bottom 10%)
+		const gatedEnergy = Math.max(0, rawEnergy - NOISE_FLOOR);
+		
+		// 2. Apply Exponential Curve (Crush background noise, boost loud sounds)
+		// Matches the feel of the Sculpt Mode
+		const nonLinearEnergy = Math.pow(gatedEnergy, EXPONENT) * ENERGY_MULTIPLIER;
+		return Math.min(1.0, nonLinearEnergy);
+	});
+	
 	let liveTimbre = $derived(analysisStore.latestFrame?.timbre?.spectralCentroid || 0);
 
 	// DIRECTIVE 1: Retune Pitch-to-Hue for Human Vocal Range
@@ -227,6 +244,9 @@
 					🔊 Vol: <span class="text-white font-bold">{Math.round(liveEnergy * 100)}%</span>
 					<span class="text-[#888]">
 						({liveEnergy < 0.3 ? 'Quiet' : liveEnergy < 0.6 ? 'Medium' : 'Loud - Vivid!'})
+					</span>
+					<span class="text-[#666] text-xs ml-1">
+						(Raw: {Math.round(rawEnergy * 100)}%)
 					</span>
 				</div>
 			{:else}

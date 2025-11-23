@@ -112,9 +112,17 @@ export function stopRecording(): void {
 					? uiStore.sculptZone 
 					: undefined;
 				
-				const sculpture = createSculptureFromFrames(frames, appSettings.userProfile, undefined, mode, zone);
+				// Pass constraint mode for fabrication constraints
+				const sculpture = createSculptureFromFrames(
+					frames, 
+					appSettings.userProfile, 
+					undefined, 
+					mode, 
+					zone,
+					uiStore.constraintMode
+				);
 				setCurrentSculpture(sculpture);
-				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''}`);
+				console.log(`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''} [constraints: ${uiStore.constraintMode}]`);
 			}
 		} else {
 			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');

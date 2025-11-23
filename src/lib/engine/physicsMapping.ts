@@ -1,5 +1,6 @@
 import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
 import { Color } from 'three';
+import { applyConstraints, type ConstraintMode } from './constraints';
 
 // Geometric design constants
 const BASE_RADIUS = 0.5; 
@@ -21,7 +22,8 @@ export function generateLathe(
 	frames: AnalysisFrame[], 
 	profile?: UserProfile,
 	mode: 'additive' | 'subtractive' = 'additive',
-	zone?: { min: number; max: number } // DIRECTIVE 4: Zone Sculpting
+	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone Sculpting
+	constraintMode: ConstraintMode = 'digital' // Fabrication constraints
 ): LathePoint[] {
 	// 1. Safety: If empty, return hourglass (so we know it failed)
 	if (!frames.length) return createHourglass(); 
@@ -47,8 +49,8 @@ export function generateLathe(
 	// Track previous frame for attack detection
 	let previousFrame: AnalysisFrame | null = null;
 
-	// 3. Map Frames to Points
-	return sampledFrames.map((frame, index) => {
+	// 3. Map Frames to Points (Raw curve from audio)
+	const rawCurve = sampledFrames.map((frame, index) => {
 		// AGGRESSIVE MAPPING
 		let energy = frame.energy || 0;
 		
@@ -147,6 +149,13 @@ export function generateLathe(
 
 		return { x: Math.max(MIN_RADIUS, radius + totalJitter), y: normalizedHeight };
 	});
+
+	// 4. DIRECTIVE 3: Apply Fabrication Constraints
+	// This ensures the geometry is physically manufacturable
+	// Non-destructive: Original recording is preserved, but output geometry is sanitized
+	const constrainedCurve = applyConstraints(rawCurve, constraintMode);
+
+	return constrainedCurve;
 }
 
 export function applyDeformation(
@@ -287,9 +296,10 @@ export function createSculptureFromFrames(
 	profile?: UserProfile,
 	name?: string,
 	mode: 'additive' | 'subtractive' = 'additive',
-	zone?: { min: number; max: number } // DIRECTIVE 4: Zone parameter
+	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone parameter
+	constraintMode: ConstraintMode = 'digital' // Fabrication constraints
 ): SculptureDefinition {
-	const radiusCurve = generateLathe(frames, profile, mode, zone);
+	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode);
 	const surface = deriveSurfaceParameters(frames, profile);
 
 	return {

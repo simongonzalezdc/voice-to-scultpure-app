@@ -138,7 +138,9 @@
 		}
 	}
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-import { uiStore, closePanel } from '$lib/stores/uiStore.svelte';
+import { uiStore, closePanel, setConstraintMode } from '$lib/stores/uiStore.svelte';
+import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
+import type { ConstraintMode } from '$lib/engine/constraints';
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);
@@ -150,6 +152,14 @@ import { uiStore, closePanel } from '$lib/stores/uiStore.svelte';
 				potteryMode: !potteryMode
 			}
 		});
+	}
+
+	// Get Constraint Mode
+	let constraintMode = $derived(uiStore.constraintMode);
+	let constraintDescription = $derived(getConstraintDescription(constraintMode));
+
+	function handleConstraintModeChange(mode: ConstraintMode) {
+		setConstraintMode(mode);
 	}
 
 	function handleClose() {
@@ -173,6 +183,52 @@ import { uiStore, closePanel } from '$lib/stores/uiStore.svelte';
 		<p class="text-secondary mb-4">No sculpture loaded. Generate a test mesh or record audio first.</p>
 	{:else}
 		<div class="space-y-4">
+			<!-- Physics Constraints -->
+			<div class="pb-4 border-b border-subtle">
+				<h3 class="text-sm font-semibold mb-2 text-secondary">Physics Constraints</h3>
+				<div class="space-y-2">
+					<!-- Constraint Mode Selector -->
+					<div class="grid grid-cols-3 gap-2">
+						<button
+							type="button"
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'digital' 
+								? 'bg-brand-primary text-white' 
+								: 'surface-panel-alt text-secondary hover:text-primary'}"
+							onclick={() => handleConstraintModeChange('digital')}
+							title={getConstraintDescription('digital')}
+						>
+							{getConstraintIcon('digital')} Digital
+						</button>
+						<button
+							type="button"
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === 'ceramic' 
+								? 'bg-brand-primary text-white' 
+								: 'surface-panel-alt text-secondary hover:text-primary'}"
+							onclick={() => handleConstraintModeChange('ceramic')}
+							title={getConstraintDescription('ceramic')}
+						>
+							{getConstraintIcon('ceramic')} Ceramic
+						</button>
+						<button
+							type="button"
+							class="px-3 py-2 text-sm rounded transition-colors {constraintMode === '3d_print' 
+								? 'bg-brand-primary text-white' 
+								: 'surface-panel-alt text-secondary hover:text-primary'}"
+							onclick={() => handleConstraintModeChange('3d_print')}
+							title={getConstraintDescription('3d_print')}
+						>
+							{getConstraintIcon('3d_print')} 3D Print
+						</button>
+					</div>
+					<!-- Constraint Description -->
+					<div class="surface-panel-alt p-3 rounded">
+						<p class="text-xs text-secondary leading-relaxed">
+							{constraintDescription}
+						</p>
+					</div>
+				</div>
+			</div>
+
 			<!-- View Settings (Pottery Mode) -->
 			<div class="pb-4 border-b border-subtle">
 				<h3 class="text-sm font-semibold mb-2 text-secondary">View Mode</h3>

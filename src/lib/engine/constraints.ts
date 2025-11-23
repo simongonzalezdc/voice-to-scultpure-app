@@ -1,0 +1,203 @@
+/**
+ * Fabrication Constraint Engine
+ * Applies physical manufacturing constraints to ensure producibility
+ * 
+ * @module constraints
+ */
+
+import type { LathePoint } from '$lib/types';
+
+export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
+
+/**
+ * Apply fabrication constraints to a radius curve based on the output medium
+ * @param curve - Original radius curve from audio analysis
+ * @param mode - Constraint mode (digital, ceramic, 3d_print)
+ * @returns Constrained curve that is physically manufacturable
+ */
+export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): LathePoint[] {
+	if (curve.length < 2) {
+		return curve;
+	}
+
+	switch (mode) {
+		case 'digital':
+			return applyDigitalConstraints(curve);
+		case 'ceramic':
+			return applyCeramicConstraints(curve);
+		case '3d_print':
+			return apply3DPrintConstraints(curve);
+		default:
+			return curve;
+	}
+}
+
+/**
+ * Digital Mode: No constraints (infinite freedom)
+ */
+function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
+	// Return unchanged - full creative freedom
+	return curve;
+}
+
+/**
+ * Ceramic Mode: Pottery wheel physics
+ * Ensures hand access, prevents collapse, maintains stability
+ */
+function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
+	const constrained = curve.map(p => ({ ...p })); // Deep copy
+	const MIN_HAND_RADIUS = 0.04; // 40mm in meters (hand width)
+	const MAX_OVERHANG_ANGLE = 45; // degrees
+	const BASE_STABILITY_RATIO = 1.5; // Base should be 1.5x wider than average
+
+	// RULE A: Hand Access - Ensure minimum radius for hand entry
+	// Exception: Top 5% (rim) can be narrower
+	const topThreshold = 0.95; // Top 5% exempt
+	for (let i = 0; i < constrained.length; i++) {
+		const normalizedHeight = constrained[i].y;
+		
+		// Allow rim to close (top 5%)
+		if (normalizedHeight < topThreshold) {
+			// Enforce minimum radius for hand access
+			if (constrained[i].x < MIN_HAND_RADIUS) {
+				constrained[i].x = MIN_HAND_RADIUS;
+			}
+		}
+	}
+
+	// RULE B: Gravity/Slump - Limit outward overhang
+	// Clay cannot grow outward more than 45° without collapsing
+	for (let i = 1; i < constrained.length; i++) {
+		const prevPoint = constrained[i - 1];
+		const currPoint = constrained[i];
+		
+		const dy = Math.abs(currPoint.y - prevPoint.y);
+		const dx = currPoint.x - prevPoint.x;
+		
+		// If growing outward (dx > 0), check angle
+		if (dx > 0 && dy > 0) {
+			const angle = Math.atan(dx / dy) * (180 / Math.PI);
+			
+			if (angle > MAX_OVERHANG_ANGLE) {
+				// Clamp to max overhang angle
+				const maxDx = dy * Math.tan(MAX_OVERHANG_ANGLE * Math.PI / 180);
+				constrained[i].x = prevPoint.x + maxDx;
+			}
+		}
+	}
+
+	// RULE C: Base Stability - Wide base to support upper mass
+	// Bottom 10% should be wider than average radius
+	const baseThreshold = 0.1;
+	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
+	const minBaseRadius = averageRadius * BASE_STABILITY_RATIO;
+
+	for (let i = 0; i < constrained.length; i++) {
+		if (constrained[i].y < baseThreshold) {
+			// Enforce wide base
+			if (constrained[i].x < minBaseRadius) {
+				constrained[i].x = minBaseRadius;
+			}
+		}
+	}
+
+	return constrained;
+}
+
+/**
+ * 3D Print Mode: FDM slicer logic
+ * Prevents excessive overhangs, ensures contiguous geometry
+ */
+function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
+	const constrained = curve.map(p => ({ ...p })); // Deep copy
+	const MAX_OVERHANG_ANGLE = 60; // degrees (FDM typical: 45-60°)
+	const MIN_RADIUS = 0.001; // 1mm minimum (prevents zero-radius gaps)
+	const LAYER_HEIGHT = 0.0002; // 0.2mm typical layer height
+
+	// RULE A: Overhang Constraints
+	// Limit how fast radius can grow relative to layer height
+	for (let i = 1; i < constrained.length; i++) {
+		const prevPoint = constrained[i - 1];
+		const currPoint = constrained[i];
+		
+		const dy = Math.abs(currPoint.y - prevPoint.y);
+		const dx = currPoint.x - prevPoint.x;
+		
+		// If growing outward, check overhang angle
+		if (dx > 0 && dy > 0) {
+			// Calculate angle from vertical
+			const angle = Math.atan(dx / dy) * (180 / Math.PI);
+			
+			if (angle > MAX_OVERHANG_ANGLE) {
+				// Clamp to max printable overhang
+				const maxDx = dy * Math.tan(MAX_OVERHANG_ANGLE * Math.PI / 180);
+				constrained[i].x = prevPoint.x + maxDx;
+			}
+		}
+		
+		// Inward slopes are fine (no support needed when printing)
+		// But we smooth sharp inward transitions to avoid bridging issues
+		if (dx < 0) {
+			const maxNegativeDx = -dy * Math.tan(75 * Math.PI / 180); // Allow steep inward
+			if (dx < maxNegativeDx) {
+				constrained[i].x = prevPoint.x + maxNegativeDx;
+			}
+		}
+	}
+
+	// RULE B: No Floating Islands - Ensure contiguous geometry
+	// Enforce minimum radius to prevent zero-width sections
+	for (let i = 0; i < constrained.length; i++) {
+		if (constrained[i].x < MIN_RADIUS) {
+			constrained[i].x = MIN_RADIUS;
+		}
+	}
+
+	// Additional: Smooth bottom layer for bed adhesion
+	// First point should have good contact area
+	if (constrained.length > 0) {
+		const firstLayerMinRadius = 0.01; // 10mm minimum first layer
+		if (constrained[0].x < firstLayerMinRadius) {
+			constrained[0].x = firstLayerMinRadius;
+		}
+	}
+
+	return constrained;
+}
+
+/**
+ * Get a human-readable description of constraints for a given mode
+ * @param mode - Constraint mode
+ * @returns Description string for UI tooltips
+ */
+export function getConstraintDescription(mode: ConstraintMode): string {
+	switch (mode) {
+		case 'digital':
+			return 'No constraints - full creative freedom. May produce impossible shapes.';
+		case 'ceramic':
+			return 'Pottery wheel physics: ensures hand access (40mm min), prevents collapse (45° max overhang), stable base.';
+		case '3d_print':
+			return 'FDM printer constraints: limits overhangs to 60°, prevents floating geometry, ensures bed adhesion.';
+		default:
+			return 'Unknown constraint mode';
+	}
+}
+
+/**
+ * Get icon/emoji for constraint mode
+ * @param mode - Constraint mode
+ * @returns Emoji icon
+ */
+export function getConstraintIcon(mode: ConstraintMode): string {
+	switch (mode) {
+		case 'digital':
+			return '🪄';
+		case 'ceramic':
+			return '🏺';
+		case '3d_print':
+			return '🖨️';
+		default:
+			return '📐';
+	}
+}
+

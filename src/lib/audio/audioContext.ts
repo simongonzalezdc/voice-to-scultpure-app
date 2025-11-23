@@ -11,6 +11,10 @@ let gainNode: GainNode | null = null; // Directive 2: Keep graph alive
 let inputGainNode: GainNode | null = null; // Mic sensitivity boost
 const MIC_SENSITIVITY_MULTIPLIER = 3.0; // Increase mic sensitivity (1.0 = normal, 3.0 = 3x boost)
 
+// CRITICAL FIX: Volume smoothing to prevent jitter
+let smoothedMicLevel = 0;
+const SMOOTHING_FACTOR = 0.15; // Lower = smoother (0.1-0.3 is good range)
+
 // Store module reference (imported once, not in polling loop)
 let analysisStoreModule: typeof import('$lib/stores/analysisStore.svelte') | null = null;
 
@@ -142,11 +146,24 @@ export async function startVisualizerBypass(): Promise<void> {
 		}
 		let rms = Math.sqrt(sum / analyserDataArray.length);
 		
-		// Apply additional sensitivity boost to RMS calculation
+		// Apply sensitivity boost
 		rms = Math.min(1.0, rms * MIC_SENSITIVITY_MULTIPLIER);
+		
+		// CRITICAL FIX: Exponential Moving Average smoothing to prevent jitter
+		// This prevents wild 0-100 jumps by gradually following the signal
+		smoothedMicLevel = smoothedMicLevel + SMOOTHING_FACTOR * (rms - smoothedMicLevel);
+		
+		// DIRECTIVE 3: Add signal threshold for pitch detection
+		// Don't guess pitch for silence (prevents false positives from noise)
+		const SIGNAL_THRESHOLD = 0.02; // Lowered from 0.05 for more sensitivity
+		if (smoothedMicLevel < SIGNAL_THRESHOLD) {
+			// Too quiet - just update mic level with smoothed value
+			analysisStoreModule.updateMicLevel(smoothedMicLevel);
+			return;
+		}
 
-		// Directly update store (module already imported)
-		analysisStoreModule.updateMicLevel(rms);
+		// Directly update store with SMOOTHED value (no more jitter!)
+		analysisStoreModule.updateMicLevel(smoothedMicLevel);
 	};
 
 	// Poll at ~60fps

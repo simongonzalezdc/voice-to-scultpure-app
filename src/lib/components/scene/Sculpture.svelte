@@ -303,12 +303,12 @@ import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 					const mode = sculpture?.physical.sculptMode ?? 'additive';
 					
 					// DIRECTIVE 4: Pass zone parameter for zone sculpting
-					const zone = (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1) 
-						? uiStore.sculptZone 
-						: undefined;
-					
-					// Generate geometry on the fly from current frames with sculpt mode and zone
-					const profile = generateLathe(frames, appSettings.userProfile, mode, zone);
+				const zone = (uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1) 
+					? uiStore.sculptZone 
+					: undefined;
+				
+				// Generate geometry on the fly from current frames with sculpt mode, zone, and constraints
+				const profile = generateLathe(frames, appSettings.userProfile, mode, zone, uiStore.constraintMode);
 					
 					// ISSUE 1 FIX: Crash Guard - Filter out undefined/invalid points before mapping
 					if (!profile || profile.length === 0) return;

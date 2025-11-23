@@ -57,43 +57,83 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 }
 
 function estimatePitch(audioData: Float32Array, sampleRate: number): number | null {
-	// Simple autocorrelation-based pitch estimation
-	const minPeriod = Math.floor(sampleRate / 800); // Max 800Hz
-	const maxPeriod = Math.floor(sampleRate / 80); // Min 80Hz
-
-	let maxCorrelation = 0;
-	let bestPeriod = 0;
-
-	for (let period = minPeriod; period < maxPeriod && period < audioData.length / 2; period++) {
-		let correlation = 0;
-		for (let i = 0; i < audioData.length - period; i++) {
-			correlation += audioData[i] * audioData[i + period];
+	// IMPROVED autocorrelation with pre-processing for 512-sample buffer
+	
+	// Step 1: Pre-process - Remove DC offset and normalize
+	let sum = 0;
+	for (let i = 0; i < audioData.length; i++) {
+		sum += audioData[i];
+	}
+	const mean = sum / audioData.length;
+	
+	// Create centered signal
+	const centered = new Float32Array(audioData.length);
+	let maxAbs = 0;
+	for (let i = 0; i < audioData.length; i++) {
+		centered[i] = audioData[i] - mean;
+		maxAbs = Math.max(maxAbs, Math.abs(centered[i]));
+	}
+	
+	// Normalize to prevent very quiet signals from failing
+	if (maxAbs > 0) {
+		for (let i = 0; i < centered.length; i++) {
+			centered[i] /= maxAbs;
 		}
-		correlation /= audioData.length - period;
+	}
+	
+	// Step 2: Autocorrelation with improved algorithm
+	const minPeriod = Math.floor(sampleRate / 800); // Max 800Hz
+	const maxPeriod = Math.min(
+		Math.floor(sampleRate / 80), // Min 80Hz
+		Math.floor(centered.length / 2) // Don't exceed half buffer
+	);
 
-		if (correlation > maxCorrelation) {
-			maxCorrelation = correlation;
+	let maxCorrelation = -1;
+	let bestPeriod = 0;
+	
+	// Calculate autocorrelation with normalization
+	for (let period = minPeriod; period < maxPeriod; period++) {
+		let correlation = 0;
+		let energy1 = 0;
+		let energy2 = 0;
+		
+		for (let i = 0; i < centered.length - period; i++) {
+			correlation += centered[i] * centered[i + period];
+			energy1 += centered[i] * centered[i];
+			energy2 += centered[i + period] * centered[i + period];
+		}
+		
+		// Normalized correlation (prevents bias toward loud signals)
+		const normalizedCorr = energy1 > 0 && energy2 > 0 
+			? correlation / Math.sqrt(energy1 * energy2)
+			: 0;
+
+		if (normalizedCorr > maxCorrelation) {
+			maxCorrelation = normalizedCorr;
 			bestPeriod = period;
 		}
 	}
 
-	// CRITICAL FIX: Lower threshold from 0.3 to 0.08 for more sensitive pitch detection
-	// 0.3 was too strict - many valid pitched sounds were rejected
-	// 0.08 is more forgiving while still filtering noise
-	if (bestPeriod > 0 && maxCorrelation > 0.08) {
+	// CRITICAL FIX: Much lower threshold for 512-sample buffer
+	// With proper normalization, correlation values are more reliable
+	const CORRELATION_THRESHOLD = 0.5; // Normalized correlation is 0-1 scale
+	
+	if (bestPeriod > 0 && maxCorrelation > CORRELATION_THRESHOLD) {
 		const pitch = sampleRate / bestPeriod;
 		
-		// Log successful pitch detection occasionally for debugging
-		if (Math.random() < 0.01) { // 1% of the time
-			console.log(`[PITCH] Detected ${pitch.toFixed(1)}Hz (correlation: ${maxCorrelation.toFixed(3)})`);
+		// Only accept human vocal range
+		if (pitch >= 60 && pitch <= 800) {
+			// Log successful pitch detection occasionally for debugging
+			if (Math.random() < 0.02) { // 2% of the time
+				console.log(`[PITCH] ✓ ${pitch.toFixed(1)}Hz (correlation: ${maxCorrelation.toFixed(3)})`);
+			}
+			return pitch;
 		}
-		
-		return pitch;
 	}
 
 	// Log failures occasionally to see why pitch isn't detected
 	if (Math.random() < 0.01) { // 1% of the time
-		console.log(`[PITCH] Failed - bestPeriod: ${bestPeriod}, maxCorrelation: ${maxCorrelation.toFixed(3)} (need > 0.08)`);
+		console.log(`[PITCH] ✗ Failed - period: ${bestPeriod}, corr: ${maxCorrelation.toFixed(3)} (need > ${CORRELATION_THRESHOLD})`);
 	}
 
 	return null;

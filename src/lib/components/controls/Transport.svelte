@@ -82,15 +82,26 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 						if (frameCallbackCount === 1) {
 							console.log('🎯 [TRANSPORT] First frame received in callback');
 						}
+						// DIRECTIVE 2: Always update analysis store for live monitoring (GlazeMixer)
 						updateAnalysisFrame(frame);
-						addAnalysisFrame(frame);
+						// Only add to recording store when actually recording
+						if (recordingStore.state === 'recording') {
+							addAnalysisFrame(frame);
+						}
 					});
 
 					isInitialized = true;
+					
+					// DIRECTIVE 2: Start worker immediately for continuous monitoring
+					// This ensures GlazeMixer gets pitch/timbre data even when not recording
+					workerClient?.start();
+					console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
 				}
 
-				workerClient?.start();
-				startRecording();
+				// Only start recording if not already running
+				if (recordingStore.state !== 'recording') {
+					startRecording();
+				}
 				return; // Success, exit retry loop
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
@@ -112,13 +123,17 @@ import { recordingStore, startRecording, stopRecording, resetRecording } from '$
 	}
 
 	async function stopRecordingFlow() {
-		workerClient?.stop();
+		// DIRECTIVE 2: Don't stop the worker - keep it running for continuous monitoring
+		// The analysis worker should stay active for GlazeMixer to receive pitch/timbre data
+		// workerClient?.stop(); // REMOVED - keep worker running
+		
 		// CRITICAL FIX: Don't stop microphone capture here!
 		// Keep the mic open for live monitoring (GlazeMixer, visualizers, etc.)
 		// The visualizer bypass needs continuous audio input for real-time feedback.
 		// Only truly close the mic on explicit user action or page unload.
 		// stopMicrophoneCapture(); // REMOVED - mic stays open
 		stopRecording();
+		console.log('🎧 [TRANSPORT] Recording stopped, but analysis worker continues for monitoring');
 	}
 
 	function getButtonText(): string {
