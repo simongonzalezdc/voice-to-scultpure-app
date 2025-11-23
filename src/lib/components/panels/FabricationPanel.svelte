@@ -153,7 +153,7 @@
 	function handleConstraintModeChange(mode: ConstraintMode) {
 		setConstraintMode(mode);
 	}
-	
+
 	function handleAutoFixChange() {
 		setAutoFixGeometry(!autoFixGeometry);
 	}
@@ -203,21 +203,21 @@
 							{getConstraintIcon('3d_print')} 3D Print
 						</button>
 					</div>
-					
+
 					<!-- DIRECTIVE 2: Auto-Fix Geometry Checkbox -->
 					<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded">
-						<input 
-							type="checkbox" 
-							checked={autoFixGeometry} 
+						<input
+							type="checkbox"
+							checked={autoFixGeometry}
 							onchange={handleAutoFixChange}
 							class="w-4 h-4 accent-brand-primary"
 						/>
 						<div class="flex flex-col">
 							<span class="text-sm text-primary font-medium">Auto-Fix Geometry</span>
 							<span class="text-[10px] text-secondary">
-								{autoFixGeometry 
-									? "Automatically adjust shape to meet physical limits." 
-									: "Show warnings (Red) where physics are violated."}
+								{autoFixGeometry
+									? 'Automatically adjust shape to meet physical limits.'
+									: 'Show warnings (Red) where physics are violated.'}
 							</span>
 						</div>
 					</label>

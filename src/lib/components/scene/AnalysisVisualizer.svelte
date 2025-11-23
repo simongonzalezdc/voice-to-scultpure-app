@@ -53,8 +53,8 @@
 	// Position ring at forming edge based on orientation
 	let ringPosition = $derived(
 		uiStore.orientation === 'vertical'
-			? [0, currentHeight, 0] // Pottery: Y-axis
-			: [currentHeight, 0, 0] // Lathe: X-axis
+			? ([0, currentHeight, 0] as [number, number, number]) // Pottery: Y-axis
+			: ([currentHeight, 0, 0] as [number, number, number]) // Lathe: X-axis
 	);
 
 	// DIRECTIVE 4: Hide ring visualizer for non-lathe shapes (especially sphere)
@@ -77,7 +77,8 @@
 	// Standard: Scale = Volume
 	// Virtuoso: Scale = Pitch (Low pitch = Wide, High pitch = Narrow)
 	let virtuosoScale = $derived.by(() => {
-		if (!analysisStore.latestFrame?.pitch || analysisStore.latestFrame.pitch === 0) return BASE_SCALE;
+		if (!analysisStore.latestFrame?.pitch || analysisStore.latestFrame.pitch === 0)
+			return BASE_SCALE;
 		// Map 80Hz-800Hz to Scale 1.5-0.3
 		const pitch = analysisStore.latestFrame.pitch;
 		const normalizedPitch = Math.max(0, Math.min(1, (pitch - 80) / 720));
@@ -85,9 +86,7 @@
 	});
 
 	let targetVisualScale = $derived(
-		isVirtuoso 
-			? virtuosoScale
-			: BASE_SCALE + analysisStore.micLevel * (MAX_SCALE - BASE_SCALE)
+		isVirtuoso ? virtuosoScale : BASE_SCALE + analysisStore.micLevel * (MAX_SCALE - BASE_SCALE)
 	);
 
 	// Smooth interpolation for visual feedback using useTask (runs every frame)
@@ -98,16 +97,16 @@
 		// Virtuoso Rotation: Spin based on volume
 		if (isVirtuoso) {
 			// Spin faster with more energy
-			const spinSpeed = analysisStore.micLevel * 5 * delta;
+			const _spinSpeed = analysisStore.micLevel * 5 * delta;
 			// Mutating props is generally not recommended if they are passed down, but here 'rotation' is a prop to T.Group
 			// We need a local rotation state.
 			// Ideally we'd bind rotation to a local state variable.
 		}
 	});
-	
+
 	// Local rotation state for Virtuoso spin (additional rotation on Y-axis)
 	let spinRotation = $state(0);
-	
+
 	useTask((delta) => {
 		if (isVirtuoso) {
 			spinRotation += analysisStore.micLevel * 10 * delta;
@@ -122,7 +121,7 @@
 		ringOrientation[0],
 		ringOrientation[1] + spinRotation,
 		ringOrientation[2]
-	]);
+	] as [number, number, number]);
 
 	// Virtuoso Color: Timbre -> Color
 	// Standard: Red/Garnet intensity

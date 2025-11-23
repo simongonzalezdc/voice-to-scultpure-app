@@ -5,7 +5,13 @@
 		clearGhostSculpture,
 		setCurrentSculpture
 	} from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setSculptMode, setSculptZone, setControlMode } from '$lib/stores/uiStore.svelte';
+	import {
+		uiStore,
+		setSculptMode,
+		setSculptZone,
+		setControlMode
+	} from '$lib/stores/uiStore.svelte';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import type { SculptureDefinition, BaseShape } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
@@ -57,7 +63,10 @@
 			// And if a sculpture exists, we should update it to remove twist?
 			// Ideally, we just prevent user from changing it.
 			// But if they switch modes, we should probably reset it.
-			if (sculptureStore.currentSculpture && sculptureStore.currentSculpture.deformation.twist !== 0) {
+			if (
+				sculptureStore.currentSculpture &&
+				sculptureStore.currentSculpture.deformation.twist !== 0
+			) {
 				// Auto-correct existing sculpture
 				const updated = {
 					...sculptureStore.currentSculpture,
@@ -89,7 +98,7 @@
 			zoneMin = uiStore.sculptZone.min;
 			zoneMax = uiStore.sculptZone.max;
 		}
-		
+
 		// Sync control mode from uiStore
 		controlMode = uiStore.controlMode;
 	});
@@ -295,7 +304,8 @@
 					}}
 					title="Standard Mode: Volume controls Radius"
 				>
-					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span>
+					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span
+					>
 				</button>
 				<button
 					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
@@ -392,17 +402,18 @@
 		</div>
 
 		<!-- Twist Slider - DIRECTIVE 1: With Voice Link -->
-		<div class={isTwistDisabled ? 'opacity-50 cursor-not-allowed' : ''} 
-			title={isTwistDisabled ? "Twisting is impossible in physical fabrication. Switch to Digital Mode to unlock." : ""}>
-			<label
-				for="twist-slider"
-				class="text-sm text-secondary block mb-1 flex items-center gap-2"
-			>
+		<div
+			class={isTwistDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+			title={isTwistDisabled
+				? 'Twisting is impossible in physical fabrication. Switch to Digital Mode to unlock.'
+				: ''}
+		>
+			<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2">
 				Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
 				<!-- DIRECTIVE 1: Voice Link Button for Twist -->
 				<button
 					class="ml-auto p-1 rounded transition-colors {voiceLinksStore.twist === 'pitch'
-						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50' 
+						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50'
 						: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
 					onclick={() => {
 						if (isTwistDisabled) return;
@@ -413,8 +424,8 @@
 							toggleVoiceLink('twist'); // Will set to pitch
 						}
 					}}
-					title={isTwistDisabled 
-						? "Disabled in Physical Mode" 
+					title={isTwistDisabled
+						? 'Disabled in Physical Mode'
 						: voiceLinksStore.twist === 'pitch'
 							? '🎤 Twist linked to PITCH (click to unlink)'
 							: '🔗 Link Twist to PITCH (hands-free control)'}
@@ -435,7 +446,12 @@
 				step="0.01"
 				bind:value={twist}
 				disabled={isTwistDisabled || voiceLinksStore.twist === 'pitch'}
-				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.twist === 'pitch' ? 'accent-brand-primary' : ''}"
+				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.twist ===
+				'pitch'
+					? analysisStore.micLevel < 0.001
+						? 'accent-red-500'
+						: 'accent-brand-primary'
+					: ''}"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
@@ -443,9 +459,15 @@
 				<span>-5 turns</span>
 				<span>+5 turns</span>
 				{#if voiceLinksStore.twist === 'pitch'}
-					<span class="text-brand-primary font-semibold flex items-center gap-1 animate-pulse"
-						><Mic size={12} /> Pitch Control Active</span
-					>
+					{#if analysisStore.micLevel < 0.001}
+						<span class="text-red-500 font-semibold flex items-center gap-1 animate-pulse"
+							><Mic size={12} /> No Signal</span
+						>
+					{:else}
+						<span class="text-brand-primary font-semibold flex items-center gap-1 animate-pulse"
+							><Mic size={12} /> Pitch Control Active</span
+						>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -488,7 +510,7 @@
 				<!-- DIRECTIVE 1: Voice Link Button for Roughness/Timbre -->
 				<button
 					class="ml-auto p-1 rounded transition-colors {voiceLinksStore.roughness === 'timbre'
-						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50' 
+						? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/50'
 						: 'text-subtle hover:text-secondary hover:bg-surface-alt'}"
 					onclick={() => {
 						// DIRECTIVE 3: Improved Toggle Logic
@@ -517,7 +539,10 @@
 				step="0.01"
 				bind:value={roughness}
 				disabled={voiceLinksStore.roughness === 'timbre'}
-				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.roughness === 'timbre' ? 'accent-brand-primary' : ''}"
+				class="w-full disabled:opacity-60 disabled:cursor-not-allowed {voiceLinksStore.roughness ===
+				'timbre'
+					? 'accent-brand-primary'
+					: ''}"
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>

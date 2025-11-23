@@ -17,6 +17,7 @@
 	import Toolbar from '$lib/components/layout/Toolbar.svelte';
 	import WorkspaceSwitcher from '$lib/components/layout/WorkspaceSwitcher.svelte';
 	import KeyboardShortcutsModal from '$lib/components/modals/KeyboardShortcutsModal.svelte';
+	import DebugOverlay from '$lib/components/debug/DebugOverlay.svelte';
 	import {
 		uiStore,
 		startOnboarding,
@@ -257,7 +258,7 @@
 				// Reset Voice Links (Directive 3)
 				resetVoiceLinks();
 				// Also reset Force Mode if active? Maybe not, user might want to stay there.
-				// But Directive 4 says "Global Back". 
+				// But Directive 4 says "Global Back".
 				// If in Force Mode, maybe switching back to Sculpt is good?
 				// No, just panels and links for now.
 				break;
@@ -440,6 +441,7 @@
 			isOpen={showKeyboardShortcuts}
 			onClose={() => (showKeyboardShortcuts = false)}
 		/>
+		<DebugOverlay />
 	</ErrorBoundary>
 {:else}
 	<div class="min-h-screen bg-app text-primary flex items-center justify-center">

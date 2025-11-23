@@ -41,18 +41,18 @@ export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): Lat
  */
 export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): number[] {
 	const risks = new Array(curve.length).fill(0);
-	
+
 	if (curve.length < 2 || mode === 'digital') return risks;
 
 	const constrained = applyConstraints(curve, mode);
-	
+
 	// Compare original vs constrained to determine risk
 	// If significant deviation, mark as violation
 	for (let i = 0; i < curve.length; i++) {
 		const original = curve[i].x;
 		const fixed = constrained[i].x;
 		const diff = Math.abs(original - fixed);
-		
+
 		// If fixed is different, it was a violation
 		if (diff > 0.001) {
 			// How severe?
@@ -63,7 +63,7 @@ export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): n
 			risks[i] = 0.5 + severity * 0.5; // Minimum 0.5 (Yellow) if changed
 		}
 	}
-	
+
 	return risks;
 }
 

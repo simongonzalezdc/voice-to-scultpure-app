@@ -1,5 +1,17 @@
 import type { UserProfile, AnalysisFrame } from '$lib/types';
 import { updateSettings } from '$lib/stores/appSettingsStore.svelte';
+import {
+	CALIBRATION_ATTACK_THRESHOLD_DEFAULT,
+	CALIBRATION_ATTACK_THRESHOLD_MIN,
+	CALIBRATION_ATTACK_THRESHOLD_MAX,
+	CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER,
+	PITCH_MIN_DEFAULT,
+	PITCH_MAX_DEFAULT,
+	ENERGY_MIN_DEFAULT,
+	ENERGY_MAX_DEFAULT,
+	TIMBRE_MIN_HZ,
+	TIMBRE_MAX_HZ
+} from '$lib/config/constants';
 
 export interface CalibrationResult {
 	pitchRange: {
@@ -60,13 +72,7 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 		previousEnergy = frame.energy;
 	}
 
-	// Human voice defaults when no audio detected
-	const DEFAULT_PITCH_MIN = 80;
-	const DEFAULT_PITCH_MAX = 400;
-	const DEFAULT_ENERGY_MIN = 0.05;
-	const DEFAULT_ENERGY_MAX = 0.8;
-	const DEFAULT_TIMBRE_MIN = 1000; // Typical spectral centroid for silence/breathing
-	const DEFAULT_TIMBRE_MAX = 5000; // Typical spectral centroid for harsh sounds (Shhh, Ka!)
+	// Human voice defaults when no audio detected - now using constants
 
 	const pitchPercentiles = calculatePercentiles(pitches);
 	const energyPercentiles = calculatePercentiles(energies);
@@ -74,34 +80,34 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 
 	// Calculate Attack Threshold: Mean Delta + (2 * StdDev)
 	// This identifies sharp energy spikes (chisel/attack sounds)
-	let attackThreshold = 0.15; // Default fallback
+	let attackThreshold = CALIBRATION_ATTACK_THRESHOLD_DEFAULT; // Default fallback
 	if (energyDeltas.length > 0) {
 		const meanDelta = energyDeltas.reduce((a, b) => a + b, 0) / energyDeltas.length;
 		const variance =
 			energyDeltas.reduce((sum, d) => sum + Math.pow(d - meanDelta, 2), 0) / energyDeltas.length;
 		const stdDev = Math.sqrt(variance);
-		attackThreshold = meanDelta + 2 * stdDev;
+		attackThreshold = meanDelta + CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER * stdDev;
 		// Clamp to reasonable range
-		attackThreshold = Math.max(0.05, Math.min(0.5, attackThreshold));
+		attackThreshold = Math.max(CALIBRATION_ATTACK_THRESHOLD_MIN, Math.min(CALIBRATION_ATTACK_THRESHOLD_MAX, attackThreshold));
 	}
 
 	// Timbre Floor: Minimum spectral centroid (noise/silence baseline)
 	// This prevents background hiss from creating rough textures
-	const timbreMin = timbres.length > 0 ? Math.min(...timbres) : DEFAULT_TIMBRE_MIN;
+	const timbreMin = timbres.length > 0 ? Math.min(...timbres) : TIMBRE_MIN_HZ;
 
 	// Timbre Ceiling: Maximum spectral centroid (max grit/harsh sounds)
 	// This captures the full range of texture variation
-	const timbreMax = timbres.length > 0 ? Math.max(...timbres) : DEFAULT_TIMBRE_MAX;
+	const timbreMax = timbres.length > 0 ? Math.max(...timbres) : TIMBRE_MAX_HZ;
 
 	return {
 		pitchRange: {
-			min: pitches.length > 0 ? Math.min(...pitches) : DEFAULT_PITCH_MIN,
-			max: pitches.length > 0 ? Math.max(...pitches) : DEFAULT_PITCH_MAX,
+			min: pitches.length > 0 ? Math.min(...pitches) : PITCH_MIN_DEFAULT,
+			max: pitches.length > 0 ? Math.max(...pitches) : PITCH_MAX_DEFAULT,
 			...pitchPercentiles
 		},
 		energyRange: {
-			min: energies.length > 0 ? Math.min(...energies) : DEFAULT_ENERGY_MIN,
-			max: energies.length > 0 ? Math.max(...energies) : DEFAULT_ENERGY_MAX,
+			min: energies.length > 0 ? Math.min(...energies) : ENERGY_MIN_DEFAULT,
+			max: energies.length > 0 ? Math.max(...energies) : ENERGY_MAX_DEFAULT,
 			...energyPercentiles
 		},
 		timbreRange: {
@@ -131,7 +137,7 @@ export function resetCalibration(): void {
 			pitchRange: { min: 0, max: 0, p25: 0, p50: 0, p75: 0 },
 			energyRange: { min: 0, max: 0, p25: 0, p50: 0, p75: 0 },
 			timbreRange: { min: 0, max: 0, p25: 0, p50: 0, p75: 0 },
-			attackThreshold: 0.15
+			attackThreshold: CALIBRATION_ATTACK_THRESHOLD_DEFAULT
 		}
 	});
 }

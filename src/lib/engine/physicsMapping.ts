@@ -70,17 +70,17 @@ export function generateLathe(
 
 		// Calculate radius based on mode
 		let radius: number;
-		
+
 		if (controlMode === 'melodic') {
 			// DIRECTIVE 1: Virtuoso / Melodic Mode
 			// Pitch -> Radius (Low=Wide, High=Narrow)
 			// Volume -> Twist (Accumulated)
-			
+
 			// Map Pitch to Radius
 			// Range: 80Hz (Wide) to 800Hz (Narrow)
 			const pitch = frame.pitch || 440; // Default to A4 if no pitch
-			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / (720)));
-			
+			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / 720));
+
 			// Invert: Low pitch = Large radius (Base), High pitch = Small radius (Neck)
 			// Lerp factor 0.1 handled by useTask smoothing in real-time, here we map directly
 			const targetRadius = MAX_RADIUS - normalizedPitch * (MAX_RADIUS - MIN_RADIUS);
@@ -95,32 +95,31 @@ export function generateLathe(
 			// A) Return 3D points (complex refactor)
 			// B) Store rotation data in a separate array (complex plumbing)
 			// C) Cheat: Use 'twist' parameter in applyDeformation, but that's global.
-			
+
 			// DECISION: For the prototype, we will map Volume to *Radius Jitter* or *Bulge*
 			// AND we will export a `virtuosoData` array if we could, but we can't change the signature too much.
-			
+
 			// RE-READING DIRECTIVE: "Volume -> Twist (The Tension)".
 			// Since LatheGeometry is 2D profile rotated, "Twist" usually means rotating the profile along Y.
 			// BUT standard LatheGeometry is symmetric.
 			// To get a spiral, we need `applyVertexTwist` in Sculpture.svelte.
 			// `generateLathe` produces the *profile*.
-			
+
 			// ALTERNATIVE INTERPRETATION:
 			// Maybe "Twist" here means "Radius Variance" (wobble)?
 			// No, directive says "Accumulate rotation per ring".
-			
+
 			// STRATEGY: We cannot implement per-ring rotation in `generateLathe` which returns `LathePoint[]` (x,y).
 			// However, we CAN map Volume to something visible in the profile, like "Roughness" or "Bulge".
 			// OR, we change `LathePoint` to include `rot`?
 			// No, `LathePoint` is `{x, y}`.
-			
+
 			// COMPROMISE: In Melodic Mode, Volume controls *Texture/Noise* amplitude on the radius.
 			// "Twist" is strictly a post-process in `Sculpture.svelte`.
 			// We will map Pitch -> Radius here perfectly.
-			
+
 			// Let's stick to the Directive 1 Logic for Radius:
 			// Radius is driven by Pitch.
-			
 		} else {
 			// Standard Mode (Volume -> Radius)
 			if (mode === 'subtractive') {

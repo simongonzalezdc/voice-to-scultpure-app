@@ -50,3 +50,37 @@ export const PITCH_MAX_DEFAULT = 400;
 
 // Default Physical Dimensions
 export const DEFAULT_HEIGHT_MM = 150; // Default 150mm for mug/small vase
+
+// Visual Feedback Constants
+export const LIVE_BRIDGE_AMPLIFICATION = 5.0; // Amplification factor for live breathing effect
+export const PITCH_TWIST_NORMALIZATION = 220; // A3 pitch reference for twist normalization
+export const PITCH_TWIST_DIVISOR = 1000; // Divisor for pitch twist calculation
+
+// Material Properties
+export const PLASTIC_COLOR_LIGHTEN_FACTOR = '#EEEEEE'; // Lightened white for plastic material
+export const ERROR_COLOR = '#FF00FF'; // Neon Pink for Missing Glaze/Error State
+export const GHOST_OPACITY = 0.15; // Opacity for ghost mesh
+export const GHOST_ROUGHNESS = 0.9; // Roughness for ghost mesh
+
+// Geometry Defaults
+export const DEFAULT_CYLINDER_RADIUS = 0.5; // Default radius for cylinder fallback
+export const DEFAULT_CYLINDER_SEGMENTS = 32; // Default segments for cylinder geometry
+export const DEFAULT_ICOSAHEDRON_RADIUS = 0.5; // Default radius for error sphere
+export const DEFAULT_ICOSAHEDRON_DETAIL = 2; // Default detail level for error sphere
+
+// Animation and Transitions
+export const ORIENTATION_SPRING_STIFFNESS = 0.05; // Spring stiffness for orientation animation
+export const ORIENTATION_SPRING_DAMPING = 0.25; // Spring damping for orientation animation
+export const RECORDING_IMPLOSION_SCALE = 0.1; // Scale factor when recording with no frames
+
+// Voice Links Constants
+export const VOICE_LINK_PITCH_MIN = 80; // Minimum pitch for voice links
+export const VOICE_LINK_PITCH_MAX = 400; // Maximum pitch for voice links
+export const VOICE_LINK_TIMBRE_SMOOTH_MIN = 1000; // Minimum spectral centroid for smooth sounds
+export const VOICE_LINK_TIMBRE_RASPY_MAX = 8000; // Maximum spectral centroid for raspy sounds
+
+// Calibration Defaults
+export const CALIBRATION_ATTACK_THRESHOLD_DEFAULT = 0.15; // Default attack threshold
+export const CALIBRATION_ATTACK_THRESHOLD_MIN = 0.05; // Minimum attack threshold
+export const CALIBRATION_ATTACK_THRESHOLD_MAX = 0.5; // Maximum attack threshold
+export const CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER = 2; // Multiplier for std dev in attack threshold

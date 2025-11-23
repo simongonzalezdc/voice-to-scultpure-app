@@ -100,7 +100,5 @@
 	<ForceVisualizer />
 	<ForceParticles />
 {:else}
-	<AnalysisVisualizer
-		rotation={uiStore.orientation === 'horizontal' ? [0, 0, -Math.PI / 2] : [0, 0, 0]}
-	/>
+	<AnalysisVisualizer />
 {/if}

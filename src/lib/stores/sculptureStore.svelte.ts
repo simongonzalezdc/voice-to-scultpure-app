@@ -61,6 +61,30 @@ export function updateSculptureColors(colors: Float32Array): void {
 		vertexColors: Array.from(colors)
 	};
 
+	// Directive 5: Storage Integrity Check
+	// Validate that we aren't storing corrupt data
+	// Note: colors is Float32Array (3 values per vertex), so we divide by 3
+	// We check against the mesh if available, otherwise just sanity check
+	if (sculptureStore.meshReference && sculptureStore.meshReference.geometry) {
+		const vertexCount = sculptureStore.meshReference.geometry.attributes.position.count;
+		const colorCount = colors.length / 3;
+
+		// console.assert doesn't stop execution, but logs to console
+		console.assert(
+			colorCount === vertexCount,
+			`⚠️ [SCULPTURE] Color/Vertex Mismatch! Colors: ${colorCount}, Vertices: ${vertexCount}`
+		);
+
+		if (colorCount !== vertexCount) {
+			alert('⚠️ Data Corruption Detected - Resetting Mesh Colors');
+			// Reset colors to empty to prevent rendering errors
+			updated.vertexColors = [];
+		}
+	} else if (colors.length === 0) {
+		// Warning for empty update?
+		console.warn('⚠️ [SCULPTURE] Updating with empty color array');
+	}
+
 	sculptureStore.currentSculpture = updated;
 	sculptureStore.geometryDirty = true;
 	console.log(`🎨 [SCULPTURE] Updated colors for ${colors.length / 3} vertices`);

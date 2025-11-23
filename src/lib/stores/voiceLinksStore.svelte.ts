@@ -7,6 +7,13 @@
  * - Roughness: Can be linked to Timbre (smooth vs raspy)
  */
 
+import {
+	VOICE_LINK_PITCH_MIN,
+	VOICE_LINK_PITCH_MAX,
+	VOICE_LINK_TIMBRE_SMOOTH_MIN,
+	VOICE_LINK_TIMBRE_RASPY_MAX
+} from '$lib/config/constants';
+
 export type VoiceLinkType = 'none' | 'pitch' | 'timbre';
 
 export interface VoiceLinks {
@@ -40,13 +47,7 @@ export function toggleVoiceLink(parameter: 'twist' | 'roughness'): void {
 
 // Pitch range detection (Hz)
 // Typical human voice: 80-400 Hz (males 80-180, females 160-300)
-const PITCH_MIN = 80;
-const PITCH_MAX = 400;
-
-// Timbre roughness mapping
-// spectralCentroid: 0-20000 Hz (smooth = lower SC, raspy = higher SC)
-const TIMBRE_SMOOTH_MIN = 1000; // Smooth sounds: low spectral centroid
-const TIMBRE_RASPY_MAX = 8000; // Raspy sounds: high spectral centroid
+// These constants are now imported from constants.ts
 
 /**
  * Map pitch (Hz) to twist range (-1.0 to 1.0)
@@ -55,10 +56,10 @@ const TIMBRE_RASPY_MAX = 8000; // Raspy sounds: high spectral centroid
  */
 export function pitchToTwist(pitch: number): number {
 	// Clamp pitch to range
-	const clamped = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch));
+	const clamped = Math.max(VOICE_LINK_PITCH_MIN, Math.min(VOICE_LINK_PITCH_MAX, pitch));
 
 	// Normalize to 0-1
-	const normalized = (clamped - PITCH_MIN) / (PITCH_MAX - PITCH_MIN);
+	const normalized = (clamped - VOICE_LINK_PITCH_MIN) / (VOICE_LINK_PITCH_MAX - VOICE_LINK_PITCH_MIN);
 
 	// Map to -1 to 1 range
 	const twisted = normalized * 2 - 1;
@@ -73,10 +74,10 @@ export function pitchToTwist(pitch: number): number {
  */
 export function timbreToRoughness(spectralCentroid: number): number {
 	// Clamp spectral centroid to range
-	const clamped = Math.max(TIMBRE_SMOOTH_MIN, Math.min(TIMBRE_RASPY_MAX, spectralCentroid));
+	const clamped = Math.max(VOICE_LINK_TIMBRE_SMOOTH_MIN, Math.min(VOICE_LINK_TIMBRE_RASPY_MAX, spectralCentroid));
 
 	// Normalize to 0-1
-	const normalized = (clamped - TIMBRE_SMOOTH_MIN) / (TIMBRE_RASPY_MAX - TIMBRE_SMOOTH_MIN);
+	const normalized = (clamped - VOICE_LINK_TIMBRE_SMOOTH_MIN) / (VOICE_LINK_TIMBRE_RASPY_MAX - VOICE_LINK_TIMBRE_SMOOTH_MIN);
 
 	return normalized;
 }

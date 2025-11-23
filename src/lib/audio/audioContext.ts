@@ -140,6 +140,44 @@ export function connectMicrophoneToWorklet(stream: MediaStream): void {
 
 	// Start the visualizer bypass polling
 	startVisualizerBypass();
+	startSignalProbe();
+}
+
+// Directive 3: Audio Signal Trace - Periodic Health Check
+let signalProbeInterval: number | null = null;
+
+function startSignalProbe() {
+	if (signalProbeInterval) return;
+
+	let silenceDuration = 0;
+
+	signalProbeInterval = setInterval(async () => {
+		if (!audioContext) return;
+
+		// 1. Auto-resume suspended context
+		if (audioContext.state === 'suspended') {
+			console.warn('⚠️ [AUDIO PROBE] Context suspended, attempting resume...');
+			try {
+				await audioContext.resume();
+				console.log('✅ [AUDIO PROBE] Resumed successfully');
+			} catch (e) {
+				console.error('❌ [AUDIO PROBE] Resume failed:', e);
+			}
+		}
+
+		// 2. Check for extended silence
+		// Use smoothedMicLevel from outer scope
+		if (smoothedMicLevel < 0.0001) {
+			silenceDuration += 1000;
+		} else {
+			silenceDuration = 0;
+		}
+
+		if (silenceDuration > 3000) {
+			console.warn('⚠️ [AUDIO PROBE] No signal for >3s. Check mic permissions.');
+			// Ideally trigger UI toast here, for now just log
+		}
+	}, 1000) as unknown as number;
 }
 
 // Directive 1: Visualizer Bypass - Direct mic level calculation
@@ -236,6 +274,11 @@ export function getWorkletNode(): AudioWorkletNode | null {
 export function resetAudioContext(): void {
 	stopMicrophoneCapture();
 	stopVisualizerBypass();
+
+	if (signalProbeInterval) {
+		clearInterval(signalProbeInterval);
+		signalProbeInterval = null;
+	}
 
 	if (sourceNode) {
 		sourceNode.disconnect();
