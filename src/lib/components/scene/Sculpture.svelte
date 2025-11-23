@@ -559,7 +559,7 @@
 					// Lower pitch = larger impact area
 					const pitch = analysisStore.latestFrame?.pitch || 200;
 					const normalizedPitch = Math.max(0, Math.min(1, (pitch - 50) / 950));
-					const radius = 0.3 - (normalizedPitch * 0.25); // Range: 0.05 to 0.3
+					const radius = 0.5 - (normalizedPitch * 0.45); // Range: 0.5 (low pitch) to 0.05 (high pitch)
 					
 					// Map Energy to Visual Scale pulsing
 					const energy = analysisStore.latestFrame?.energy || 0;
@@ -594,6 +594,11 @@
 						const forceStrength = (energy * 0.1) * (1 - hardness * 0.8);
 						const direction = isPull ? 1 : -1;
 
+						// DIRECTIVE: Apply damping to limit maximum displacement per frame
+						// Damping (0-1): 0 = no limit (instant), 1 = very viscous (slow, smooth)
+						// Higher damping = lower max displacement per frame = smoother deformation
+						const maxDisplacementPerFrame = 0.05 * (1 - damping * 0.9); // Range: 0.05 (no damping) to 0.005 (max damping)
+
 						const v = new Vector3();
 						const n = new Vector3();
 						let modified = false;
@@ -609,13 +614,18 @@
 								// Get normal
 								n.fromBufferAttribute(normals, i);
 								
-								// Displace
-								// pos += normal * strength * falloff
-								const displacement = forceStrength * falloff * direction;
+								// Calculate desired displacement
+								const desiredDisplacement = forceStrength * falloff * direction;
 								
-								// Apply damping (viscosity) - maybe limit max displacement per frame?
-								// For now, direct displacement
-								v.addScaledVector(n, displacement);
+								// Apply damping: clamp displacement to max per frame
+								// This creates a viscous effect - higher damping = slower, smoother deformation
+								const clampedDisplacement = Math.max(
+									-maxDisplacementPerFrame,
+									Math.min(maxDisplacementPerFrame, desiredDisplacement)
+								);
+								
+								// Apply clamped displacement
+								v.addScaledVector(n, clampedDisplacement);
 								
 								positions.setXYZ(i, v.x, v.y, v.z);
 								modified = true;
