@@ -5,6 +5,15 @@ export default defineConfig({
 	plugins: [svelte({ hot: !process.env.VITEST })],
 	test: {
 		globals: true,
-		environment: 'jsdom'
+		environment: 'jsdom',
+		exclude: [
+			'node_modules',
+			'dist',
+			'.idea',
+			'.git',
+			'.cache',
+			'tests/**',  // Exclude Playwright E2E tests
+			'**/*.spec.ts' // Only run .test.ts files, not .spec.ts
+		]
 	}
 });
