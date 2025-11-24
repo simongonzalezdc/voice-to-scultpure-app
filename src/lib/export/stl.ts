@@ -1,13 +1,25 @@
 import type { SculptureDefinition } from '$lib/types';
+import { generateFinalProfile, type ExportOptions } from './exportUtils';
 
-export function lathePointsToSTL(sculpture: SculptureDefinition): string {
-	const points = sculpture.radiusCurve;
+export function lathePointsToSTL(
+	sculpture: SculptureDefinition,
+	options?: Partial<ExportOptions>
+): string {
+	// Generate final profile with all transformations applied
+	const exportOptions: ExportOptions = {
+		autoFixGeometry: options?.autoFixGeometry ?? true,
+		constraintMode: options?.constraintMode ?? 'ceramic',
+		modifiers: options?.modifiers
+	};
+	
+	const points = generateFinalProfile(sculpture, exportOptions);
+	
 	if (points.length < 2) {
 		throw new Error('Not enough points for STL export');
 	}
 
 	const triangles: string[] = [];
-	const segments = 32; // Number of segments around the lathe
+	const segments = 64; // Number of segments around the lathe (match renderer)
 
 	// Generate triangles for each ring
 	for (let i = 0; i < points.length - 1; i++) {

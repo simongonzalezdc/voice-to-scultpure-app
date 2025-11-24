@@ -236,7 +236,7 @@
 		// The visualizer bypass needs continuous audio input for real-time feedback.
 		// Only truly close the mic on explicit user action or page unload.
 		// stopMicrophoneCapture(); // REMOVED - mic stays open
-		stopRecording();
+		await stopRecording();
 		console.log('🎧 [TRANSPORT] Recording stopped, but analysis worker continues for monitoring');
 	}
 

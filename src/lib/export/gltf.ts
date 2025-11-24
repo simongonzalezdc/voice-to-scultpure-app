@@ -1,27 +1,35 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, BufferAttribute } from 'three';
 import type { SculptureDefinition } from '$lib/types';
-import { applyDeformation } from '$lib/engine/physicsMapping';
+import { generateFinalProfile, type ExportOptions } from './exportUtils';
 
 /**
  * Export sculpture to GLB format with vertex colors and PBR materials
  * @param sculpture - The sculpture definition to export
  * @param filename - Optional filename (defaults to sculpture name + timestamp)
+ * @param options - Export options (auto-fix, constraints, modifiers)
  */
 export async function exportSculptureToGLB(
 	sculpture: SculptureDefinition,
-	filename?: string
+	filename?: string,
+	options?: Partial<ExportOptions>
 ): Promise<void> {
 	try {
-		// Apply current deformation parameters before export
-		const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
+		// Generate final profile with all transformations applied
+		const exportOptions: ExportOptions = {
+			autoFixGeometry: options?.autoFixGeometry ?? true,
+			constraintMode: options?.constraintMode ?? 'ceramic',
+			modifiers: options?.modifiers
+		};
+		
+		const finalProfile = generateFinalProfile(sculpture, exportOptions);
 
 		// Determine segment count (match main sculpture logic)
 		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
 		const segments = Math.floor(6 + roughnessInput * 58);
 
-		// Create geometry from deformed curve
-		const vectors = deformedCurve.map((p) => new Vector2(p.x, p.y));
+		// Create geometry from final profile
+		const vectors = finalProfile.map((p) => new Vector2(p.x, p.y));
 		const geometry = new LatheGeometry(vectors, segments);
 
 		// Apply vertex colors if available

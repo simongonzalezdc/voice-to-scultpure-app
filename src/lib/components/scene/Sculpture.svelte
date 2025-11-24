@@ -26,7 +26,8 @@
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
-	import { applyModifiers } from '$lib/engine/physicsMapping';
+	import { applyModifiers, applyDeformation } from '$lib/engine/physicsMapping';
+	import { applyConstraints } from '$lib/engine/constraints';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
@@ -178,8 +179,22 @@
 	 * Returns both geometry and vectors for use by callers
 	 */
 	function createGeometryFromProfile(profile: LathePoint[]): { geometry: BufferGeometry; vectors: Vector2[] } {
-		const modifiedProfile = applyModifiers(profile, heightScale, uiStore.modifiers);
+		// 1. Apply deformations (twist, compression, taper) first
+		let processedProfile = profile;
+		if (sculpture?.deformation) {
+			processedProfile = applyDeformation(profile, sculpture.deformation);
+		}
+		
+		// 2. Apply constraints if auto-fix is enabled
+		// This ensures deformed geometry still meets physical manufacturing limits
+		if (uiStore.autoFixGeometry && uiStore.constraintMode !== 'digital') {
+			processedProfile = applyConstraints(processedProfile, uiStore.constraintMode);
+		}
+		
+		// 3. Apply modifiers (quantize, symmetry)
+		const modifiedProfile = applyModifiers(processedProfile, heightScale, uiStore.modifiers);
 		const vectors = modifiedProfile.map((p) => new Vector2(p.x, p.y));
+		
 		// Default segments
 		const segments = 64; 
 		const geometry = new LatheGeometry(vectors, segments);

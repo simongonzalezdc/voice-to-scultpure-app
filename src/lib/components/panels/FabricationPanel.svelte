@@ -1,13 +1,33 @@
 <script lang="ts">
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import {
+		uiStore,
+		setConstraintMode,
+		setAutoFixGeometry,
+		setViewMode,
+		setEnvironment,
+		setBlueprint,
+		toggleBlueprintVisibility
+	} from '$lib/stores/uiStore.svelte';
+	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
-	import { applyDeformation } from '$lib/engine/physicsMapping';
+	import { getConstraintDescription, getConstraintIcon, type ConstraintMode } from '$lib/engine/constraints';
+	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
 
 	let showScaleReference = $state(false);
+
+	// Get current UI settings for exports
+	function getExportOptions(): ExportOptions {
+		return {
+			autoFixGeometry: uiStore.autoFixGeometry,
+			constraintMode: uiStore.constraintMode,
+			modifiers: uiStore.modifiers
+		};
+	}
 
 	// Local state for editing
 	let editingHeight = $state(0);
@@ -78,16 +98,8 @@
 		}
 
 		try {
-			// Apply current deformation parameters before export
-			const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
-
-			// Create a temporary sculpture with deformed curve for export
-			const exportSculpture: SculptureDefinition = {
-				...sculpture,
-				radiusCurve: deformedCurve
-			};
-
-			const stlContent = lathePointsToSTL(exportSculpture);
+			const options = getExportOptions();
+			const stlContent = lathePointsToSTL(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
 			downloadSTL(stlContent, filename);
 		} catch (error) {
@@ -105,7 +117,8 @@
 
 		try {
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
-			await exportSculptureToGLB(sculpture, filename);
+			const options = getExportOptions();
+			await exportSculptureToGLB(sculpture, filename, options);
 		} catch (error) {
 			console.error('GLB export failed:', error);
 			alert(`GLB export failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -120,7 +133,8 @@
 		}
 
 		try {
-			const plyContent = exportSculptureToPLY(sculpture);
+			const options = getExportOptions();
+			const plyContent = exportSculptureToPLY(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.ply`;
 			downloadPLY(plyContent, filename);
 		} catch (error) {
@@ -128,18 +142,7 @@
 			alert(`PLY export failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
-import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-import {
-	uiStore,
-	setConstraintMode,
-	setAutoFixGeometry,
-	setViewMode,
-	setEnvironment,
-	setBlueprint,
-	toggleBlueprintVisibility
-} from '$lib/stores/uiStore.svelte';
-import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-import type { ConstraintMode } from '$lib/engine/constraints';
+
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);

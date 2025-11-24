@@ -178,7 +178,13 @@
 					<button
 						class="flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 active:scale-95
 						{isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-white text-black hover:bg-brand-primary hover:text-white'}"
-						onclick={() => isRecording ? stopRecording() : startRecording()}
+						onclick={async () => {
+							if (isRecording) {
+								await stopRecording();
+							} else {
+								startRecording();
+							}
+						}}
 					>
 						{#if isRecording}
 							<div class="w-3 h-3 bg-white rounded-sm animate-pulse"></div>

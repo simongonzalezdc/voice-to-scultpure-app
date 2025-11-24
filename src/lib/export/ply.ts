@@ -1,27 +1,36 @@
 import type { SculptureDefinition } from '$lib/types';
-import { applyDeformation } from '$lib/engine/physicsMapping';
 import { LatheGeometry, Vector2 } from 'three';
+import { generateFinalProfile, type ExportOptions } from './exportUtils';
 
 /**
  * Export sculpture to PLY format with vertex colors
  * PLY format supports vertex colors natively, making it ideal for colored 3D prints
  * @param sculpture - The sculpture definition to export
+ * @param options - Export options (auto-fix, constraints, modifiers)
  */
-export function exportSculptureToPLY(sculpture: SculptureDefinition): string {
-	const points = sculpture.radiusCurve;
-	if (points.length < 2) {
+export function exportSculptureToPLY(
+	sculpture: SculptureDefinition,
+	options?: Partial<ExportOptions>
+): string {
+	// Generate final profile with all transformations applied
+	const exportOptions: ExportOptions = {
+		autoFixGeometry: options?.autoFixGeometry ?? true,
+		constraintMode: options?.constraintMode ?? 'ceramic',
+		modifiers: options?.modifiers
+	};
+	
+	const finalProfile = generateFinalProfile(sculpture, exportOptions);
+	
+	if (finalProfile.length < 2) {
 		throw new Error('Not enough points for PLY export');
 	}
-
-	// Apply deformation before export
-	const deformedCurve = applyDeformation(points, sculpture.deformation);
 
 	// Determine segment count (match main sculpture logic)
 	const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
 	const segments = Math.floor(6 + roughnessInput * 58);
 
 	// Generate geometry to get vertex positions
-	const vectors = deformedCurve.map((p) => new Vector2(p.x, p.y));
+	const vectors = finalProfile.map((p) => new Vector2(p.x, p.y));
 	const geometry = new LatheGeometry(vectors, segments);
 
 	const positions = geometry.attributes.position;

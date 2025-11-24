@@ -1,11 +1,21 @@
 <script lang="ts">
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
-	import { applyDeformation } from '$lib/engine/physicsMapping';
+	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
+
+	// Get current UI settings for exports
+	function getExportOptions(): ExportOptions {
+		return {
+			autoFixGeometry: uiStore.autoFixGeometry,
+			constraintMode: uiStore.constraintMode,
+			modifiers: uiStore.modifiers
+		};
+	}
 
 	// Local state for editing
 	let editingWallThickness = $state(0);
@@ -54,13 +64,8 @@
 		}
 
 		try {
-			const deformedCurve = applyDeformation(sculpture.radiusCurve, sculpture.deformation);
-			const exportSculpture: SculptureDefinition = {
-				...sculpture,
-				radiusCurve: deformedCurve
-			};
-
-			const stlContent = lathePointsToSTL(exportSculpture);
+			const options = getExportOptions();
+			const stlContent = lathePointsToSTL(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
 			downloadSTL(stlContent, filename);
 		} catch (error) {
@@ -78,7 +83,8 @@
 
 		try {
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
-			await exportSculptureToGLB(sculpture, filename);
+			const options = getExportOptions();
+			await exportSculptureToGLB(sculpture, filename, options);
 		} catch (error) {
 			console.error('GLB export failed:', error);
 			alert(`GLB export failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -93,7 +99,8 @@
 		}
 
 		try {
-			const plyContent = exportSculptureToPLY(sculpture);
+			const options = getExportOptions();
+			const plyContent = exportSculptureToPLY(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.ply`;
 			downloadPLY(plyContent, filename);
 		} catch (error) {
