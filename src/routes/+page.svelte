@@ -13,6 +13,7 @@
 	import Inspector from '$lib/components/layout/Inspector.svelte';
 	import Toolbar from '$lib/components/layout/Toolbar.svelte';
 	import WorkspaceSwitcher from '$lib/components/layout/WorkspaceSwitcher.svelte';
+	import Footer from '$lib/components/layout/Footer.svelte';
 	import KeyboardShortcutsModal from '$lib/components/modals/KeyboardShortcutsModal.svelte';
 	import DebugOverlay from '$lib/components/debug/DebugOverlay.svelte';
 	import {
@@ -28,19 +29,19 @@
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import {
 		recordingStore,
-		getCapturedFrames,
+		getPlaybackFrames,
 		hasCapturedFrames
 	} from '$lib/stores/recording.svelte';
-	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import NewProjectModal from '$lib/components/modals/NewProjectModal.svelte';
 	import type { SculptureDefinition } from '$lib/types';
 	import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
-	import { Mic, MoveVertical, Orbit, Hammer, Palette, Sparkles, X } from 'lucide-svelte';
+	import { Sparkles, X } from 'lucide-svelte';
 	import { resetVoiceLinks } from '$lib/stores/voiceLinksStore.svelte';
 	import Wizard from '$lib/components/wizard/Wizard.svelte';
 	import { clearLayers } from '$lib/stores/sculptureStore.svelte';
+	import GoldenGuide from '$lib/components/overlay/GoldenGuide.svelte';
 
 	// Gatekeeper: Check if user has calibrated
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -55,7 +56,8 @@
 	});
 
 	// LIVE PREVIEW: Reactive regeneration
-	let lastRegenerationState: { mode: string; sculptMode: string; zone: string } | null = null;
+	let lastRegenerationState: { mode: string; sculptMode: string; zone: string; history: number } | null =
+		null;
 
 	$effect(() => {
 		if (recordingStore.state === 'recording' || recordingStore.state === 'processing') return;
@@ -68,14 +70,16 @@
 		const currentState = {
 			mode: currentConstraintMode,
 			sculptMode: currentSculptMode,
-			zone: `${currentZone.min}-${currentZone.max}`
+			zone: `${currentZone.min}-${currentZone.max}`,
+			history: recordingStore.historyPosition
 		};
 
 		if (
 			lastRegenerationState &&
 			lastRegenerationState.mode === currentState.mode &&
 			lastRegenerationState.sculptMode === currentState.sculptMode &&
-			lastRegenerationState.zone === currentState.zone
+			lastRegenerationState.zone === currentState.zone &&
+			lastRegenerationState.history === currentState.history
 		) return;
 
 		if (lastRegenerationState === null) {
@@ -90,7 +94,7 @@
 		}
 		
 		// ... existing regeneration logic ...
-		const frames = getCapturedFrames();
+		const frames = getPlaybackFrames();
 		const currentSculpture = sculptureStore.currentSculpture;
 		const zone = currentZone.min > 0 || currentZone.max < 1 ? currentZone : undefined;
 
@@ -200,7 +204,7 @@
 					<Toolbar />
 				</aside>
 
-				<div class="app-canvas">
+				<div class="app-canvas relative">
 					<div
 						role="region"
 						aria-label="3D Sculpture Canvas"
@@ -214,6 +218,7 @@
 					<div class="absolute top-4 right-4 z-20">
 						<ViewportControls />
 					</div>
+					<GoldenGuide />
 				</div>
 
 				<!-- Inspector (Sidebar) - Hidden when Wizard is Active -->
@@ -226,17 +231,7 @@
 				<!-- Footer - Hidden when Wizard is Active (Wizard has its own controls) -->
 				{#if !uiStore.performanceWizardActive}
 					<footer class="app-footer">
-						<div class="flex items-center justify-between w-full gap-4">
-							<Transport />
-							<!-- ... existing footer content ... -->
-							<div class="flex items-center gap-6 text-xs text-[#888] flex-1 px-4 border-l border-r border-[#4a4a4a]">
-								<div class="flex items-center gap-1.5 whitespace-nowrap">
-									<span class="text-[#666]"><Mic size={14} /></span>
-									<span>{Math.round(analysisStore.micLevel * 100)}%</span>
-								</div>
-								<!-- ... etc ... -->
-							</div>
-						</div>
+						<Footer />
 					</footer>
 				{/if}
 			</div>
@@ -309,7 +304,7 @@
 	
 	.app-header { grid-column: 1 / -1; grid-row: 1; /* ... */ }
 	.app-toolbar { grid-column: 1; grid-row: 2; /* ... */ }
-	.app-canvas { grid-column: 2; grid-row: 2; /* ... */ }
+	.app-canvas { grid-column: 2; grid-row: 2; position: relative; /* ... */ }
 	.app-inspector { grid-column: 3; grid-row: 2; /* ... */ }
 	.app-footer { grid-column: 1 / -1; grid-row: 3; /* ... */ }
 </style>

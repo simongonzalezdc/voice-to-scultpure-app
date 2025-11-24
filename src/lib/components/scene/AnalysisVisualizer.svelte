@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { T, useTask } from '@threlte/core';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
+	import { recordingStore, getPlaybackFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
@@ -37,7 +37,7 @@
 
 	// Calculate current height based on recording progress
 	// Get the number of frames captured (current index)
-	let currentIndex = $derived(getCapturedFrames().length);
+	let currentIndex = $derived(getPlaybackFrames().length);
 
 	// Get sculpture height scale (normalized to 150mm reference)
 	let heightScale = $derived(

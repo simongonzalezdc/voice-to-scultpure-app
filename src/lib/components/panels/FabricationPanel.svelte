@@ -128,13 +128,25 @@
 			alert(`PLY export failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
-	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { uiStore, setConstraintMode, setAutoFixGeometry } from '$lib/stores/uiStore.svelte';
-	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-	import type { ConstraintMode } from '$lib/engine/constraints';
+import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
+import {
+	uiStore,
+	setConstraintMode,
+	setAutoFixGeometry,
+	setViewMode,
+	setEnvironment,
+	setBlueprint,
+	toggleBlueprintVisibility
+} from '$lib/stores/uiStore.svelte';
+import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
+import type { ConstraintMode } from '$lib/engine/constraints';
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);
+	let viewMode = $derived(uiStore.view.mode);
+	let environment = $derived(uiStore.view.environment);
+	let blueprintId = $derived(uiStore.view.blueprintId);
+	let showBlueprint = $derived(uiStore.view.showBlueprint);
 
 	function togglePotteryMode() {
 		updateSettings({
@@ -156,6 +168,20 @@
 
 	function handleAutoFixChange() {
 		setAutoFixGeometry(!autoFixGeometry);
+	}
+
+	function handleViewModeChange(mode: 'standard' | 'xray' | 'wireframe' | 'heatmap') {
+		setViewMode(mode);
+		// Force a redraw for heatmap/wireframe transitions
+		sculptureStore.geometryDirty = true;
+	}
+
+	function handleEnvironmentChange(env: 'studio' | 'neon' | 'darkroom') {
+		setEnvironment(env);
+	}
+
+	function handleBlueprintChange(id: string) {
+		setBlueprint(id);
 	}
 </script>
 
@@ -268,6 +294,88 @@
 				<p class="text-xs text-secondary mt-1 ml-6">
 					Locks the camera to the horizontal axis, preventing tumbling.
 				</p>
+
+				<div class="grid grid-cols-2 gap-2 mt-4">
+					<button
+						type="button"
+						class="px-3 py-2 text-sm rounded transition-colors {viewMode === 'standard'
+							? 'bg-brand-primary text-white'
+							: 'surface-panel-alt text-secondary hover:text-primary'}"
+						onclick={() => handleViewModeChange('standard')}
+					>
+						Standard
+					</button>
+					<button
+						type="button"
+						class="px-3 py-2 text-sm rounded transition-colors {viewMode === 'xray'
+							? 'bg-brand-primary text-white'
+							: 'surface-panel-alt text-secondary hover:text-primary'}"
+						onclick={() => handleViewModeChange('xray')}
+					>
+						X-Ray
+					</button>
+					<button
+						type="button"
+						class="px-3 py-2 text-sm rounded transition-colors {viewMode === 'wireframe'
+							? 'bg-brand-primary text-white'
+							: 'surface-panel-alt text-secondary hover:text-primary'}"
+						onclick={() => handleViewModeChange('wireframe')}
+					>
+						Wireframe
+					</button>
+					<button
+						type="button"
+						class="px-3 py-2 text-sm rounded transition-colors {viewMode === 'heatmap'
+							? 'bg-brand-primary text-white'
+							: 'surface-panel-alt text-secondary hover:text-primary'}"
+						onclick={() => handleViewModeChange('heatmap')}
+					>
+						Heatmap
+					</button>
+				</div>
+
+				<div class="mt-3">
+					<label class="text-sm text-secondary block mb-1" for="studio-lighting">
+						Studio Lighting
+					</label>
+					<select
+						id="studio-lighting"
+						value={environment}
+						onchange={(e) => handleEnvironmentChange((e.target as HTMLSelectElement).value as any)}
+						class="surface-panel-alt px-3 py-2 rounded w-full text-sm"
+					>
+						<option value="studio">Studio</option>
+						<option value="neon">Neon</option>
+						<option value="darkroom">Darkroom</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Guidance -->
+			<div class="pb-4 border-b border-subtle">
+				<h3 class="text-sm font-semibold mb-2 text-secondary">Guides</h3>
+				<label class="flex items-center gap-2 cursor-pointer">
+					<input
+						type="checkbox"
+						checked={showBlueprint}
+						onchange={toggleBlueprintVisibility}
+						class="w-4 h-4 accent-brand-primary"
+					/>
+					<span class="text-sm text-primary">Phantom Blueprint</span>
+				</label>
+				{#if showBlueprint}
+					<select
+						class="surface-panel-alt px-3 py-2 rounded w-full mt-2 text-sm"
+						value={blueprintId ?? 'amphora'}
+						onchange={(e) => handleBlueprintChange((e.target as HTMLSelectElement).value)}
+					>
+						<option value="amphora">Amphora</option>
+						<option value="chalice">Chalice</option>
+					</select>
+					<p class="text-xs text-secondary mt-1">
+						Dashed overlay shows target profile; match % updates live.
+					</p>
+				{/if}
 			</div>
 
 			<!-- Physical Dimensions -->

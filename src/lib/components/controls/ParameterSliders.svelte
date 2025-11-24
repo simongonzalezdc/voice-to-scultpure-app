@@ -9,7 +9,9 @@
 		uiStore,
 		setSculptMode,
 		setSculptZone,
-		setControlMode
+		setControlMode,
+		setQuantizeEnabled,
+		setSymmetryCount
 	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
@@ -49,6 +51,8 @@
 	// DIRECTIVE 1: The "Twist" Ban
 	// Twist is impossible in physical fabrication (Ceramic/3D Print) without complex supports or manual intervention
 	let isTwistDisabled = $derived(constraintMode === 'ceramic' || constraintMode === '3d_print');
+	let quantize = $derived(uiStore.modifiers.quantize);
+	let symmetryCount = $state(uiStore.modifiers.symmetryCount);
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
@@ -101,6 +105,7 @@
 
 		// Sync control mode from uiStore
 		controlMode = uiStore.controlMode;
+		symmetryCount = uiStore.modifiers.symmetryCount;
 	});
 
 	function handlePointerDown() {
@@ -284,6 +289,18 @@
 			console.warn('No sculpture exists - base shape change requires an existing sculpture');
 		}
 	}
+
+	function toggleQuantizeFilter() {
+		setQuantizeEnabled(!uiStore.modifiers.quantize);
+		sculptureStore.geometryDirty = true;
+	}
+
+	function handleSymmetryInput(value: number) {
+		const clamped = Math.max(0, Math.floor(value));
+		symmetryCount = clamped;
+		setSymmetryCount(clamped);
+		sculptureStore.geometryDirty = true;
+	}
 </script>
 
 <div class="surface-panel p-4 rounded-lg">
@@ -371,6 +388,46 @@
 				>
 					<span class="flex items-center gap-2"><FileText size={16} /> Plane</span>
 				</button>
+			</div>
+		</div>
+
+		<!-- Math Modifiers -->
+		<div class="rounded border border-subtle p-3">
+			<p class="text-sm text-secondary mb-2">Math Modifiers</p>
+			<div class="flex items-center justify-between gap-2 mb-3">
+				<div>
+					<p class="text-sm text-primary">Lego Filter</p>
+					<p class="text-xs text-secondary">Snap radius to a 10mm block grid.</p>
+				</div>
+				<label class="inline-flex items-center gap-2 cursor-pointer">
+					<input
+						type="checkbox"
+						checked={quantize}
+						onchange={toggleQuantizeFilter}
+						class="w-4 h-4 accent-brand-primary"
+					/>
+					<span class="text-xs text-secondary">Quantize</span>
+				</label>
+			</div>
+			<div>
+				<label for="symmetry-count" class="text-sm text-secondary block mb-1 flex items-center gap-2">
+					Symmetry Lobes
+					<span class="text-subtle opacity-60"><Sparkles size={12} /></span>
+				</label>
+				<input
+					id="symmetry-count"
+					type="range"
+					min="0"
+					max="12"
+					step="1"
+					bind:value={symmetryCount}
+					class="w-full"
+					oninput={(e) => handleSymmetryInput(parseInt((e.target as HTMLInputElement).value, 10))}
+				/>
+				<div class="flex justify-between text-xs text-secondary mt-1">
+					<span>Off</span>
+					<span>{symmetryCount} lobes</span>
+				</div>
 			</div>
 		</div>
 

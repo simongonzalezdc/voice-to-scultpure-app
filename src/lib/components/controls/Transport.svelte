@@ -3,7 +3,9 @@
 		recordingStore,
 		startRecording,
 		stopRecording,
-		resetRecording
+		resetRecording,
+		setHistoryPosition,
+		hasCapturedFrames
 	} from '$lib/stores/recording.svelte';
 	import { createAudioRingBuffer } from '$lib/audio/ringBuffer';
 	import {
@@ -209,6 +211,11 @@
 	function getMicLevel(): number {
 		return analysis.micLevel;
 	}
+
+	function handleHistoryInput(value: number) {
+		setHistoryPosition(value);
+		sculptureStore.geometryDirty = true;
+	}
 </script>
 
 <div class="flex items-center gap-4">
@@ -248,6 +255,22 @@
 				style="width: {getMicLevel() * 100}%"
 			></div>
 		</div>
+	</div>
+	<div class="w-48">
+		<div class="flex items-center justify-between text-xs text-[#888] mb-1">
+			<span>History</span>
+			<span>{Math.round(recordingStore.historyPosition * 100)}%</span>
+		</div>
+		<input
+			type="range"
+			min="0"
+			max="1"
+			step="0.01"
+			value={recordingStore.historyPosition}
+			oninput={(e) => handleHistoryInput(parseFloat((e.target as HTMLInputElement).value))}
+			class="w-full accent-brand-primary disabled:opacity-50"
+			disabled={!hasCapturedFrames()}
+		/>
 	</div>
 	{#if recordingStore.state === 'recording'}
 		<div class="px-2 py-1 text-xs bg-[#ff4444] text-white rounded" role="status">Recording</div>

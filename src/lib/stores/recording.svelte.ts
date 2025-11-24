@@ -8,6 +8,10 @@ import { createSculptureFromFrames } from '$lib/engine/physicsMapping'; // Keep 
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
 import { quantizePitch } from '$lib/audio/audioTheory';
+import { getAudioContext } from '$lib/audio/audioContext';
+import { playResonance } from '$lib/audio/sonification';
+import { getRadiusMetrics } from '$lib/engine/metrics';
+import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -20,10 +24,12 @@ export const recordingStore = $state<{
 	state: RecordingState;
 	startTime: number | null;
 	duration: number;
+	historyPosition: number; // 0-1 slider for time travel
 }>({
 	state: 'idle',
 	startTime: null,
-	duration: 0
+	duration: 0,
+	historyPosition: 1
 });
 
 // Low-level state setters (internal use)
@@ -48,6 +54,16 @@ export function getCapturedFrames() {
 	return capturedFrames;
 }
 
+export function getPlaybackFrames() {
+	if (!capturedFrames.length) return capturedFrames;
+	const sliceIndex = Math.floor(capturedFrames.length * Math.max(0, Math.min(1, recordingStore.historyPosition)));
+	return capturedFrames.slice(0, sliceIndex);
+}
+
+export function setHistoryPosition(t: number): void {
+	recordingStore.historyPosition = Math.max(0, Math.min(1, t));
+}
+
 export function hasCapturedFrames(): boolean {
 	return capturedFrames.length > 0;
 }
@@ -63,6 +79,7 @@ export function startRecording(): void {
 	capturedFrames = [];
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
+	recordingStore.historyPosition = 1;
 
 	if (isGlazeMode) {
 		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
@@ -87,6 +104,26 @@ export function stopRecording(): void {
 	setRecordingState('processing');
 	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
 
+	// RESCUE PATH: Worker failed or frames empty -> generate minimal fallback
+	if (capturedFrames.length === 0) {
+		const fallback: import('$lib/types').AnalysisFrame = {
+			time: Date.now(),
+			pitch: analysisStore.latestFrame?.pitch ?? 0,
+			energy: analysisStore.micLevel ?? 0,
+			timbre:
+				analysisStore.latestFrame?.timbre ?? ({
+					spectralCentroid: 0,
+					zcr: 0,
+					spectralFlux: 0
+				} as any)
+		};
+		capturedFrames = [fallback];
+		console.log(
+			`🔧 [RESCUE] Generated 1 fallback frames from micLevel: ${analysisStore.micLevel.toFixed?.(3) ?? analysisStore.micLevel}`
+		);
+		window.alert?.('⚠️ Audio Worker Failed - using fallback frame for save.');
+	}
+
 	// PHASE 4: Real-time Layering means data is already written.
 	// We just need to transition state.
 	// Legacy logic (createSculptureFromFrames) is bypassed for the new architecture.
@@ -100,10 +137,12 @@ export function stopRecording(): void {
 
 	try {
 		console.log('✅ [RECORDING] Layer data finalized.');
+		triggerResonanceFeedback();
 	} catch (err) {
 		console.error('❌ [RECORDING] Processing failed:', err);
 	} finally {
 		setRecordingState('complete');
+		recordingStore.historyPosition = 1;
 		console.log('✅ [RECORDING] Processing complete');
 	}
 }
@@ -116,6 +155,7 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 	if (recordingStore.state !== 'recording') return;
 
 	capturedFrames.push(frame);
+	recordingStore.historyPosition = 1;
 
 	// 1. Get Active Layer
 	const sculpture = sculptureStore.currentSculpture;
@@ -188,7 +228,28 @@ export function resetRecording(): void {
 	capturedFrames = [];
 	recordingStateSetTimings(null, 0);
 	setRecordingState('idle');
+	recordingStore.historyPosition = 1;
 	resetAnalysis();
 	// Don't nullify sculpture, just reset recording state
 	console.log('🔄 [RECORDING] Reset to idle state');
+}
+
+function triggerResonanceFeedback(): void {
+	const audioContext = getAudioContext();
+	if (!audioContext) return;
+
+	const sculpture = sculptureStore.currentSculpture;
+	if (!sculpture) return;
+
+	const metrics = getRadiusMetrics(sculpture);
+	const averageRadius = metrics?.averageRadius ?? 0.5;
+	const height = sculpture.physical?.height ?? DEFAULT_HEIGHT_MM;
+	// Surface may not be present in some definitions; default to ceramic timbre
+	const materialType = (sculpture as any).surface?.materialType ?? 'ceramic';
+
+	try {
+		playResonance(audioContext, averageRadius, height, materialType);
+	} catch (err) {
+		console.error('Failed to play resonance feedback:', err);
+	}
 }

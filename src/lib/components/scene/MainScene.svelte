@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { T } from '@threlte/core';
-	import { Grid, ContactShadows } from '@threlte/extras';
+	import { Grid, ContactShadows, Environment } from '@threlte/extras';
 	import Sculpture from './Sculpture.svelte';
 	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
 	import ForceVisualizer from './ForceVisualizer.svelte';
 	import ForceParticles from './ForceParticles.svelte';
 	import OrbitControls from './OrbitControls.svelte';
 	import GhostMachines from './GhostMachines.svelte';
+	import BlueprintOverlay from './BlueprintOverlay.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -18,6 +19,14 @@
 	// Zoom control via viewport controls - map zoom (0.5-3.0) to camera FOV (20-80)
 	// Higher zoom = lower FOV (more zoomed in), Lower zoom = higher FOV (more zoomed out)
 	let cameraFOV = $derived(80 - (uiStore.view.zoom - 0.5) * 30);
+
+	const ENVIRONMENTS = {
+		studio: { map: 'environments/studio_small_03_1k.hdr', intensity: 1 },
+		neon: { map: 'environments/royal_esplanade_1k.hdr', intensity: 0.5 },
+		darkroom: { map: null, intensity: 0 }
+	} as const;
+
+	let currentEnv = $derived(ENVIRONMENTS[uiStore.view.environment] ?? ENVIRONMENTS.studio);
 </script>
 
 <!-- Pure Scene Component - Canvas wrapper is in parent -->
@@ -35,6 +44,10 @@
 </T.Group>
 
 <T.AmbientLight intensity={0.3} />
+
+{#if currentEnv.map}
+	<Environment files={currentEnv.map} intensity={currentEnv.intensity} />
+{/if}
 
 <OrbitControls
 	enableDamping
@@ -94,6 +107,10 @@
 </T.Group>
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
+
+{#if uiStore.view.showBlueprint}
+	<BlueprintOverlay />
+{/if}
 
 <!-- DIRECTIVE 4: Conditional Visualizers -->
 {#if uiStore.workspace === 'force'}

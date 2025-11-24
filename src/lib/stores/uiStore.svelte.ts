@@ -36,6 +36,14 @@ export const uiStore = $state<{
 	view: {
 		lightingAngle: number;
 		zoom: number;
+		mode: 'standard' | 'xray' | 'wireframe' | 'heatmap';
+		environment: 'studio' | 'neon' | 'darkroom';
+		blueprintId: string | null;
+		showBlueprint: boolean;
+	};
+	modifiers: {
+		quantize: boolean;
+		symmetryCount: number;
 	};
 	showGhost: boolean;
 	sculptZone: {
@@ -73,7 +81,15 @@ export const uiStore = $state<{
 	},
 	view: {
 		lightingAngle: 0,
-		zoom: 1.0
+		zoom: 1.0,
+		mode: 'standard',
+		environment: 'studio',
+		blueprintId: null,
+		showBlueprint: false
+	},
+	modifiers: {
+		quantize: false,
+		symmetryCount: 0
 	},
 	showGhost: true,
 	sculptZone: {
@@ -157,6 +173,30 @@ export function setLightingAngle(angle: number): void {
 
 export function setZoom(zoom: number): void {
 	uiStore.view.zoom = Math.max(0.5, Math.min(3.0, zoom));
+}
+
+export function setViewMode(mode: 'standard' | 'xray' | 'wireframe' | 'heatmap'): void {
+	uiStore.view.mode = mode;
+}
+
+export function setEnvironment(env: 'studio' | 'neon' | 'darkroom'): void {
+	uiStore.view.environment = env;
+}
+
+export function setBlueprint(id: string | null): void {
+	uiStore.view.blueprintId = id;
+}
+
+export function toggleBlueprintVisibility(): void {
+	uiStore.view.showBlueprint = !uiStore.view.showBlueprint;
+}
+
+export function setQuantizeEnabled(enabled: boolean): void {
+	uiStore.modifiers.quantize = enabled;
+}
+
+export function setSymmetryCount(count: number): void {
+	uiStore.modifiers.symmetryCount = Math.max(0, Math.floor(count));
 }
 
 export function setSculptMode(mode: 'additive' | 'subtractive'): void {

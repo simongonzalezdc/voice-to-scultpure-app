@@ -4,7 +4,7 @@
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { generateLathe } from '$lib/engine/physicsMapping';
-	import type { AnalysisFrame } from '$lib/types';
+	import type { AnalysisFrame, SculptureLayer, LathePoint } from '$lib/types';
 
 	// Modal state
 	let isOpen = $derived(!sculptureStore.currentSculpture); // Show when no project active
@@ -81,10 +81,31 @@
 		// Create new sculpture with initial settings
 		const initialGeometry = createDefaultGeometry();
 
+		// Convert LathePoint[] to Float32Array format [x, y, x, y, ...] for layer data
+		const layerData = new Float32Array(initialGeometry.length * 2);
+		for (let i = 0; i < initialGeometry.length; i++) {
+			layerData[i * 2] = initialGeometry[i].x;
+			layerData[i * 2 + 1] = initialGeometry[i].y;
+		}
+
+		// Create base layer from initial geometry
+		const baseLayer: SculptureLayer = {
+			id: crypto.randomUUID(),
+			name: 'Base Layer',
+			type: 'base',
+			visible: true,
+			locked: false,
+			blendMode: 'overwrite',
+			opacity: 1.0,
+			data: layerData,
+			mask: new Float32Array(initialGeometry.length).fill(1.0)
+		};
+
 		const newSculpture = {
 			id: `sculpture-${Date.now()}`,
 			name: `New ${materialType === 'ceramic' ? 'Ceramic' : 'Plastic'} Sculpture`,
 			createdAt: Date.now(),
+			layers: [baseLayer], // Required: Initialize with base layer
 			baseShape: 'lathe' as const, // Default to lathe for new projects
 			radiusCurve: initialGeometry,
 			surface: {

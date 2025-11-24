@@ -26,6 +26,8 @@
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
+	import { applyModifiers } from '$lib/engine/physicsMapping';
+	import { calculateStressColors } from '$lib/engine/analysis';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import {
 		DEFAULT_HEIGHT_MM,
@@ -112,6 +114,7 @@
 	// Live Geometry State - Updated by compositor
 	let liveGeometry = $state<BufferGeometry | null>(null);
 	let lastCompositionTime = 0;
+	let lastProfileVectors = $state<Vector2[]>([]);
 
 	// COMPOSITOR LOOP
 	// Directive 3.2: Call computeProfile in useTask
@@ -152,12 +155,62 @@
 	});
 
 	function createGeometryFromProfile(profile: LathePoint[]): BufferGeometry {
-		const vectors = profile.map(p => new Vector2(p.x, p.y));
+		const modifiedProfile = applyModifiers(profile, heightScale, uiStore.modifiers);
+		const vectors = modifiedProfile.map((p) => new Vector2(p.x, p.y));
+		lastProfileVectors = vectors;
 		// Default segments
 		const segments = 64; 
 		const geometry = new LatheGeometry(vectors, segments);
+		applySymmetryDistortion(geometry);
+		applyHeatmapColors(geometry, vectors);
 		geometry.computeVertexNormals();
 		return geometry;
+	}
+
+	function applySymmetryDistortion(geometry: BufferGeometry): void {
+		const lobes = uiStore.modifiers.symmetryCount;
+		if (!lobes) return;
+
+		const position = geometry.getAttribute('position');
+		for (let i = 0; i < position.count; i++) {
+			const x = position.getX(i);
+			const z = position.getZ(i);
+			const angle = Math.atan2(z, x);
+			const distortion = 1.0 + Math.sin(angle * lobes) * 0.2;
+			position.setX(i, x * distortion);
+			position.setZ(i, z * distortion);
+		}
+		position.needsUpdate = true;
+	}
+
+	function applyHeatmapColors(geometry: BufferGeometry, vectors: Vector2[]): void {
+		if (uiStore.view.mode !== 'heatmap') {
+			if (geometry.getAttribute('color')) {
+				geometry.deleteAttribute('color');
+			}
+			return;
+		}
+
+		const stressColors = calculateStressColors(vectors);
+		if (!stressColors.length) return;
+
+		const pointsPerRing = vectors.length;
+		const segments = (geometry as any).parameters?.segments ?? 0;
+		const rings = (segments || 0) + 1;
+
+		const colors = new Float32Array(pointsPerRing * rings * 3);
+		for (let ring = 0; ring < rings; ring++) {
+			for (let i = 0; i < pointsPerRing; i++) {
+				const stressIndex = Math.min(Math.max(i - 1, 0), stressColors.length / 3 - 1);
+				const sourceIndex = stressIndex * 3;
+				const target = (ring * pointsPerRing + i) * 3;
+				colors[target] = stressColors[sourceIndex];
+				colors[target + 1] = stressColors[sourceIndex + 1];
+				colors[target + 2] = stressColors[sourceIndex + 2];
+			}
+		}
+
+		geometry.setAttribute('color', new BufferAttribute(colors, 3));
 	}
 
 	// Initial geometry creation (reactive)
@@ -176,10 +229,36 @@
 		return new CylinderGeometry(DEFAULT_CYLINDER_RADIUS, DEFAULT_CYLINDER_RADIUS, 1, DEFAULT_CYLINDER_SEGMENTS);
 	});
 
-	let materialProps = $derived({
-		color: materialColor,
+	$effect(() => {
+		if (!currentGeometry || !lastProfileVectors.length) return;
+		applyHeatmapColors(currentGeometry, lastProfileVectors);
+	});
+
+	let materialProps = $state({
+		color: DEFAULT_MATERIAL_CERAMIC,
 		roughness: 0.5,
-		metalness: 0.1
+		metalness: 0.1,
+		emissive: uiStore.activeGlaze.color,
+		emissiveIntensity: 0
+	});
+
+	$effect(() => {
+		materialProps.color = materialColor;
+		materialProps.roughness = uiStore.activeGlaze.roughness ?? 0.5;
+		materialProps.emissive = uiStore.activeGlaze.color;
+	});
+
+	// Voice-reactive emission (bioluminescence)
+	useTask(() => {
+		const isRecording = recordingStore.state === 'recording';
+		if (isRecording) {
+			const glow = Math.max(0, (analysisStore.micLevel - 0.1) * 2.0);
+			materialProps.emissiveIntensity = glow * 3.0;
+		} else {
+			const idlePulse = 0.2 + Math.sin(Date.now() / 1000) * 0.2;
+			materialProps.emissiveIntensity = Math.max(0, idlePulse);
+		}
+		materialProps.emissive = uiStore.activeGlaze.color;
 	});
 
 </script>
@@ -196,7 +275,13 @@
 				receiveShadow
 				frustumCulled={false}
 			>
-				<T.MeshPhysicalMaterial {...materialProps} />
+				<T.MeshPhysicalMaterial
+					{...materialProps}
+					transparent={uiStore.view.mode === 'xray'}
+					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
+					wireframe={uiStore.view.mode === 'wireframe'}
+					vertexColors={uiStore.view.mode === 'heatmap'}
+				/>
 			</T.Mesh>
 		{/if}
 

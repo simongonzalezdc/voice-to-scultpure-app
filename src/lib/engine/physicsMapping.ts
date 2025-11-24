@@ -1,4 +1,4 @@
-import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile, BaseShape } from '$lib/types';
+import type { AnalysisFrame, LathePoint, SculptureDefinition, SculptureLayer, UserProfile, BaseShape } from '$lib/types';
 import { Color } from 'three';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
@@ -287,6 +287,26 @@ export function generateLathe(
 	return sanitizedCurve;
 }
 
+export function applyModifiers(
+	curve: LathePoint[],
+	heightScale: number,
+	modifiers?: { quantize?: boolean }
+): LathePoint[] {
+	const safeHeightScale = Math.max(0.0001, heightScale || 1);
+	return curve.map((point) => {
+		let radius = point.x;
+		if (modifiers?.quantize) {
+			const step = 10; // 10mm blocks
+			radius = Math.round((radius * safeHeightScale) / step) * (step / safeHeightScale);
+		}
+
+		return {
+			...point,
+			x: radius
+		};
+	});
+}
+
 export function applyDeformation(
 	curve: LathePoint[],
 	deformation: { twist: number; compression: number; taper: number }
@@ -452,10 +472,31 @@ export function createSculptureFromFrames(
 	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode, 'standard', baseShape);
 	const surface = deriveSurfaceParameters(frames, profile);
 
+	// Convert LathePoint[] to Float32Array format [x, y, x, y, ...] for layer data
+	const layerData = new Float32Array(radiusCurve.length * 2);
+	for (let i = 0; i < radiusCurve.length; i++) {
+		layerData[i * 2] = radiusCurve[i].x;
+		layerData[i * 2 + 1] = radiusCurve[i].y;
+	}
+
+	// Create base layer from generated geometry
+	const baseLayer: SculptureLayer = {
+		id: crypto.randomUUID(),
+		name: 'Base Layer',
+		type: 'base',
+		visible: true,
+		locked: false,
+		blendMode: 'overwrite',
+		opacity: 1.0,
+		data: layerData,
+		mask: new Float32Array(radiusCurve.length).fill(1.0)
+	};
+
 	return {
 		id: crypto.randomUUID(),
 		name: name || `Sculpture ${new Date().toLocaleString()}`,
 		createdAt: Date.now(),
+		layers: [baseLayer], // Required: Initialize with base layer
 		baseShape, // Use provided shape
 		radiusCurve,
 		surface: {
