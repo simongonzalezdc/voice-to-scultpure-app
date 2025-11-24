@@ -28,6 +28,9 @@
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
+	import {
+		applyGlazeColors
+	} from '$lib/engine/geometryFactory';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
@@ -61,7 +64,6 @@
 		createGeometryFromProfile,
 		applySymmetryDistortion,
 		applyHeatmapColors,
-		applyGlazeColors,
 		safeDisposeGeometry,
 		createFallbackGeometry,
 		deriveProfileWithTransforms
