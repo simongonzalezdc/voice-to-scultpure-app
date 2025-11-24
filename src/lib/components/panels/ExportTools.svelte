@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { toastStore } from '$lib/stores/toastStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
@@ -42,70 +43,78 @@
 	function handleExportBlueprint() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
 			return;
 		}
 
 		try {
+			toastStore.info('Exporting Blueprint', 'Generating SVG...');
 			const svg = exportProfileSVG(sculpture);
 			const filename = `sculpture-blueprint-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.svg`;
 			downloadBlueprint(svg, filename);
+			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('Blueprint export failed:', error);
-			alert(`Blueprint export failed: ${error instanceof Error ? error.message : String(error)}`);
+			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
 		}
 	}
 
 	function handleExportSTL() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
 			return;
 		}
 
 		try {
+			toastStore.info('Exporting STL', 'Generating geometry...');
 			const options = getExportOptions();
 			const stlContent = lathePointsToSTL(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
 			downloadSTL(stlContent, filename);
+			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('Export failed:', error);
-			alert(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
 		}
 	}
 
 	async function handleExportGLB() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
 			return;
 		}
 
 		try {
+			toastStore.info('Exporting GLB', 'Generating 3D model...');
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
 			const options = getExportOptions();
 			await exportSculptureToGLB(sculpture, filename, options);
+			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('GLB export failed:', error);
-			alert(`GLB export failed: ${error instanceof Error ? error.message : String(error)}`);
+			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
 		}
 	}
 
 	function handleExportPLY() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			alert('No sculpture to export. Please generate a test mesh or record audio first.');
+			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
 			return;
 		}
 
 		try {
+			toastStore.info('Exporting PLY', 'Generating colored point cloud...');
 			const options = getExportOptions();
 			const plyContent = exportSculptureToPLY(sculpture, options);
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.ply`;
 			downloadPLY(plyContent, filename);
+			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('PLY export failed:', error);
-			alert(`PLY export failed: ${error instanceof Error ? error.message : String(error)}`);
+			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
 		}
 	}
 </script>

@@ -259,40 +259,15 @@
 			// GENERATE GEOMETRY from profile
 			const { geometry, vectors } = createGeometryFromProfile(profile);
 			
-			// GENERATE VERTEX COLORS if in glaze mode and recording
-			if (isRecording && uiStore.workspace === 'glaze') {
-				const frames = getCapturedFrames();
-				if (frames && frames.length > 0) {
-					const colors = generateGlaze(frames, uiStore.activeGlaze);
-					// Apply colors to geometry
-					const positions = geometry.getAttribute('position');
-					const vertexCount = positions.count;
-					const requiredSize = vertexCount * 3;
-					
-					// Buffer Pooling: Reuse buffer if size matches
-					if (!colorBuffer || colorBuffer.length !== requiredSize) {
-						colorBuffer = new Float32Array(requiredSize);
-					}
-					const colorArray = colorBuffer;
-					
-					// Resample colors to match vertex count
-					const colorCount = colors.length / 3;
-					if (colorCount > 0) {
-						for (let i = 0; i < vertexCount; i++) {
-							// Map vertex to color by height (Y coordinate)
-							const y = positions.getY(i);
-							const normalizedHeight = (y + 1) / 2; // Normalize 0-1
-							const colorIndex = Math.floor(normalizedHeight * (colorCount - 1));
-							const clampedIndex = Math.max(0, Math.min(colorCount - 1, colorIndex));
-							
-							colorArray[i * 3] = colors[clampedIndex * 3] ?? 0;
-							colorArray[i * 3 + 1] = colors[clampedIndex * 3 + 1] ?? 0;
-							colorArray[i * 3 + 2] = colors[clampedIndex * 3 + 2] ?? 0;
+					// GENERATE VERTEX COLORS if in glaze mode and recording
+					if (isRecording && uiStore.workspace === 'glaze') {
+						const frames = getCapturedFrames();
+						if (frames && frames.length > 0) {
+							const colors = generateGlaze(frames, uiStore.activeGlaze);
+							// Apply colors using factory function
+							colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
 						}
-						geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
 					}
-				}
-			}
 			
 			// Update state
 			lastProfileVectors = vectors;
