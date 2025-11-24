@@ -84,3 +84,26 @@ export const CALIBRATION_ATTACK_THRESHOLD_DEFAULT = 0.15; // Default attack thre
 export const CALIBRATION_ATTACK_THRESHOLD_MIN = 0.05; // Minimum attack threshold
 export const CALIBRATION_ATTACK_THRESHOLD_MAX = 0.5; // Maximum attack threshold
 export const CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER = 2; // Multiplier for std dev in attack threshold
+
+// Geometry Creation Constants (from Sculpture.svelte)
+export const GEOMETRY_LATHE_SEGMENTS = 64; // Default segments for LatheGeometry
+export const GEOMETRY_RESOLUTION_COMPOSITOR = 128; // Resolution used by compositor for layer data
+export const SYMMETRY_DISTORTION_AMPLITUDE = 0.2; // Max distortion amplitude for symmetry effect
+export const HEATMAP_STRESS_COLOR_AMPLITUDE = 1.0; // Amplitude scaling for stress colors
+
+// Compositor Frame Rate Limiting (from Sculpture.svelte)
+export const COMPOSITOR_TARGET_FPS = 30; // Target FPS for geometry updates (30fps sufficient for smooth sculpture)
+export const COMPOSITOR_FRAME_TIME_MS = 1000 / 30; // Pre-calculated frame time in milliseconds
+
+// Voice-Reactive Material Constants (from Sculpture.svelte)
+export const VOICE_REACTION_GLOW_MULTIPLIER = 2.0; // Pitch to glow amplification (was 2.0 * 3.0)
+export const VOICE_REACTION_GLOW_BASE = 0.1; // Minimum mic level before glow activates
+export const EMISSION_SMOOTHING_FACTOR = 0.15; // Exponential smoothing for emission (lower = smoother)
+export const VOICE_REACTION_IDLE_PULSE_AMPLITUDE = 0.2; // Amplitude of idle pulsing effect
+export const VOICE_REACTION_IDLE_PULSE_BASE = 0.2; // Base level for idle pulse
+
+// Force Mode Constants (from Sculpture.svelte)
+export const FORCE_MODE_PITCH_MIN_HZ = 80; // Minimum pitch for force mode target
+export const FORCE_MODE_PITCH_MAX_HZ = 800; // Maximum pitch for force mode target
+export const FORCE_MODE_MIC_LEVEL_THRESHOLD = 0.05; // Minimum mic level to show force target
+export const FORCE_MODE_FALLBACK_RADIUS = 0.5; // Fallback radius when geometry sampling fails

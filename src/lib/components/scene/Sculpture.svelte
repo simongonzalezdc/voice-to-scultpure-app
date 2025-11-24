@@ -13,7 +13,6 @@
 	} from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import {
-		LatheGeometry,
 		Vector2,
 		Vector3,
 		Mesh,
@@ -28,16 +27,13 @@
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
-	import { applyModifiers, applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
-	import { applyConstraints } from '$lib/engine/constraints';
+	import { generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import {
 		DEFAULT_HEIGHT_MM,
-		PLASTIC_COLOR_LIGHTEN_FACTOR,
-		ERROR_COLOR,
 		GHOST_OPACITY,
 		GHOST_ROUGHNESS,
 		DEFAULT_CYLINDER_RADIUS,
@@ -46,8 +42,41 @@
 		DEFAULT_ICOSAHEDRON_DETAIL,
 		ORIENTATION_SPRING_STIFFNESS,
 		ORIENTATION_SPRING_DAMPING,
-		RECORDING_IMPLOSION_SCALE
+		RECORDING_IMPLOSION_SCALE,
+		COMPOSITOR_TARGET_FPS,
+		COMPOSITOR_FRAME_TIME_MS,
+		GEOMETRY_LATHE_SEGMENTS,
+		GEOMETRY_RESOLUTION_COMPOSITOR,
+		VOICE_REACTION_GLOW_BASE,
+		VOICE_REACTION_GLOW_MULTIPLIER,
+		EMISSION_SMOOTHING_FACTOR,
+		VOICE_REACTION_IDLE_PULSE_BASE,
+		VOICE_REACTION_IDLE_PULSE_AMPLITUDE,
+		FORCE_MODE_PITCH_MIN_HZ,
+		FORCE_MODE_PITCH_MAX_HZ,
+		FORCE_MODE_MIC_LEVEL_THRESHOLD,
+		FORCE_MODE_FALLBACK_RADIUS
 	} from '$lib/config/constants';
+	import {
+		createGeometryFromProfile,
+		applySymmetryDistortion,
+		applyHeatmapColors,
+		applyGlazeColors,
+		safeDisposeGeometry,
+		createFallbackGeometry,
+		deriveProfileWithTransforms
+	} from '$lib/engine/geometryFactory';
+	import {
+		deriveMaterialColor,
+		deriveGhostMaterialColor,
+		createBaseMaterialProps,
+		updateMaterialForViewMode,
+		updateMaterialForGlazeMode,
+		calculateSmoothedEmission,
+		deriveEmissiveIntensity,
+		createGhostMaterialProps,
+		type MaterialProps
+	} from '$lib/engine/materialFactory';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
 
@@ -66,31 +95,21 @@
 
 	// Material Configuration
 	const CLAY_COLOR_DEFAULT = DEFAULT_MATERIAL_CERAMIC;
-	const PORCELAIN_COLOR = '#FFFFFF';
 
 	// Derived material properties based on material type
-	let isPlastic = $derived(sculpture?.physical.sculptMode === 'subtractive'); // Assuming plastic/subtractive mapping or similar. Check types. 
-	// Actually, types say surface.materialType is deprecated? No, kept surface in types temporarily but commented out.
-	// Let's stick to existing logic where possible, or default to ceramic.
-	// For now, assume ceramic default if surface prop is missing.
+	let isPlastic = $derived(sculpture?.physical.sculptMode === 'subtractive');
 
 	// Color Logic for material
 	let materialColor = $derived.by(() => {
-		if (!sculpture) return PORCELAIN_COLOR;
+		if (!sculpture) return CLAY_COLOR_DEFAULT;
 
-		// Directive 2: "Loud" Visual Error - Glaze Mode Missing Colors
 		const isGlazeMode = uiStore.workspace === 'glaze';
-		// Check for vertex colors
-		const hasColors = false; // TODO: Check glaze layer
+		const hasColors = false; // TODO: Check glaze layer (non-empty glaze vertices)
 
-		if (isGlazeMode && !hasColors) {
-			// return ERROR_COLOR; // Disable for now to avoid flashing pink during refactor
-		}
-
-		return CLAY_COLOR_DEFAULT;
+		return deriveMaterialColor(isGlazeMode, hasColors, isPlastic);
 	});
 
-	let ghostMaterialColor = $derived(sculptureStore.ghostSculpture ? CLAY_COLOR_DEFAULT : '#8F3E48');
+	let ghostMaterialColor = $derived(deriveGhostMaterialColor(!!sculptureStore.ghostSculpture));
 
 	// Parent Rig Transform Values
 	let heightScale = $derived.by(() => {
@@ -127,8 +146,6 @@
 
 	// Frame rate limiting for smoother, less jittery updates
 	let lastUpdateTime = 0;
-	const TARGET_FPS = 30; // 30fps is plenty for a sculpture tool
-	const FRAME_TIME = 1000 / TARGET_FPS;
 
 	// COMPOSITOR LOOP
 	// Directive 3.2: Call computeProfile in useTask
@@ -140,7 +157,7 @@
 
 		// Frame rate limiting - skip frames to maintain target FPS
 		const now = Date.now();
-		if (now - lastUpdateTime < FRAME_TIME) {
+		if (now - lastUpdateTime < COMPOSITOR_FRAME_TIME_MS) {
 			return; // Skip this frame
 		}
 		lastUpdateTime = now;
@@ -173,10 +190,9 @@
 					);
 					
 					// Convert to layer data (exactly as stopRecording does)
-					const resolution = 128;
-					const tempLayerData = new Float32Array(resolution);
-					for (let i = 0; i < resolution; i++) {
-						const normalizedY = i / (resolution - 1);
+					const tempLayerData = new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR);
+					for (let i = 0; i < GEOMETRY_RESOLUTION_COMPOSITOR; i++) {
+						const normalizedY = i / (GEOMETRY_RESOLUTION_COMPOSITOR - 1);
 						const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
 						const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
 						tempLayerData[i] = radiusCurve[clampedIndex].x;
@@ -196,7 +212,7 @@
 								blendMode: 'add' as const,
 								opacity: 1.0,
 								data: tempLayerData,
-								mask: new Float32Array(resolution).fill(1.0),
+								mask: new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR).fill(1.0),
 								sourceFrameCount: frames.length
 							}
 						];
@@ -228,9 +244,8 @@
 				}
 				
 				// Check for resolution mismatches
-				const resolution = 128;
 				for (const layer of sculpture.layers) {
-					if (layer.visible && layer.data.length !== resolution) {
+					if (layer.visible && layer.data.length !== GEOMETRY_RESOLUTION_COMPOSITOR) {
 						trackError('compositorResolutionMismatch');
 					}
 				}
@@ -298,85 +313,7 @@
 		}
 	});
 
-	/**
-	 * Pure function: Creates geometry from profile without side effects
-	 * Returns both geometry and vectors for use by callers
-	 */
-	function createGeometryFromProfile(profile: LathePoint[]): { geometry: BufferGeometry; vectors: Vector2[] } {
-		// 1. Apply deformations (twist, compression, taper) first
-		let processedProfile = profile;
-		if (sculpture?.deformation) {
-			processedProfile = applyDeformation(profile, sculpture.deformation);
-		}
-		
-		// 2. Apply constraints if auto-fix is enabled
-		// This ensures deformed geometry still meets physical manufacturing limits
-		if (uiStore.autoFixGeometry && uiStore.constraintMode !== 'digital') {
-			processedProfile = applyConstraints(processedProfile, uiStore.constraintMode);
-		}
-		
-		// 3. Apply modifiers (quantize, symmetry)
-		const modifiedProfile = applyModifiers(processedProfile, heightScale, uiStore.modifiers);
-		const vectors = modifiedProfile.map((p) => new Vector2(p.x, p.y));
-		
-		// Default segments
-		const segments = 64; 
-		const geometry = new LatheGeometry(vectors, segments);
-		// Note: Geometry mutations (symmetry, heatmap) are now handled in $effect
-		geometry.computeVertexNormals();
-		return { geometry, vectors };
-	}
 
-	function applySymmetryDistortion(geometry: BufferGeometry): void {
-		const lobes = uiStore.modifiers.symmetryCount;
-		if (!lobes) return;
-
-		const position = geometry.getAttribute('position');
-		for (let i = 0; i < position.count; i++) {
-			const x = position.getX(i);
-			const z = position.getZ(i);
-			const angle = Math.atan2(z, x);
-			const distortion = 1.0 + Math.sin(angle * lobes) * 0.2;
-			position.setX(i, x * distortion);
-			position.setZ(i, z * distortion);
-		}
-		position.needsUpdate = true;
-	}
-
-	function applyHeatmapColors(geometry: BufferGeometry, vectors: Vector2[]): void {
-		if (uiStore.view.mode !== 'heatmap') {
-			if (geometry.getAttribute('color')) {
-				geometry.deleteAttribute('color');
-			}
-			return;
-		}
-
-		const stressColors = calculateStressColors(vectors);
-		if (!stressColors.length) return;
-
-		const pointsPerRing = vectors.length;
-		const segments = (geometry as any).parameters?.segments ?? 0;
-		const rings = (segments || 0) + 1;
-
-		const requiredSize = pointsPerRing * rings * 3;
-		if (!heatmapBuffer || heatmapBuffer.length !== requiredSize) {
-			heatmapBuffer = new Float32Array(requiredSize);
-		}
-		const colors = heatmapBuffer;
-
-		for (let ring = 0; ring < rings; ring++) {
-			for (let i = 0; i < pointsPerRing; i++) {
-				const stressIndex = Math.min(Math.max(i - 1, 0), stressColors.length / 3 - 1);
-				const sourceIndex = stressIndex * 3;
-				const target = (ring * pointsPerRing + i) * 3;
-				colors[target] = stressColors[sourceIndex] ?? 0;
-				colors[target + 1] = stressColors[sourceIndex + 1] ?? 0;
-				colors[target + 2] = stressColors[sourceIndex + 2] ?? 0;
-			}
-		}
-
-		geometry.setAttribute('color', new BufferAttribute(colors, 3));
-	}
 
 	// Initial geometry creation (reactive, but pure - no side effects)
 	let currentGeometry = $derived.by(() => {
@@ -419,41 +356,54 @@
 	// According to Svelte docs: Effects that modify external objects should return cleanup functions
 	$effect(() => {
 		if (!currentGeometry) return;
-		
-		// Store reference to geometry for cleanup
-		const geometry = currentGeometry;
-		
-		// Apply symmetry distortion if needed
-		applySymmetryDistortion(geometry);
-		
-		// Apply heatmap colors if we have vectors and view mode is heatmap
-		// For live geometry, use lastProfileVectors (updated by useTask)
-		// For static geometry, use derivedVectors
-		const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
-		if (vectorsToUse.length > 0) {
-			applyHeatmapColors(geometry, vectorsToUse);
+
+		try {
+			const geometry = currentGeometry;
+
+			// Apply symmetry distortion if needed
+			applySymmetryDistortion(geometry, uiStore.modifiers.symmetryCount);
+
+			// Apply heatmap colors if we have vectors and view mode is heatmap
+			const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
+			if (vectorsToUse.length > 0 && uiStore.view.mode === 'heatmap') {
+				const stressColors = calculateStressColors(vectorsToUse);
+				if (stressColors && stressColors.length > 0) {
+					heatmapBuffer = applyHeatmapColors(geometry, vectorsToUse, stressColors, heatmapBuffer) ?? heatmapBuffer;
+				}
+			} else if (geometry.getAttribute('color')) {
+				geometry.deleteAttribute('color');
+			}
+		} catch (err) {
+			console.warn('⚠️ [SCULPTURE] Geometry mutation failed (non-fatal):', err);
 		}
-		
-		// Cleanup: Reset geometry attributes if geometry changes
-		// This ensures old geometry doesn't retain stale color data
+
 		return () => {
-			// Note: Geometry disposal is handled by Three.js/Threlte lifecycle
-			// This cleanup runs when dependencies change, ensuring fresh mutations
+			// Cleanup: Reset geometry attributes if geometry changes
 		};
 	});
 
-	let materialProps = $state({
-		color: DEFAULT_MATERIAL_CERAMIC,
-		roughness: 0.5,
-		metalness: 0.1,
-		emissive: uiStore.activeGlaze.color,
-		emissiveIntensity: 0
-	});
+	let materialProps = $state<MaterialProps>(
+		createBaseMaterialProps(DEFAULT_MATERIAL_CERAMIC, uiStore.activeGlaze.color, uiStore.activeGlaze.roughness ?? 0.5)
+	);
 
 	$effect(() => {
+		// Update base properties
 		materialProps.color = materialColor;
 		materialProps.roughness = uiStore.activeGlaze.roughness ?? 0.5;
 		materialProps.emissive = uiStore.activeGlaze.color;
+
+		// Apply view mode transformations
+		const viewUpdated = updateMaterialForViewMode(materialProps, uiStore.view.mode);
+
+		// Apply glaze mode transformations
+		const glazeUpdated = updateMaterialForGlazeMode(
+			viewUpdated,
+			recordingStore.state === 'recording',
+			uiStore.workspace === 'glaze',
+			false // TODO: Check if geometry has vertex colors
+		);
+
+		Object.assign(materialProps, glazeUpdated);
 	});
 
 	// Voice-reactive emission (bioluminescence) with smoothing
@@ -461,13 +411,11 @@
 	useTask(() => {
 		const isRecording = recordingStore.state === 'recording';
 		if (isRecording) {
-			const targetGlow = Math.max(0, (analysisStore.micLevel - 0.1) * 2.0) * 3.0;
-			// Smooth transition with exponential easing (0.15 = slower, less jittery)
-			smoothedEmission += (targetGlow - smoothedEmission) * 0.15;
+			const targetGlow = Math.max(0, (analysisStore.micLevel - VOICE_REACTION_GLOW_BASE) * VOICE_REACTION_GLOW_MULTIPLIER) * VOICE_REACTION_GLOW_MULTIPLIER;
+			smoothedEmission = calculateSmoothedEmission(smoothedEmission, targetGlow, EMISSION_SMOOTHING_FACTOR);
 			materialProps.emissiveIntensity = smoothedEmission;
 		} else {
-			const idlePulse = 0.2 + Math.sin(Date.now() / 1000) * 0.2;
-			materialProps.emissiveIntensity = Math.max(0, idlePulse);
+			materialProps.emissiveIntensity = deriveEmissiveIntensity(false, 0);
 		}
 		materialProps.emissive = uiStore.activeGlaze.color;
 	});
@@ -483,7 +431,7 @@
 		const micLevel = analysisStore.micLevel;
 
 		// Only show target if there's voice input
-		if (pitch === 0 || micLevel < 0.05) {
+		if (pitch === 0 || micLevel < FORCE_MODE_MIC_LEVEL_THRESHOLD) {
 			setInteractionPoint(null, null);
 			return;
 		}
@@ -498,10 +446,8 @@
 			return;
 		}
 
-		// Map pitch to height (80Hz = bottom, 800Hz = top)
-		const MIN_PITCH = 80;
-		const MAX_PITCH = 800;
-		const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH)));
+		// Map pitch to height
+		const normalizedPitch = Math.max(0, Math.min(1, (pitch - FORCE_MODE_PITCH_MIN_HZ) / (FORCE_MODE_PITCH_MAX_HZ - FORCE_MODE_PITCH_MIN_HZ)));
 		
 		// Map to actual geometry Y range (accounting for transforms)
 		const minY = bbox.min.y * heightScale;
@@ -511,7 +457,7 @@
 		// Find the radius at this height by sampling the geometry
 		// Get a ring of vertices at approximately this Y position
 		const positions = meshRef.geometry.getAttribute('position');
-		let closestRadius = 0.5; // Fallback
+		let closestRadius = FORCE_MODE_FALLBACK_RADIUS;
 		let minYDiff = Infinity;
 		
 		for (let i = 0; i < positions.count; i++) {
