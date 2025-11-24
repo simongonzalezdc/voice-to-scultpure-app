@@ -27,23 +27,30 @@ function decryptApiKey(encrypted: string): string {
 }
 
 function loadSettings(): AppSettings {
-	if (typeof window === 'undefined') {
-		return getDefaultSettings();
-	}
+        if (typeof window === 'undefined') {
+                return getDefaultSettings();
+        }
 
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		if (!stored) return getDefaultSettings();
+        try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (!stored) return getDefaultSettings();
 
-		const parsed = JSON.parse(stored);
-		if (parsed.apiKeyEncrypted) {
-			parsed.apiKey = decryptApiKey(parsed.apiKeyEncrypted);
-			delete parsed.apiKeyEncrypted;
-		}
-		return { ...getDefaultSettings(), ...parsed };
-	} catch {
-		return getDefaultSettings();
-	}
+                const parsed = JSON.parse(stored);
+                if (parsed.apiKeyEncrypted) {
+                        parsed.apiKey = decryptApiKey(parsed.apiKeyEncrypted);
+                        delete parsed.apiKeyEncrypted;
+                }
+
+                const defaults = getDefaultSettings();
+
+                return {
+                        ...defaults,
+                        ...parsed,
+                        userProfile: normalizeUserProfile(parsed.userProfile, defaults.userProfile)
+                } satisfies AppSettings;
+        } catch {
+                return getDefaultSettings();
+        }
 }
 
 function getDefaultSettings(): AppSettings {
@@ -82,6 +89,33 @@ function getDefaultSettings(): AppSettings {
         };
 }
 
+function normalizeUserProfile(
+        storedProfile: AppSettings['userProfile'],
+        defaultProfile: AppSettings['userProfile']
+): AppSettings['userProfile'] {
+        if (!defaultProfile) return storedProfile;
+
+        // If no stored profile, use defaults (ensures studio unlock path remains intact)
+        if (!storedProfile) return defaultProfile;
+
+        return {
+                ...defaultProfile,
+                ...storedProfile,
+                pitchRange: {
+                        ...defaultProfile.pitchRange,
+                        ...storedProfile.pitchRange
+                },
+                energyRange: {
+                        ...defaultProfile.energyRange,
+                        ...storedProfile.energyRange
+                },
+                timbreRange: {
+                        ...defaultProfile.timbreRange,
+                        ...storedProfile.timbreRange
+                }
+        } satisfies AppSettings['userProfile'];
+}
+
 function saveSettings(settings: AppSettings): void {
 	if (typeof window === 'undefined') return;
 
@@ -102,14 +136,17 @@ function saveSettings(settings: AppSettings): void {
 export const appSettings = $state<AppSettings>(loadSettings());
 
 export function updateSettings(updates: Partial<AppSettings>): void {
-	appSettings.aiProvider = updates.aiProvider ?? appSettings.aiProvider;
-	appSettings.apiKey = updates.apiKey ?? appSettings.apiKey;
-	appSettings.apiEndpoint = updates.apiEndpoint ?? appSettings.apiEndpoint;
-	appSettings.graphicsQuality = updates.graphicsQuality ?? appSettings.graphicsQuality;
-	appSettings.defaultMicrophone = updates.defaultMicrophone ?? appSettings.defaultMicrophone;
-	appSettings.userProfile = updates.userProfile ?? appSettings.userProfile;
-	appSettings.viewMode = updates.viewMode ?? appSettings.viewMode;
-	saveSettings(appSettings);
+        appSettings.aiProvider = updates.aiProvider ?? appSettings.aiProvider;
+        appSettings.apiKey = updates.apiKey ?? appSettings.apiKey;
+        appSettings.apiEndpoint = updates.apiEndpoint ?? appSettings.apiEndpoint;
+        appSettings.graphicsQuality = updates.graphicsQuality ?? appSettings.graphicsQuality;
+        appSettings.defaultMicrophone = updates.defaultMicrophone ?? appSettings.defaultMicrophone;
+        appSettings.userProfile = normalizeUserProfile(
+                updates.userProfile,
+                appSettings.userProfile ?? getDefaultSettings().userProfile
+        );
+        appSettings.viewMode = updates.viewMode ?? appSettings.viewMode;
+        saveSettings(appSettings);
 }
 
 export function resetSettings(): void {
