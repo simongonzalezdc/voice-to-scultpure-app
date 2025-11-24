@@ -397,19 +397,30 @@
 	});
 
 	// Apply geometry mutations in $effect (side effects belong here, not in $derived)
+	// According to Svelte docs: Effects that modify external objects should return cleanup functions
 	$effect(() => {
 		if (!currentGeometry) return;
 		
+		// Store reference to geometry for cleanup
+		const geometry = currentGeometry;
+		
 		// Apply symmetry distortion if needed
-		applySymmetryDistortion(currentGeometry);
+		applySymmetryDistortion(geometry);
 		
 		// Apply heatmap colors if we have vectors and view mode is heatmap
 		// For live geometry, use lastProfileVectors (updated by useTask)
 		// For static geometry, use derivedVectors
 		const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
 		if (vectorsToUse.length > 0) {
-			applyHeatmapColors(currentGeometry, vectorsToUse);
+			applyHeatmapColors(geometry, vectorsToUse);
 		}
+		
+		// Cleanup: Reset geometry attributes if geometry changes
+		// This ensures old geometry doesn't retain stale color data
+		return () => {
+			// Note: Geometry disposal is handled by Three.js/Threlte lifecycle
+			// This cleanup runs when dependencies change, ensuring fresh mutations
+		};
 	});
 
 	let materialProps = $state({

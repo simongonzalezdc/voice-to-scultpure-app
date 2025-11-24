@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import {
 		recordingStore,
 		startRecording,
@@ -304,6 +306,31 @@
 	function handleHistoryInput(value: number) {
 		setHistoryPosition(value);
 		sculptureStore.geometryDirty = true;
+	}
+
+	// Cleanup: Dispose worker on component destroy
+	// According to Svelte docs and best practices: Workers should be terminated on component unmount
+	onDestroy(() => {
+		if (workerClient) {
+			console.log('🧹 [TRANSPORT] Component destroying - disposing worker');
+			workerClient.dispose();
+			workerClient = null;
+		}
+		// Note: ringBuffer is SharedArrayBuffer, doesn't need explicit cleanup
+		// but we nullify the reference for clarity
+		ringBuffer = null;
+	});
+
+	// Cleanup: Dispose worker on page unload
+	// According to best practices: Workers should be terminated on page unload to prevent memory leaks
+	if (browser) {
+		window.addEventListener('beforeunload', () => {
+			if (workerClient) {
+				console.log('🧹 [TRANSPORT] Page unloading - disposing worker');
+				workerClient.dispose();
+				workerClient = null;
+			}
+		});
 	}
 </script>
 

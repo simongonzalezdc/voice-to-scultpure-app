@@ -120,63 +120,85 @@
 	});
 
 	// LIVE PREVIEW: Reactive regeneration
-	let lastRegenerationState: { mode: string; sculptMode: string; zone: string; history: number } | null =
-		null;
-
-	$effect(() => {
-		if (recordingStore.state === 'recording' || recordingStore.state === 'processing') return;
-		if (!sculptureStore.currentSculpture || !hasCapturedFrames()) return;
-
+	// REFACTORED: Use $derived to compute regeneration key instead of $effect for state synchronization
+	// According to Svelte docs: "Avoid using $effect to synchronise state. Use $derived instead."
+	
+	// Compute regeneration key using $derived (pure computation, no side effects)
+	const regenerationKey = $derived.by(() => {
+		// Skip if recording or no sculpture
+		if (recordingStore.state === 'recording' || recordingStore.state === 'processing') return null;
+		if (!sculptureStore.currentSculpture || !hasCapturedFrames()) return null;
+		
+		// Skip if using Layer System (no legacy regeneration needed)
+		if (sculptureStore.currentSculpture.layers && sculptureStore.currentSculpture.layers.length > 0) {
+			return null;
+		}
+		
+		// Return regeneration key (stringified state)
 		const currentConstraintMode = uiStore.constraintMode;
 		const currentSculptMode = uiStore.sculptMode;
 		const currentZone = uiStore.sculptZone;
-
-		const currentState = {
+		
+		return JSON.stringify({
 			mode: currentConstraintMode,
 			sculptMode: currentSculptMode,
 			zone: `${currentZone.min}-${currentZone.max}`,
 			history: recordingStore.historyPosition
-		};
-
-		if (
-			lastRegenerationState &&
-			lastRegenerationState.mode === currentState.mode &&
-			lastRegenerationState.sculptMode === currentState.sculptMode &&
-			lastRegenerationState.zone === currentState.zone &&
-			lastRegenerationState.history === currentState.history
-		) return;
-
-		if (lastRegenerationState === null) {
-			lastRegenerationState = currentState;
+		});
+	});
+	
+	// Track previous key to detect changes
+	let previousRegenerationKey = $state<string | null>(null);
+	
+	// Use $effect only for the side effect (regenerating sculpture), not for state synchronization
+	$effect(() => {
+		const key = regenerationKey;
+		
+		// Skip if no key (recording, no sculpture, or using layers)
+		if (key === null) {
+			previousRegenerationKey = null;
 			return;
 		}
-
-		// Regenerate logic (Legacy support - bypass if using Layer System)
-		if (sculptureStore.currentSculpture.layers && sculptureStore.currentSculpture.layers.length > 0) {
-			// Skip regeneration if using new Layer System
-			return; 
+		
+		// Skip if key hasn't changed (no regeneration needed)
+		if (key === previousRegenerationKey) {
+			return;
 		}
 		
-		// ... existing regeneration logic ...
+		// Initialize previous key on first run
+		if (previousRegenerationKey === null) {
+			previousRegenerationKey = key;
+			return;
+		}
+		
+		// Key changed - regenerate sculpture (this is a valid side effect)
+		previousRegenerationKey = key;
+		
+		// Parse key to get state values
+		const state = JSON.parse(key);
 		const frames = getPlaybackFrames();
 		const currentSculpture = sculptureStore.currentSculpture;
-		const zone = currentZone.min > 0 || currentZone.max < 1 ? currentZone : undefined;
+		if (!currentSculpture) return;
+		
+		const zone = state.zone !== '0-1' ? {
+			min: parseFloat(state.zone.split('-')[0]),
+			max: parseFloat(state.zone.split('-')[1])
+		} : undefined;
 
 		const regenerated = createSculptureFromFrames(
 			frames,
 			appSettings.userProfile,
 			currentSculpture.name,
-			currentSculptMode,
+			state.sculptMode,
 			zone,
-			currentConstraintMode
+			state.mode
 		);
 
 		regenerated.deformation = currentSculpture.deformation;
 		regenerated.surface = currentSculpture.surface;
-		regenerated.physical = { ...currentSculpture.physical, sculptMode: currentSculptMode };
+		regenerated.physical = { ...currentSculpture.physical, sculptMode: state.sculptMode };
 		regenerated.vertexColors = currentSculpture.vertexColors;
 
-		lastRegenerationState = currentState;
 		setCurrentSculpture(regenerated);
 	});
 
