@@ -21,7 +21,8 @@
 		IcosahedronGeometry,
 		BoxGeometry,
 		PlaneGeometry,
-		CylinderGeometry
+		CylinderGeometry,
+		Color
 	} from 'three';
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
@@ -166,6 +167,7 @@
 
 		// Optimization: Only re-compute if layers changed or recording
 		const isRecording = recordingStore.state === 'recording';
+		const isGlazeMode = uiStore.workspace === 'glaze';
 		const needsUpdate = isRecording || sculptureStore.geometryDirty;
 
 		if (!needsUpdate) return;
@@ -173,9 +175,21 @@
 		try {
 			let profile: LathePoint[];
 			
-			// LIVE RECORDING PREVIEW: Generate geometry from captured frames in real-time
-			// CRITICAL: Use ALL frames (no downsampling) so sculpture actually GROWS as you sing
-			if (isRecording) {
+			// GLAZE MODE: Don't change geometry, only update colors
+			// The shape stays the same, only vertex colors change
+			if (isGlazeMode && isRecording) {
+				// Use existing geometry - don't regenerate
+				if (sculpture?.layers && sculpture.layers.length > 0) {
+					profile = computeProfile(sculpture.layers);
+				} else if (sculpture?.radiusCurve && sculpture.radiusCurve.length > 0) {
+					profile = sculpture.radiusCurve;
+				} else {
+					// No existing geometry - can't paint
+					return;
+				}
+			}
+			// SCULPT/FORCE MODE: Live recording preview with geometry changes
+			else if (isRecording) {
 				const frames = getCapturedFrames();
 				if (frames && frames.length > 5) { // Need at least a few frames
 					// Pass maxPoints = 0 to use EVERY frame without compression
@@ -268,15 +282,30 @@
 				return;
 			}
 			
-					// GENERATE VERTEX COLORS if in glaze mode and recording
-					if (isRecording && uiStore.workspace === 'glaze') {
-						const frames = getCapturedFrames();
-						if (frames && frames.length > 0) {
-							const colors = generateGlaze(frames, uiStore.activeGlaze);
-							// Apply colors using factory function
-							colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
+				// GENERATE VERTEX COLORS if in glaze mode and recording
+			if (isGlazeMode && isRecording) {
+				const frames = getCapturedFrames();
+				if (frames && frames.length > 0) {
+					const colors = generateGlaze(frames, uiStore.activeGlaze);
+					// Apply colors using factory function
+					colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
+					console.log(`🎨 [GLAZE] Applied ${colors.length / 3} vertex colors from ${frames.length} frames`);
+				} else {
+					// No frames yet - apply base glaze color uniformly
+					const positionAttr = geometry.getAttribute('position');
+					if (positionAttr) {
+						const vertexCount = positionAttr.count;
+						const baseColor = new Color(uiStore.activeGlaze.color);
+						const uniformColors = new Float32Array(vertexCount * 3);
+						for (let i = 0; i < vertexCount; i++) {
+							uniformColors[i * 3] = baseColor.r;
+							uniformColors[i * 3 + 1] = baseColor.g;
+							uniformColors[i * 3 + 2] = baseColor.b;
 						}
+						colorBuffer = applyGlazeColors(geometry, uniformColors, colorBuffer) ?? colorBuffer;
 					}
+				}
+			}
 			
 			// Update state
 			lastProfileVectors = vectors;
@@ -415,8 +444,10 @@
 		materialProps.emissive = uiStore.activeGlaze.color;
 	});
 
-	// Force Mode: Update interaction point based on pitch
-	useTask(() => {
+	// Force Mode: Update interaction point AND apply deformation based on voice
+	// Pitch = WHERE (height), Volume = HOW MUCH (intensity)
+	// Additive mode = push outward (expand), Subtractive mode = push inward (compress)
+	useTask((delta) => {
 		if (uiStore.workspace !== 'force' || !sculpture || !meshRef) {
 			setInteractionPoint(null, null);
 			return;
@@ -441,7 +472,7 @@
 			return;
 		}
 
-		// Map pitch to height
+		// Map pitch to height (WHERE on the sculpture)
 		const normalizedPitch = Math.max(0, Math.min(1, (pitch - FORCE_MODE_PITCH_MIN_HZ) / (FORCE_MODE_PITCH_MAX_HZ - FORCE_MODE_PITCH_MIN_HZ)));
 		
 		// Map to actual geometry Y range (accounting for transforms)
@@ -449,30 +480,81 @@
 		const maxY = (bbox.max.y ?? 1) * heightScale;
 		const targetY = minY + normalizedPitch * (maxY - minY);
 		
-		// Find the radius at this height by sampling the geometry
-		// Get a ring of vertices at approximately this Y position
+		// Get force parameters from UI
+		const { damping, hardness, radius: focusRadius, strength } = uiStore.forceParams;
+		const isAdditive = uiStore.sculptMode === 'additive';
+		
+		// Calculate force intensity from mic level
+		// Higher volume = stronger force
+		const forceIntensity = micLevel * strength * 0.5; // Scale down for subtlety
+		const forceDirection = isAdditive ? 1 : -1; // Push out or push in
+		
+		// Get geometry positions for deformation
 		const positions = meshRef.geometry.getAttribute('position');
 		if (!positions) {
-			return FORCE_MODE_FALLBACK_RADIUS;
+			return;
 		}
 		
 		let closestRadius = FORCE_MODE_FALLBACK_RADIUS;
 		let minYDiff = Infinity;
+		let closestIndex = 0;
 		
+		// Find closest vertex and apply force to nearby vertices
 		for (let i = 0; i < positions.count; i++) {
 			const y = positions.getY(i);
 			if (y === undefined) continue;
-			const scaledY = y * heightScale; // Apply scale transform
+			const scaledY = y * heightScale;
 			const yDiff = Math.abs(scaledY - targetY);
+			
 			if (yDiff < minYDiff) {
 				minYDiff = yDiff;
 				const x = positions.getX(i) ?? 0;
 				const z = positions.getZ(i) ?? 0;
-				closestRadius = Math.sqrt(x * x + z * z); // Radial distance from center
+				closestRadius = Math.sqrt(x * x + z * z);
+				closestIndex = i;
+			}
+			
+			// Apply force to vertices within the focus radius
+			// The force falls off with distance from the target height
+			const influenceRadius = focusRadius * 0.5; // Normalized to geometry scale
+			const normalizedYDiff = yDiff / (maxY - minY);
+			
+			if (normalizedYDiff < influenceRadius) {
+				// Calculate falloff (smooth falloff at edges)
+				const falloff = 1 - (normalizedYDiff / influenceRadius);
+				const smoothFalloff = falloff * falloff * (3 - 2 * falloff); // Smoothstep
+				
+				// Apply hardness (harder = more localized effect)
+				const hardnessFactor = Math.pow(smoothFalloff, 1 + hardness * 3);
+				
+				// Calculate displacement
+				const displacement = forceIntensity * forceDirection * hardnessFactor * delta * 60; // Normalize to 60fps
+				
+				// Apply damping (reduces jitter)
+				const dampedDisplacement = displacement * (1 - damping * 0.8);
+				
+				// Get current position
+				const x = positions.getX(i) ?? 0;
+				const z = positions.getZ(i) ?? 0;
+				const currentRadius = Math.sqrt(x * x + z * z);
+				
+				if (currentRadius > 0.01) { // Avoid division by zero
+					// Push radially outward/inward
+					const newRadius = Math.max(0.05, Math.min(2, currentRadius + dampedDisplacement));
+					const scale = newRadius / currentRadius;
+					
+					positions.setX(i, x * scale);
+					positions.setZ(i, z * scale);
+				}
 			}
 		}
 		
-		// Place point on the front of the sculpture
+		// Mark geometry as needing update
+		positions.needsUpdate = true;
+		meshRef.geometry.computeVertexNormals();
+		meshRef.geometry.computeBoundingBox();
+		
+		// Place reticle point on the front of the sculpture
 		const point = new Vector3(closestRadius, targetY, 0);
 		const normal = new Vector3(1, 0, 0); // Normal pointing outward
 		

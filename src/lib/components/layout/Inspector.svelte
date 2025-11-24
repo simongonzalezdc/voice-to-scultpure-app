@@ -11,14 +11,15 @@
 	// - Context panel: Changes based on workspace
 </script>
 
-<div class="h-full flex flex-col bg-panel border-l border-subtle">
+<!-- FIXED: Entire sidebar scrolls as one unit -->
+<div class="h-full overflow-y-auto bg-panel border-l border-subtle custom-scrollbar">
 	<!-- ObjectProperties: Always Visible (Single Source of Truth) -->
 	<div class="border-b border-subtle">
 		<ObjectProperties />
 	</div>
 
 	<!-- Context-Aware Panel Header -->
-	<div class="p-4 border-b border-subtle flex items-center justify-between">
+	<div class="p-4 border-b border-subtle flex items-center justify-between sticky top-0 bg-panel z-10">
 		<h2 class="text-sm font-semibold text-white uppercase tracking-wider">
 			{#if uiStore.workspace === 'sculpt'}
 				SHAPE TOOLS
@@ -33,7 +34,7 @@
 	</div>
 
 	<!-- Context-Aware Content Area -->
-	<div class="flex-1 overflow-y-auto custom-scrollbar">
+	<div class="pb-4">
 		{#if uiStore.workspace === 'sculpt'}
 			<ShapeTools />
 		{:else if uiStore.workspace === 'force'}
