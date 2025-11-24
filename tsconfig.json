@@ -9,6 +9,7 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
+		"noUncheckedIndexedAccess": true,
 		"moduleResolution": "bundler",
 		"target": "ES2022",
 		"lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker", "SharedArrayBuffer"]

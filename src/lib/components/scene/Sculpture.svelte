@@ -55,6 +55,10 @@
 	let meshRef = $state<Mesh | undefined>(undefined);
 	let ghostMeshRef = $state<Mesh | undefined>(undefined);
 
+	// Buffer Pooling to prevent GC thrashing
+	let colorBuffer: Float32Array | null = null;
+	let heatmapBuffer: Float32Array | null = null;
+
 	// Set mesh reference in store for color capture
 	$effect(() => {
 		setMeshReference(meshRef || null);
@@ -246,7 +250,13 @@
 					// Apply colors to geometry
 					const positions = geometry.getAttribute('position');
 					const vertexCount = positions.count;
-					const colorArray = new Float32Array(vertexCount * 3);
+					const requiredSize = vertexCount * 3;
+					
+					// Buffer Pooling: Reuse buffer if size matches
+					if (!colorBuffer || colorBuffer.length !== requiredSize) {
+						colorBuffer = new Float32Array(requiredSize);
+					}
+					const colorArray = colorBuffer;
 					
 					// Resample colors to match vertex count
 					const colorCount = colors.length / 3;
@@ -258,9 +268,9 @@
 							const colorIndex = Math.floor(normalizedHeight * (colorCount - 1));
 							const clampedIndex = Math.max(0, Math.min(colorCount - 1, colorIndex));
 							
-							colorArray[i * 3] = colors[clampedIndex * 3];
-							colorArray[i * 3 + 1] = colors[clampedIndex * 3 + 1];
-							colorArray[i * 3 + 2] = colors[clampedIndex * 3 + 2];
+							colorArray[i * 3] = colors[clampedIndex * 3] ?? 0;
+							colorArray[i * 3 + 1] = colors[clampedIndex * 3 + 1] ?? 0;
+							colorArray[i * 3 + 2] = colors[clampedIndex * 3 + 2] ?? 0;
 						}
 						geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
 					}
@@ -271,7 +281,11 @@
 			lastProfileVectors = vectors;
 
 			// UPDATE MESH
-			if (liveGeometry) liveGeometry.dispose();
+			try {
+				if (liveGeometry) liveGeometry.dispose();
+			} catch (err) {
+				console.warn('⚠️ [SCULPTURE] Geometry disposal failed:', err);
+			}
 			liveGeometry = geometry;
 			
 			sculptureStore.geometryDirty = false; // Mark clean
@@ -344,15 +358,20 @@
 		const segments = (geometry as any).parameters?.segments ?? 0;
 		const rings = (segments || 0) + 1;
 
-		const colors = new Float32Array(pointsPerRing * rings * 3);
+		const requiredSize = pointsPerRing * rings * 3;
+		if (!heatmapBuffer || heatmapBuffer.length !== requiredSize) {
+			heatmapBuffer = new Float32Array(requiredSize);
+		}
+		const colors = heatmapBuffer;
+
 		for (let ring = 0; ring < rings; ring++) {
 			for (let i = 0; i < pointsPerRing; i++) {
 				const stressIndex = Math.min(Math.max(i - 1, 0), stressColors.length / 3 - 1);
 				const sourceIndex = stressIndex * 3;
 				const target = (ring * pointsPerRing + i) * 3;
-				colors[target] = stressColors[sourceIndex];
-				colors[target + 1] = stressColors[sourceIndex + 1];
-				colors[target + 2] = stressColors[sourceIndex + 2];
+				colors[target] = stressColors[sourceIndex] ?? 0;
+				colors[target + 1] = stressColors[sourceIndex + 1] ?? 0;
+				colors[target + 2] = stressColors[sourceIndex + 2] ?? 0;
 			}
 		}
 
