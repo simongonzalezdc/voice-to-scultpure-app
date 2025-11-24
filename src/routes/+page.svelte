@@ -239,31 +239,30 @@
 		{#if showStudio}
 			<div class="app-shell">
 				<header class="app-header">
-					<div class="flex items-center gap-4">
-						<h1 class="text-lg font-semibold text-white mr-4">Voice-to-Sculpture Studio</h1>
+					<div class="flex items-center gap-3">
+						<h1 class="text-sm font-semibold text-white/90 tracking-wide">Voice-to-Sculpture</h1>
 						<WorkspaceSwitcher />
 					</div>
 
-					<div class="flex items-center gap-4">
+					<div class="flex items-center gap-2">
 						<button
-							class="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-[#db7093] to-[#daa520] hover:from-[#ff85ad] hover:to-[#f0b840] text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+							class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gradient-to-r from-[#db7093] to-[#daa520] hover:from-[#ff85ad] hover:to-[#f0b840] text-white shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
 							type="button"
 							onclick={() => {
-								// clearLayers(); // Optional: Reset for fresh start
 								openPerformanceWizard();
 							}}
 							title="Multi-layered recording with musical intelligence"
 						>
-							<Sparkles size={16} />
-							<span>Performance Mode</span>
+							<Sparkles size={14} />
+							<span>Performance</span>
 						</button>
 
 						<button
-							class="px-3 py-1.5 text-sm border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white"
+							class="px-2 py-1 text-xs border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white/70 rounded"
 							type="button"
 							onclick={generateTestMesh}
 						>
-							Generate Test Mesh
+							Test
 						</button>
 					</div>
 				</header>
@@ -356,19 +355,63 @@
 <style>
 	.app-shell {
 		display: grid;
-		grid-template-rows: 60px 1fr 60px;
-		grid-template-columns: 64px 1fr 320px;
+		grid-template-rows: 56px 1fr auto;
+		grid-template-columns: 56px 1fr 300px;
 		height: 100vh;
+		height: 100dvh; /* Dynamic viewport height - accounts for mobile browser UI */
 		background: var(--bg-body);
+		overflow: hidden;
 	}
 	
-	/* Hide footer row if wizard is active */
-	/* Adjust grid if inspector is hidden? */
-	/* Actually, Svelte logic handles hiding content, grid might just have empty cells. */
+	.app-header {
+		grid-column: 1 / -1;
+		grid-row: 1;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 16px;
+		background: var(--bg-surface);
+		border-bottom: 1px solid var(--border-subtle);
+		min-height: 0;
+	}
 	
-	.app-header { grid-column: 1 / -1; grid-row: 1; /* ... */ }
-	.app-toolbar { grid-column: 1; grid-row: 2; /* ... */ }
-	.app-canvas { grid-column: 2; grid-row: 2; position: relative; /* ... */ }
-	.app-inspector { grid-column: 3; grid-row: 2; /* ... */ }
-	.app-footer { grid-column: 1 / -1; grid-row: 3; /* ... */ }
+	.app-toolbar {
+		grid-column: 1;
+		grid-row: 2;
+		display: flex;
+		flex-direction: column;
+		background: var(--bg-surface);
+		border-right: 1px solid var(--border-subtle);
+		overflow-y: auto;
+		min-height: 0;
+	}
+	
+	.app-canvas {
+		grid-column: 2;
+		grid-row: 2;
+		position: relative;
+		min-height: 0;
+		overflow: hidden;
+	}
+	
+	.app-inspector {
+		grid-column: 3;
+		grid-row: 2;
+		background: var(--bg-surface);
+		border-left: 1px solid var(--border-subtle);
+		overflow-y: auto;
+		min-height: 0;
+	}
+	
+	.app-footer {
+		grid-column: 1 / -1;
+		grid-row: 3;
+		display: flex;
+		align-items: center;
+		padding: 8px 16px;
+		background: var(--bg-surface);
+		border-top: 1px solid var(--border-subtle);
+		gap: 12px;
+		flex-shrink: 0;
+	}
 </style>

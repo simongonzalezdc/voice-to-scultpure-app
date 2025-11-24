@@ -94,25 +94,43 @@ export interface UserProfile {
 	attackThreshold: number; // Dynamic threshold for detecting sharp attacks (chisel effect)
 }
 
-export type AIProvider = 'cloud' | 'local';
+export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter';
+export type AIProviderType = CloudProvider | 'local';
+
+// Legacy alias for backward compatibility
+export type AIProvider = AIProviderType;
 
 export interface AIProviderConfig {
-	provider: AIProvider;
+	provider: AIProviderType;
+	cloudProvider?: CloudProvider;
 	apiKey?: string;
 	apiEndpoint?: string;
 	model?: string;
 }
 
+export interface MultiProviderAPIKeys {
+	openai?: string;
+	anthropic?: string;
+	google?: string;
+	groq?: string;
+	openrouter?: string;
+}
+
 export interface AppSettings {
-	aiProvider: AIProvider;
-	apiKey?: string;
+	aiProvider: AIProviderType;
+	cloudProvider?: CloudProvider;
+	apiKey?: string; // Legacy single key
+	apiKeys?: MultiProviderAPIKeys; // Multi-provider keys
 	apiEndpoint?: string;
+	selectedModel?: string;
 	graphicsQuality: 'low' | 'high';
 	defaultMicrophone?: string;
 	userProfile?: UserProfile;
 	viewMode?: {
 		potteryMode: boolean; // Lock camera to central axis
 	};
+	speechToTextEnabled?: boolean;
+	preferWhisperAPI?: boolean; // Use OpenAI Whisper instead of browser STT
 }
 
 export interface AudioRingBuffer {

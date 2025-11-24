@@ -108,22 +108,38 @@ export async function stopRecording(): Promise<void> {
 
 	// RESCUE PATH: Worker failed or frames empty -> generate minimal fallback
 	if (capturedFrames.length === 0) {
+		const micLevel = analysisStore.micLevel ?? 0;
+		const latestFrame = analysisStore.latestFrame;
+		
 		const fallback: import('$lib/types').AnalysisFrame = {
 			time: Date.now(),
-			pitch: analysisStore.latestFrame?.pitch ?? 0,
-			energy: analysisStore.micLevel ?? 0,
+			pitch: latestFrame?.pitch ?? 0,
+			energy: micLevel,
 			timbre:
-				analysisStore.latestFrame?.timbre ?? ({
+				latestFrame?.timbre ?? ({
 					spectralCentroid: 0,
 					zcr: 0,
 					spectralFlux: 0
 				} as any)
 		};
 		capturedFrames = [fallback];
-		console.log(
-			`🔧 [RESCUE] Generated 1 fallback frames from micLevel: ${analysisStore.micLevel.toFixed?.(3) ?? analysisStore.micLevel}`
-		);
-		window.alert?.('⚠️ Audio Worker Failed - using fallback frame for save.');
+		
+		// Detailed diagnostic logging
+		console.warn('🔧 [RESCUE] No frames captured during recording. Diagnostics:');
+		console.warn(`   - Mic Level: ${micLevel.toFixed?.(3) ?? micLevel} (should be > 0.001 if audio is flowing)`);
+		console.warn(`   - Latest Frame: ${latestFrame ? 'EXISTS' : 'NULL'} (should exist if worker is running)`);
+		console.warn(`   - Duration: ${duration}ms`);
+		console.warn('   Possible causes:');
+		console.warn('   1. Microphone is muted or volume too low');
+		console.warn('   2. Wrong microphone device selected');
+		console.warn('   3. Audio worklet failed to connect');
+		console.warn('   4. Analysis worker failed to start');
+		
+		// Show user-friendly alert with actionable info
+		const alertMsg = micLevel < 0.001
+			? '⚠️ No audio detected. Check:\n• Microphone not muted\n• Correct mic selected\n• Mic volume > 0'
+			: '⚠️ Audio detected but worker failed. Try refreshing the page.';
+		window.alert?.(alertMsg);
 	}
 
 	// CRITICAL: Capture vertex colors before geometry disposal in glaze mode

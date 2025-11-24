@@ -55,11 +55,16 @@ function loadSettings(): AppSettings {
 
 function getDefaultSettings(): AppSettings {
         return {
-                aiProvider: 'cloud',
+                aiProvider: 'local', // Default to local for privacy
+                cloudProvider: 'openai',
+                apiKeys: {}, // Multi-provider API keys
+                selectedModel: undefined,
                 graphicsQuality: 'high',
                 viewMode: {
                         potteryMode: false
                 },
+                speechToTextEnabled: false,
+                preferWhisperAPI: false,
                 userProfile: {
                         id: 'default-profile',
                         calibrated: true, // Enable studio access out of the box

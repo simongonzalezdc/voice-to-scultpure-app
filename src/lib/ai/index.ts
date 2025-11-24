@@ -1,9 +1,9 @@
 import { mergeSculpture } from './CloudAISculptor';
 import type { AISculptor } from './types';
-import type { AIProvider } from '$lib/types';
+import type { AIProviderType } from '$lib/types';
 
 export async function createAISculptor(
-	provider: AIProvider,
+	provider: AIProviderType,
 	config: {
 		apiKey?: string;
 		apiEndpoint?: string;
@@ -11,7 +11,8 @@ export async function createAISculptor(
 		progressCallback?: (progress: number) => void;
 	}
 ): Promise<AISculptor> {
-	if (provider === 'cloud') {
+	// Check for cloud providers
+	if (provider !== 'local') {
 		if (!config.apiKey) {
 			throw new Error('API key required for cloud provider');
 		}

@@ -145,28 +145,48 @@
 					console.log('✅ [TRANSPORT] Pipeline initialized successfully');
 					pipelineMetrics.initSuccesses++;
 
-					// DIRECTIVE 2: Verify worklet is writing before starting worker
-					// Wait for worklet to write some data to the ring buffer
-					const verifyWorkletWriting = () => {
-						if (!ringBuffer) return;
-						const intView = new Int32Array(ringBuffer.buffer);
-						const writePtr = Atomics.load(intView, 0);
-						if (writePtr > 0) {
-							console.log(`✅ [TRANSPORT] Worklet is writing (writePtr=${writePtr}) - starting worker`);
-							if (workerClient) {
-								workerClient.start();
-								console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
-							} else {
-								console.error('❌ [TRANSPORT] Worker client is null - cannot start');
-							}
+				// DIRECTIVE 2: Verify worklet is writing before starting worker
+				// Wait for worklet to write some data to the ring buffer
+				let verifyAttempts = 0;
+				const MAX_VERIFY_ATTEMPTS = 40; // 40 * 50ms = 2 seconds max wait
+				
+				const verifyWorkletWriting = () => {
+					if (!ringBuffer) {
+						console.error('❌ [TRANSPORT] Ring buffer is null - cannot verify worklet writing');
+						return;
+					}
+					
+					verifyAttempts++;
+					const intView = new Int32Array(ringBuffer.buffer);
+					const writePtr = Atomics.load(intView, 0);
+					
+					if (writePtr > 0) {
+						console.log(`✅ [TRANSPORT] Worklet is writing (writePtr=${writePtr}, attempts=${verifyAttempts}) - starting worker`);
+						if (workerClient) {
+							workerClient.start();
+							console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
 						} else {
-							// Retry after a short delay
-							setTimeout(verifyWorkletWriting, 50);
+							console.error('❌ [TRANSPORT] Worker client is null - cannot start');
 						}
-					};
+					} else if (verifyAttempts >= MAX_VERIFY_ATTEMPTS) {
+						// Timeout - start worker anyway and show warning
+						console.warn(`⚠️ [TRANSPORT] Worklet verification timeout (${verifyAttempts} attempts) - starting worker anyway`);
+						console.warn('⚠️ [TRANSPORT] No audio data in buffer. Check: 1) Mic selected correctly 2) Mic not muted 3) Mic volume > 0');
+						if (workerClient) {
+							workerClient.start();
+							console.log('🎧 [TRANSPORT] Analysis worker started (no audio data yet)');
+						}
+					} else {
+						// Retry after a short delay
+						if (verifyAttempts % 10 === 0) {
+							console.log(`🔍 [TRANSPORT] Waiting for worklet data... (attempt ${verifyAttempts}/${MAX_VERIFY_ATTEMPTS}, writePtr=${writePtr})`);
+						}
+						setTimeout(verifyWorkletWriting, 50);
+					}
+				};
 
-					// Start verification after initial delay
-					setTimeout(verifyWorkletWriting, 200);
+				// Start verification after initial delay
+				setTimeout(verifyWorkletWriting, 200);
 				} else if (workerClient) {
 					// Pipeline already exists - restart worker to ensure it's active
 					// (Only restart if we didn't just initialize, to avoid duplicate start calls)
@@ -335,10 +355,10 @@
 	}
 </script>
 
-<div class="flex items-center gap-4">
+<div class="flex items-center gap-3">
 	<button
 		data-record-button
-		class="px-6 py-3 {getButtonColor()} border text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+		class="px-4 py-2 {getButtonColor()} border rounded-md text-white disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
 		type="button"
 		onclick={handleRecordClick}
 		disabled={recordingStore.state === 'processing' ||
@@ -349,18 +369,18 @@
 		aria-live="polite"
 	>
 		{#if uiStore.workspace === 'glaze' && recordingStore.state === 'idle'}
-			<Palette size={18} />
+			<Palette size={14} />
 		{:else if uiStore.workspace === 'force' && recordingStore.state === 'idle'}
-			<Hand size={18} />
+			<Hand size={14} />
 		{:else if recordingStore.state === 'idle'}
-			<Circle size={18} fill="currentColor" />
+			<Circle size={14} fill="currentColor" />
 		{/if}
 		{getButtonText()}
 	</button>
-	<div class="flex-1">
-		<div class="text-xs text-[#888] mb-1" id="mic-level-label">Mic Level</div>
+	<div class="flex-1 min-w-[80px]">
+		<div class="text-[10px] text-[#888] mb-0.5" id="mic-level-label">Mic</div>
 		<div
-			class="h-2 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]"
+			class="h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]"
 			role="progressbar"
 			aria-labelledby="mic-level-label"
 			aria-valuenow={Math.round(getMicLevel() * 100)}
@@ -373,8 +393,8 @@
 			></div>
 		</div>
 	</div>
-	<div class="w-48">
-		<div class="flex items-center justify-between text-xs text-[#888] mb-1">
+	<div class="w-32">
+		<div class="flex items-center justify-between text-[10px] text-[#888] mb-0.5">
 			<span>History</span>
 			<span>{Math.round(recordingStore.historyPosition * 100)}%</span>
 		</div>
@@ -385,11 +405,11 @@
 			step="0.01"
 			value={recordingStore.historyPosition}
 			oninput={(e) => handleHistoryInput(parseFloat((e.target as HTMLInputElement).value))}
-			class="w-full accent-brand-primary disabled:opacity-50"
+			class="w-full h-1.5 accent-brand-primary disabled:opacity-50"
 			disabled={!hasCapturedFrames()}
 		/>
 	</div>
 	{#if recordingStore.state === 'recording'}
-		<div class="px-2 py-1 text-xs bg-[#ff4444] text-white rounded" role="status">Recording</div>
+		<div class="px-1.5 py-0.5 text-[10px] bg-[#ff4444] text-white rounded font-medium" role="status">REC</div>
 	{/if}
 </div>

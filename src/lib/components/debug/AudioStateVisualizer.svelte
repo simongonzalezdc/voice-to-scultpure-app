@@ -14,12 +14,14 @@
 
 	import { onMount } from 'svelte';
 	import { getAudioContext, getWorkletNode } from '$lib/audio/audioContext';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 
-	type AudioStatus = 'running' | 'suspended' | 'disconnected' | 'error';
+	type AudioStatus = 'running' | 'suspended' | 'disconnected' | 'error' | 'silent';
 
 	let audioStatus = $state<AudioStatus>('disconnected');
 	let statusMessage = $state('Audio Not Initialized');
-	let lastErrorTime = 0;
+	let silenceCounter = 0;
+	const SILENCE_THRESHOLD = 30; // 30 * 100ms = 3 seconds
 
 	// Poll audio context state at 10Hz (every 100ms) for responsiveness
 	// Using setInterval instead of useTask since this component is outside Canvas
@@ -32,19 +34,36 @@
 				if (!audioContext || !workletNode) {
 					audioStatus = 'disconnected';
 					statusMessage = 'No Audio Context';
+					silenceCounter = 0;
 					return;
 				}
 
 				// Check AudioContext state
 				switch (audioContext.state) {
-					case 'running':
-						audioStatus = 'running';
-						statusMessage = `Audio Running (${audioContext.sampleRate}Hz)`;
+					case 'running': {
+						// Check if we're getting actual audio signal
+						const micLevel = analysisStore.micLevel ?? 0;
+						if (micLevel < 0.001) {
+							silenceCounter++;
+							if (silenceCounter >= SILENCE_THRESHOLD) {
+								audioStatus = 'silent';
+								statusMessage = 'No Signal - Check Mic';
+							} else {
+								audioStatus = 'running';
+								statusMessage = `Audio Running (${audioContext.sampleRate}Hz)`;
+							}
+						} else {
+							silenceCounter = 0;
+							audioStatus = 'running';
+							statusMessage = `Audio Running (${audioContext.sampleRate}Hz)`;
+						}
 						break;
+					}
 
 					case 'suspended':
 						audioStatus = 'suspended';
 						statusMessage = 'Audio Suspended - Waiting for User Gesture';
+						silenceCounter = 0;
 						// Attempt auto-resume
 						audioContext.resume().catch(() => {
 							// Suppress error, will retry next interval
@@ -54,20 +73,18 @@
 					case 'closed':
 						audioStatus = 'disconnected';
 						statusMessage = 'Audio Context Closed';
+						silenceCounter = 0;
 						break;
 
 					default:
 						audioStatus = 'error';
 						statusMessage = `Unknown State: ${audioContext.state}`;
+						silenceCounter = 0;
 				}
-
-				// Check for worklet errors (port messages indicate active connection)
-				// If worklet was created but no frames coming through, it's still considered running
-				// since the audio chain is established
 			} catch (err) {
 				audioStatus = 'error';
 				statusMessage = `Error: ${err instanceof Error ? err.message : 'Unknown'}`;
-				lastErrorTime = Date.now();
+				silenceCounter = 0;
 			}
 		};
 
@@ -108,6 +125,12 @@
 			textColor: '#d1d5db',
 			animationClass: '',
 			icon: '○'
+		},
+		silent: {
+			bgColor: '#f97316', // Orange - warning but not error
+			textColor: '#ffffff',
+			animationClass: 'pulse-warning',
+			icon: '🎤'
 		},
 		error: {
 			bgColor: '#ef4444', // Red

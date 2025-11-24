@@ -120,15 +120,15 @@
 					value={appSettings.aiProvider}
 					onchange={(e) =>
 						updateSettings({
-							aiProvider: (e.target as HTMLSelectElement).value as 'cloud' | 'local'
+							aiProvider: (e.target as HTMLSelectElement).value as 'openai' | 'local'
 						})}
 				>
-					<option value="cloud">Cloud (OpenAI)</option>
+					<option value="openai">Cloud (OpenAI)</option>
 					<option value="local">Local (WebGPU)</option>
 				</select>
 			</div>
 
-			{#if appSettings.aiProvider === 'cloud'}
+			{#if appSettings.aiProvider !== 'local'}
 				<div>
 					<label for="api-key" class="text-sm text-secondary block mb-1">API Key</label>
 					<input
