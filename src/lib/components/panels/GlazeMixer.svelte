@@ -287,7 +287,7 @@
 				🌬️ Timbre: <span class="text-white font-bold"
 					>{liveTimbre > 0 ? liveTimbre.toFixed(0) : 'N/A'}</span
 				>
-				<span class="text-[#888]">→ Roughness: {roughness.toFixed(2)}</span>
+				<span class="text-[#888]">→ Surface: {roughness.toFixed(2)}</span>
 			</div>
 		</div>
 
@@ -315,7 +315,7 @@
 				</div>
 			</div>
 			<div class="flex items-center justify-between">
-				<span class="text-sm text-secondary">Roughness:</span>
+				<span class="text-sm text-secondary">Surface:</span>
 				<span class="text-sm text-secondary">{roughness.toFixed(2)}</span>
 			</div>
 		</div>

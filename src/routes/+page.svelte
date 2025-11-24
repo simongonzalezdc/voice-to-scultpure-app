@@ -32,9 +32,8 @@
 		getPlaybackFrames,
 		hasCapturedFrames
 	} from '$lib/stores/recording.svelte';
-	import NewProjectModal from '$lib/components/modals/NewProjectModal.svelte';
-	import type { SculptureDefinition } from '$lib/types';
-	import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
+	import type { SculptureDefinition, SculptureLayer } from '$lib/types';
+	import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 	import { Sparkles, X } from 'lucide-svelte';
@@ -47,11 +46,76 @@
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
 	let showStudio = $derived(isCalibrated && !uiStore.onboarding.active);
 
+	// Auto-create default sculpture if none exists
+	function createDefaultSculpture() {
+		if (sculptureStore.currentSculpture) return;
+
+		// Generate smooth default geometry
+		const defaultFrames = Array.from({ length: 50 }, (_, i) => ({
+			time: i * 0.05,
+			pitch: 200 + Math.sin((i / 50) * Math.PI) * 50,
+			energy: 0.15 + Math.sin((i / 50) * Math.PI) * 0.1,
+			timbre: { spectralCentroid: 2000, zcr: 0.1, spectralFlux: 0.05 }
+		}));
+
+		const profile = generateLathe(defaultFrames, undefined, 'additive', undefined, 'ceramic');
+		const resolution = 128;
+		const layerData = new Float32Array(resolution);
+		
+		for (let i = 0; i < resolution; i++) {
+			const normalizedY = i / (resolution - 1);
+			const targetIndex = Math.round(normalizedY * (profile.length - 1));
+			const clampedIndex = Math.min(targetIndex, profile.length - 1);
+			layerData[i] = profile[clampedIndex].x;
+		}
+
+		const baseLayer: SculptureLayer = {
+			id: crypto.randomUUID(),
+			name: 'Base Layer',
+			type: 'base',
+			visible: true,
+			locked: false,
+			blendMode: 'overwrite',
+			opacity: 1.0,
+			data: layerData,
+			mask: new Float32Array(resolution).fill(1.0)
+		};
+
+		const defaultSculpture: SculptureDefinition = {
+			id: `sculpture-${Date.now()}`,
+			name: 'New Ceramic Sculpture',
+			createdAt: Date.now(),
+			layers: [baseLayer],
+			baseShape: 'lathe',
+			radiusCurve: profile,
+			surface: {
+				textureRoughness: 0.5,
+				glazeTransmission: 0.3,
+				displacementStrength: 0.1,
+				materialType: 'ceramic',
+				baseColor: DEFAULT_MATERIAL_CERAMIC
+			},
+			deformation: { twist: 0, compression: 0, taper: 0 },
+			physical: {
+				height: 150,
+				units: 'mm',
+				wallThickness: 3,
+				orientation: 'vertical',
+				sculptMode: 'additive'
+			}
+		};
+
+		setCurrentSculpture(defaultSculpture);
+		console.log('✨ [AUTO-CREATE] Default sculpture created');
+	}
+
 	onMount(() => {
 		if (browser) {
 			if (!isCalibrated) {
 				startOnboarding('welcome');
 			}
+			// Auto-create default sculpture on mount
+			createDefaultSculpture();
 		}
 	});
 
@@ -255,10 +319,6 @@
 		{/if}
 
 		<Tutorial />
-
-		{#if !sculptureStore.currentSculpture && !uiStore.onboarding.active}
-			<NewProjectModal />
-		{/if}
 
 		<KeyboardShortcutsModal
 			isOpen={showKeyboardShortcuts}

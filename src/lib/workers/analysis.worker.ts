@@ -356,7 +356,8 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 				return;
 			}
 			if (running) {
-				console.log('⚠️ [ANALYSIS WORKER] Already running - restarting');
+				console.warn('⚠️ [ANALYSIS WORKER] Already running - ignoring duplicate start call to prevent concurrent loops');
+				return; // Guard against duplicate processLoop chains
 			}
 			console.log('🚀 [ANALYSIS WORKER] Starting analysis loop');
 			running = true;

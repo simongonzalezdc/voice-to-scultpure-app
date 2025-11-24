@@ -24,6 +24,21 @@
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
 
+	// Pipeline metrics for debugging
+	let pipelineMetrics = {
+		initAttempts: 0,
+		initSuccesses: 0,
+		initFailures: 0,
+		initStartTime: 0,
+		firstFrameTime: 0,
+		frameCount: 0
+	};
+
+	// Helper to check if pipeline is initialized
+	function isPipelineReady(): boolean {
+		return ringBuffer !== null && workerClient !== null;
+	}
+
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		const isForceMode = uiStore.workspace === 'force';
@@ -59,12 +74,14 @@
 		pipelineMetrics.initAttempts++;
 		const maxRetries = 3;
 		let lastError: Error | null = null;
+		let justInitialized = false; // Track if we just created the pipeline in this call
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			console.log(`🔄 [TRANSPORT] Initialization attempt ${attempt}/${maxRetries}`);
 			try {
 				// Initialize if any pipeline component is missing
 				if (!ringBuffer || !workerClient) {
+					justInitialized = true; // Mark that we're creating a new pipeline
 					console.log(`🛠️ [TRANSPORT] Starting initialization... (ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`);
 					pipelineMetrics.initStartTime = Date.now();
 					// Initialize ring buffer
@@ -152,13 +169,11 @@
 
 					// Start verification after initial delay
 					setTimeout(verifyWorkletWriting, 200);
-				}
-
-				// Ensure worker is running before starting recording
-				if (workerClient) {
-					// Restart worker to ensure it's active
+				} else if (workerClient) {
+					// Pipeline already exists - restart worker to ensure it's active
+					// (Only restart if we didn't just initialize, to avoid duplicate start calls)
 					workerClient.start();
-					console.log('🔄 [TRANSPORT] Worker restarted before recording');
+					console.log('🔄 [TRANSPORT] Existing worker restarted before recording');
 				} else {
 					console.error('❌ [TRANSPORT] Worker client is null - cannot start recording');
 				}

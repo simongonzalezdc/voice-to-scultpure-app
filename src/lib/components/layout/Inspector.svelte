@@ -1,38 +1,41 @@
 <script lang="ts">
 	import { uiStore } from '$lib/stores/uiStore.svelte';
-	import ParameterSliders from '$lib/components/controls/ParameterSliders.svelte';
+	import ObjectProperties from '$lib/components/panels/ObjectProperties.svelte';
+	import ShapeTools from '$lib/components/panels/ShapeTools.svelte';
 	import ForceControls from '$lib/components/controls/ForceControls.svelte';
 	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
-	import FabricationPanel from '$lib/components/panels/FabricationPanel.svelte';
+	import ExportTools from '$lib/components/panels/ExportTools.svelte';
 
-	// Inspector displays context-aware panels based on the current workspace
-	// - Sculpt: Physical parameters (Twist, Taper, Zone)
-	// - Glaze: Color mixer and material properties
-	// - Export: Fabrication constraints and file export
+	// NEW ARCHITECTURE:
+	// - ObjectProperties: Always visible (single source of truth)
+	// - Context panel: Changes based on workspace
 </script>
 
 <div class="h-full flex flex-col bg-panel border-l border-subtle">
-	<!-- Header -->
+	<!-- ObjectProperties: Always Visible (Single Source of Truth) -->
+	<div class="border-b border-subtle">
+		<ObjectProperties />
+	</div>
+
+	<!-- Context-Aware Panel Header -->
 	<div class="p-4 border-b border-subtle flex items-center justify-between">
 		<h2 class="text-sm font-semibold text-white uppercase tracking-wider">
 			{#if uiStore.workspace === 'sculpt'}
-				SHAPE PROPERTIES
+				SHAPE TOOLS
 			{:else if uiStore.workspace === 'force'}
 				FORCE DYNAMICS
 			{:else if uiStore.workspace === 'glaze'}
-				MATERIAL & COLOR
+				PAINT & COLOR
 			{:else if uiStore.workspace === 'export'}
-				FABRICATION
+				EXPORT & FABRICATION
 			{/if}
 		</h2>
 	</div>
 
-	<!-- Content Area -->
+	<!-- Context-Aware Content Area -->
 	<div class="flex-1 overflow-y-auto custom-scrollbar">
 		{#if uiStore.workspace === 'sculpt'}
-			<div class="p-4">
-				<ParameterSliders />
-			</div>
+			<ShapeTools />
 		{:else if uiStore.workspace === 'force'}
 			<div class="p-4">
 				<ForceControls />
@@ -42,9 +45,7 @@
 				<GlazeMixer />
 			</div>
 		{:else if uiStore.workspace === 'export'}
-			<div class="p-4">
-				<FabricationPanel />
-			</div>
+			<ExportTools />
 		{/if}
 	</div>
 </div>
