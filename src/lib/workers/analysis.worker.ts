@@ -25,6 +25,14 @@ let lastAnalysisTime = 0;
 const ANALYSIS_INTERVAL_MS = 16; // ~60fps
 let framesSent = 0;
 
+// ============================================================================
+// GENERATIVE PERFORMANCE: BEAT DETECTION
+// ============================================================================
+const BEAT_HISTORY_SIZE = 43; // ~700ms at 60fps (43 * 16ms)
+const energyHistory: number[] = [];
+let lastBeatTime = 0;
+const BEAT_COOLDOWN_MS = 150; // Minimum time between beats (150ms = ~400 BPM max)
+
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {
 		return null;
@@ -37,19 +45,145 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		return null;
 	}
 
+	const energy = features.rms || 0;
+
+	// GENERATIVE PERFORMANCE: Beat Detection
+	const beat = detectBeat(energy);
+
 	// Calculate pitch using autocorrelation
-	const pitch = estimatePitch(audioData, sampleRate);
+	let rawPitch = estimatePitch(audioData, sampleRate);
+
+	// GENERATIVE PERFORMANCE: Quantize pitch to musical scale
+	let pitch = 0;
+	if (rawPitch) {
+		pitch = quantizePitch(rawPitch, 'major'); // Use major scale by default
+	}
 
 	return {
 		time: Date.now() / 1000,
 		pitch: pitch || 0,
-		energy: features.rms || 0,
+		energy,
 		timbre: {
 			spectralCentroid: features.spectralCentroid || 0,
 			zcr: features.zcr || 0,
 			spectralFlux: 0 // Calculate if needed
-		}
+		},
+		beat // GENERATIVE PERFORMANCE: Beat flag
 	};
+}
+
+/**
+ * GENERATIVE PERFORMANCE: Beat Detection
+ * Detects rhythmic impulses using energy thresholding
+ * @param energy - Current frame energy (RMS)
+ * @returns true if a beat is detected
+ */
+function detectBeat(energy: number): boolean {
+	const now = Date.now();
+
+	// Add current energy to history
+	energyHistory.push(energy);
+	if (energyHistory.length > BEAT_HISTORY_SIZE) {
+		energyHistory.shift(); // Keep only recent history
+	}
+
+	// Need enough history to calculate average
+	if (energyHistory.length < BEAT_HISTORY_SIZE / 2) {
+		return false;
+	}
+
+	// Calculate moving average
+	const average = energyHistory.reduce((sum, e) => sum + e, 0) / energyHistory.length;
+
+	// Detect beat: instant energy is significantly higher than average
+	const threshold = average * 1.5; // 50% higher than average
+	const isBeat = energy > threshold && energy > 0.1; // Minimum energy gate
+
+	// Apply cooldown to prevent double-triggering
+	if (isBeat && now - lastBeatTime > BEAT_COOLDOWN_MS) {
+		lastBeatTime = now;
+		// Log beats occasionally for debugging
+		if (Math.random() < 0.3) {
+			// 30% of the time
+			console.log(
+				`🥁 [BEAT] Detected! Energy: ${energy.toFixed(3)} vs Avg: ${average.toFixed(3)} (threshold: ${threshold.toFixed(3)})`
+			);
+		}
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * GENERATIVE PERFORMANCE: Harmonic Quantizer
+ * Snaps detected pitch to nearest note in a musical scale
+ * @param pitch - Raw detected pitch in Hz
+ * @param scale - Musical scale to use ('major', 'minor', 'pentatonic')
+ * @returns Quantized pitch in Hz
+ */
+function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 'major'): number {
+	if (pitch <= 0) return 0;
+
+	// Define scale intervals (semitones from root)
+	const scales = {
+		major: [0, 2, 4, 5, 7, 9, 11], // Major scale (Ionian)
+		minor: [0, 2, 3, 5, 7, 8, 10], // Natural minor (Aeolian)
+		pentatonic: [0, 2, 4, 7, 9] // Major pentatonic
+	};
+
+	const intervals = scales[scale];
+
+	// Convert pitch to MIDI note number
+	const midiNote = 12 * Math.log2(pitch / 440) + 69; // A4 = 440Hz = MIDI 69
+
+	// Find nearest scale degree
+	const octave = Math.floor(midiNote / 12);
+	const semitone = midiNote % 12;
+
+	// Find closest note in scale
+	let closestInterval = intervals[0];
+	let minDistance = Math.abs(semitone - intervals[0]);
+
+	for (const interval of intervals) {
+		const distance = Math.abs(semitone - interval);
+		if (distance < minDistance) {
+			minDistance = distance;
+			closestInterval = interval;
+		}
+	}
+
+	// Reconstruct quantized MIDI note
+	const quantizedMidi = octave * 12 + closestInterval;
+
+	// Convert back to Hz
+	const quantizedPitch = 440 * Math.pow(2, (quantizedMidi - 69) / 12);
+
+	return quantizedPitch;
+}
+
+/**
+ * GENERATIVE PERFORMANCE: Pitch to Hue Mapper
+ * Maps quantized pitch to a specific hue in a pre-defined palette
+ * @param pitch - Quantized pitch in Hz
+ * @param palette - Color palette ('earth', 'neon', 'ocean')
+ * @returns Hue value (0-360)
+ */
+function pitchToHue(pitch: number, palette: 'earth' | 'neon' | 'ocean' = 'earth'): number {
+	if (pitch <= 0) return 0;
+
+	// Map pitch to chromatic scale position (0-11 semitones)
+	const midiNote = 12 * Math.log2(pitch / 440) + 69;
+	const semitone = Math.floor(midiNote) % 12;
+
+	// Define color palettes (hue values for each semitone)
+	const palettes = {
+		earth: [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85], // Warm earth tones (yellow-green)
+		neon: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330], // Full spectrum
+		ocean: [180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290] // Cool blues/purples
+	};
+
+	return palettes[palette][semitone];
 }
 
 function estimatePitch(audioData: Float32Array, sampleRate: number): number | null {

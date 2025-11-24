@@ -1,4 +1,4 @@
-import type { SculptureDefinition } from '$lib/types';
+import type { SculptureDefinition, SculptureLayer, LayerType, LathePoint } from '$lib/types';
 import { Vector3, type Mesh } from 'three';
 
 export const sculptureStore = $state<{
@@ -8,13 +8,20 @@ export const sculptureStore = $state<{
 	interactionPoint: Vector3 | null;
 	interactionNormal: Vector3 | null;
 	meshReference: Mesh | null;
+	// GENERATIVE PERFORMANCE: Layer Stack
+	layers: SculptureLayer[];
+	activeLayerId: string | null;
+	composedGeometry: LathePoint[] | null;
 }>({
 	currentSculpture: null,
 	ghostSculpture: null,
 	geometryDirty: false,
 	interactionPoint: null,
 	interactionNormal: null,
-	meshReference: null
+	meshReference: null,
+	layers: [],
+	activeLayerId: null,
+	composedGeometry: null
 });
 
 export function setCurrentSculpture(sculpture: SculptureDefinition | null): void {
@@ -96,4 +103,165 @@ export function updateSculptureColors(colors: Float32Array): void {
  */
 export function setMeshReference(mesh: Mesh | null): void {
 	sculptureStore.meshReference = mesh;
+}
+
+// ============================================================================
+// GENERATIVE PERFORMANCE: LAYER STACK MANAGEMENT
+// ============================================================================
+
+/**
+ * Compose all visible layers into final geometry
+ * This is the CPU-based blending logic that produces the final radiusCurve
+ */
+export function composeGeometry(): LathePoint[] {
+	const visibleLayers = sculptureStore.layers.filter((l) => l.visible && l.type !== 'color');
+
+	if (visibleLayers.length === 0) {
+		// Return default cylinder if no layers
+		return Array(10)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 9 }));
+	}
+
+	// Find the base layer (required)
+	const baseLayer = visibleLayers.find((l) => l.type === 'base');
+	if (!baseLayer) {
+		console.warn('⚠️ No base layer found, returning default');
+		return Array(10)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 9 }));
+	}
+
+	// Start with base layer data
+	const pointCount = baseLayer.data.length / 2; // x,y pairs
+	const composed: LathePoint[] = [];
+
+	for (let i = 0; i < pointCount; i++) {
+		let x = baseLayer.data[i * 2];
+		let y = baseLayer.data[i * 2 + 1];
+
+		// Apply other layers additively
+		for (const layer of visibleLayers) {
+			if (layer.id === baseLayer.id) continue; // Skip base
+
+			// Ensure layer has same resolution
+			if (layer.data.length !== baseLayer.data.length) {
+				console.warn(`⚠️ Layer ${layer.name} has mismatched resolution, skipping`);
+				continue;
+			}
+
+			const layerX = layer.data[i * 2];
+			const blendAmount = layer.opacity;
+
+			if (layer.type === 'distortion') {
+				// Distortion: Modulate radius
+				x += (layerX - 0.5) * blendAmount * 0.5; // Scale distortion
+			} else if (layer.type === 'texture') {
+				// Texture: Add noise/roughness
+				x += (layerX - 0.5) * blendAmount * 0.2; // Smaller scale for texture
+			}
+		}
+
+		// Clamp radius to prevent negative/invalid values
+		x = Math.max(0.1, Math.min(2.0, x));
+
+		composed.push({ x, y });
+	}
+
+	return composed;
+}
+
+/**
+ * Add a new layer to the stack
+ */
+export function addLayer(layer: SculptureLayer): void {
+	sculptureStore.layers.push(layer);
+	sculptureStore.activeLayerId = layer.id;
+	sculptureStore.composedGeometry = composeGeometry();
+	sculptureStore.geometryDirty = true;
+	console.log(`✨ [LAYER] Added ${layer.type} layer: ${layer.name}`);
+}
+
+/**
+ * Remove a layer from the stack (UNDO functionality)
+ */
+export function removeLayer(layerId: string): void {
+	const index = sculptureStore.layers.findIndex((l) => l.id === layerId);
+	if (index === -1) {
+		console.warn(`⚠️ Layer ${layerId} not found`);
+		return;
+	}
+
+	const removed = sculptureStore.layers.splice(index, 1)[0];
+	console.log(`🗑️ [LAYER] Removed ${removed.type} layer: ${removed.name}`);
+
+	// Update active layer if we removed it
+	if (sculptureStore.activeLayerId === layerId) {
+		sculptureStore.activeLayerId =
+			sculptureStore.layers.length > 0 ? sculptureStore.layers[sculptureStore.layers.length - 1].id : null;
+	}
+
+	sculptureStore.composedGeometry = composeGeometry();
+	sculptureStore.geometryDirty = true;
+}
+
+/**
+ * Toggle layer visibility
+ */
+export function toggleLayerVisibility(layerId: string): void {
+	const layer = sculptureStore.layers.find((l) => l.id === layerId);
+	if (!layer) {
+		console.warn(`⚠️ Layer ${layerId} not found`);
+		return;
+	}
+
+	layer.visible = !layer.visible;
+	sculptureStore.composedGeometry = composeGeometry();
+	sculptureStore.geometryDirty = true;
+	console.log(`👁️ [LAYER] Toggled ${layer.name}: ${layer.visible ? 'visible' : 'hidden'}`);
+}
+
+/**
+ * Update layer opacity
+ */
+export function setLayerOpacity(layerId: string, opacity: number): void {
+	const layer = sculptureStore.layers.find((l) => l.id === layerId);
+	if (!layer) {
+		console.warn(`⚠️ Layer ${layerId} not found`);
+		return;
+	}
+
+	layer.opacity = Math.max(0, Math.min(1, opacity));
+	sculptureStore.composedGeometry = composeGeometry();
+	sculptureStore.geometryDirty = true;
+}
+
+/**
+ * Create a layer from audio frames (used by Performance Wizard)
+ */
+export function createLayerFromFrames(
+	type: LayerType,
+	name: string,
+	radiusData: Float32Array
+): SculptureLayer {
+	return {
+		id: crypto.randomUUID(),
+		type,
+		name,
+		data: radiusData,
+		opacity: 1.0,
+		visible: true,
+		createdAt: Date.now()
+	};
+}
+
+/**
+ * Clear all layers and reset
+ */
+export function clearLayers(): void {
+	sculptureStore.layers = [];
+	sculptureStore.activeLayerId = null;
+	sculptureStore.composedGeometry = null;
+	sculptureStore.geometryDirty = true;
+	console.log('🧹 [LAYER] Cleared all layers');
 }

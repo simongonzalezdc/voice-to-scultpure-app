@@ -47,6 +47,7 @@ export interface SculptureDefinition {
 	vertexColors?: number[]; // RGB values as array (3 values per vertex) for glazing
 	audioBlobId?: string;
 	instructions?: string[];
+	layerStack?: LayerStack; // GENERATIVE PERFORMANCE: Multi-layered composition
 }
 
 export interface UserProfile {
@@ -112,6 +113,28 @@ export interface AnalysisFrame {
 		zcr: number; // Zero crossing rate
 		spectralFlux: number;
 	};
+	beat?: boolean; // Beat detection flag (Generative Performance)
+}
+
+// ============================================================================
+// GENERATIVE PERFORMANCE: LAYER STACK SYSTEM
+// ============================================================================
+
+export type LayerType = 'base' | 'distortion' | 'texture' | 'color';
+
+export interface SculptureLayer {
+	id: string;
+	type: LayerType;
+	name: string;
+	data: Float32Array; // The raw values (Radius curve or RGB colors)
+	opacity: number; // 0.0 to 1.0 (Blend strength)
+	visible: boolean;
+	createdAt: number;
+}
+
+export interface LayerStack {
+	layers: SculptureLayer[];
+	activeLayerId: string | null;
 }
 
 export interface ProjectMetadata {

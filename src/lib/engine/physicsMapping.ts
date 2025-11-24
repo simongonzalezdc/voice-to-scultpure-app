@@ -1,4 +1,4 @@
-import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile } from '$lib/types';
+import type { AnalysisFrame, LathePoint, SculptureDefinition, UserProfile, BaseShape } from '$lib/types';
 import { Color } from 'three';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
@@ -13,6 +13,39 @@ import {
 	MAX_PITCH_HZ,
 	DEFAULT_HEIGHT_MM
 } from '$lib/config/constants';
+
+// ============================================================================
+// GENERATIVE PERFORMANCE: BEAT-DRIVEN DEFORMATION
+// ============================================================================
+
+/**
+ * Beat state tracking for rhythm-based deformation
+ */
+let lastBeatImpulse = 0;
+const BEAT_DECAY_TIME = 300; // ms - how long the beat effect lasts
+
+/**
+ * Calculate beat impulse multiplier (decays over time)
+ * @param frame - Current analysis frame
+ * @returns Multiplier (1.0 = no beat, >1.0 = beat active)
+ */
+function getBeatImpulse(frame: AnalysisFrame): number {
+	const now = Date.now();
+
+	if (frame.beat) {
+		lastBeatImpulse = now;
+		return 1.2; // 20% scale increase on beat
+	}
+
+	// Decay the impulse over time
+	const timeSinceBeat = now - lastBeatImpulse;
+	if (timeSinceBeat < BEAT_DECAY_TIME) {
+		const decay = 1 - timeSinceBeat / BEAT_DECAY_TIME;
+		return 1.0 + 0.2 * decay; // Smooth decay from 1.2 to 1.0
+	}
+
+	return 1.0; // No beat effect
+}
 
 function createDefaultCylinder(): LathePoint[] {
 	// DIRECTIVE 1: Default cylinder fallback - ensures user always sees something
@@ -33,7 +66,8 @@ export function generateLathe(
 	mode: 'additive' | 'subtractive' = 'additive',
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone Sculpting
 	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
-	controlMode: 'standard' | 'melodic' = 'standard' // DIRECTIVE 1: Virtuoso Mode
+	controlMode: 'standard' | 'melodic' = 'standard', // DIRECTIVE 1: Virtuoso Mode
+	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape-specific beat response
 ): LathePoint[] {
 	// LIVE GUARD: If frames are missing/sparse, return a visible default cylinder
 	if (!frames || frames.length === 0) {
@@ -67,6 +101,10 @@ export function generateLathe(
 		if (energy < silenceThreshold) {
 			energy = 0;
 		}
+
+		// GENERATIVE PERFORMANCE: Beat-driven impulse
+		const beatMultiplier = getBeatImpulse(frame);
+		const isBeat = frame.beat || false;
 
 		// Calculate radius based on mode
 		let radius: number;
@@ -192,6 +230,20 @@ export function generateLathe(
 		// Combine all jitter sources
 		const totalJitter = noiseMod + attackJitter + pitchJitter;
 
+		// GENERATIVE PERFORMANCE: Apply beat-driven deformation
+		// Different behavior based on baseShape
+		let beatDeformation = 0;
+		if (isBeat && beatMultiplier > 1.0) {
+			if (baseShape === 'lathe') {
+				// For lathe: Create wider ribs/rings at beat points
+				beatDeformation = (beatMultiplier - 1.0) * 0.5; // Scale to 0-0.1 range
+			} else if (baseShape === 'sphere' || baseShape === 'cube') {
+				// For primitives: Apply global scale multiplier (handled externally)
+				// Just add local ripple effect here
+				beatDeformation = (beatMultiplier - 1.0) * 0.3;
+			}
+		}
+
 		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
 		// If zone is specified, map frames to that height range instead of full 0-1
 		let normalizedHeight: number;
@@ -206,7 +258,7 @@ export function generateLathe(
 		}
 
 		// DIRECTIVE 1: NaN Guard - Sanitize all values before returning
-		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter);
+		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter + beatDeformation);
 		const safeRadius = Number.isNaN(rawRadius) ? 0.5 : Math.max(0.1, rawRadius);
 
 		return {
@@ -364,22 +416,47 @@ export function generateGlaze(
 	return new Float32Array(colors);
 }
 
+/**
+ * GENERATIVE PERFORMANCE: Calculate real-time beat scale for primitives
+ * Used by 3D renderer to apply transient scale effects on beats
+ * @param latestFrame - Most recent analysis frame
+ * @returns Scale multiplier (1.0 = normal, >1.0 = beat pulse)
+ */
+export function getBeatScaleMultiplier(latestFrame: AnalysisFrame | null): number {
+	if (!latestFrame) return 1.0;
+	return getBeatImpulse(latestFrame);
+}
+
+/**
+ * GENERATIVE PERFORMANCE: Check if a beat was just detected
+ * @param latestFrame - Most recent analysis frame
+ * @returns true if a beat occurred in the last 50ms
+ */
+export function isBeatActive(latestFrame: AnalysisFrame | null): boolean {
+	if (!latestFrame || !latestFrame.beat) return false;
+
+	const now = Date.now();
+	const timeSinceBeat = now - lastBeatImpulse;
+	return timeSinceBeat < 50; // Active for 50ms (one "flash")
+}
+
 export function createSculptureFromFrames(
 	frames: AnalysisFrame[],
 	profile?: UserProfile,
 	name?: string,
 	mode: 'additive' | 'subtractive' = 'additive',
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone parameter
-	constraintMode: ConstraintMode = 'digital' // Fabrication constraints
+	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
+	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape type
 ): SculptureDefinition {
-	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode);
+	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode, 'standard', baseShape);
 	const surface = deriveSurfaceParameters(frames, profile);
 
 	return {
 		id: crypto.randomUUID(),
 		name: name || `Sculpture ${new Date().toLocaleString()}`,
 		createdAt: Date.now(),
-		baseShape: 'lathe' as const, // Default to lathe for audio-generated sculptures
+		baseShape, // Use provided shape
 		radiusCurve,
 		surface: {
 			...surface,
