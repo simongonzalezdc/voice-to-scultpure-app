@@ -207,14 +207,6 @@ export function mergeSculpture(
 	return {
 		...current,
 		radiusCurve: mutation.radiusCurve || current.radiusCurve,
-		surface: {
-			...current.surface,
-			...(mutation.surface || {})
-		},
-		deformation: {
-			...current.deformation,
-			...(mutation.deformation || {})
-		},
 		instructions: [...(current.instructions || []), JSON.stringify(mutation)]
 	};
 }

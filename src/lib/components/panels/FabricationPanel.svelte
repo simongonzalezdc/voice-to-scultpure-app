@@ -25,7 +25,8 @@
 		return {
 			autoFixGeometry: uiStore.autoFixGeometry,
 			constraintMode: uiStore.constraintMode,
-			modifiers: uiStore.modifiers
+			modifiers: uiStore.modifiers,
+			deformation: uiStore.deformation
 		};
 	}
 
@@ -81,7 +82,7 @@
 		}
 
 		try {
-			const svg = exportProfileSVG(sculpture);
+			const svg = exportProfileSVG(sculpture, uiStore.deformation);
 			const filename = `sculpture-blueprint-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.svg`;
 			downloadBlueprint(svg, filename);
 		} catch (error) {

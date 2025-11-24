@@ -50,12 +50,12 @@ export interface SculptureDefinition {
 	// NEW LAYER SYSTEM
 	layers: SculptureLayer[]; // Ordered bottom-to-top
 	
-	physical: SculpturePhysical; // Keeps existing physical props
+	physical: SculpturePhysical; // Physical dimensions and manufacturing settings
 	
-	// DEPRECATED PROPERTIES (Maintained temporarily for types but unused)
-	// radiusCurve (Calculated dynamically from layers)
-	// surface (Moved to Glaze Layers)
-	// deformation (Moved to Deformation Layers)
+	// LEGACY PROPERTIES (Maintained for backward compatibility with old saved files)
+	// These are populated when loading old sculptures but not used in new code
+	radiusCurve?: LathePoint[]; // Deprecated: Use layers instead
+	baseShape?: string; // Deprecated: Was 'lathe' or 'cylinder'
 	
 	// Metadata
 	audioBlobId?: string;

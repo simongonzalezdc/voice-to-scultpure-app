@@ -14,7 +14,8 @@
 		return {
 			autoFixGeometry: uiStore.autoFixGeometry,
 			constraintMode: uiStore.constraintMode,
-			modifiers: uiStore.modifiers
+			modifiers: uiStore.modifiers,
+			deformation: uiStore.deformation
 		};
 	}
 
@@ -49,7 +50,7 @@
 
 		try {
 			toastStore.info('Exporting Blueprint', 'Generating SVG...');
-			const svg = exportProfileSVG(sculpture);
+			const svg = exportProfileSVG(sculpture, uiStore.deformation);
 			const filename = `sculpture-blueprint-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.svg`;
 			downloadBlueprint(svg, filename);
 			toastStore.success('Export Complete', `${filename} saved to Downloads`);

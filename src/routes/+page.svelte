@@ -88,14 +88,6 @@
 			layers: [baseLayer],
 			baseShape: 'lathe',
 			radiusCurve: profile,
-			surface: {
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0.1,
-				materialType: 'ceramic',
-				baseColor: DEFAULT_MATERIAL_CERAMIC
-			},
-			deformation: { twist: 0, compression: 0, taper: 0 },
 			physical: {
 				height: 150,
 				units: 'mm',
@@ -194,10 +186,7 @@
 			state.mode
 		);
 
-		regenerated.deformation = currentSculpture.deformation;
-		regenerated.surface = currentSculpture.surface;
 		regenerated.physical = { ...currentSculpture.physical, sculptMode: state.sculptMode };
-		regenerated.vertexColors = currentSculpture.vertexColors;
 
 		setCurrentSculpture(regenerated);
 	});
@@ -209,16 +198,7 @@
 			name: 'Test Mesh (Hourglass)',
 			createdAt: Date.now(),
 			// NEW LAYER SYSTEM INITIALIZATION
-			layers: [], 
-			// Legacy props for compatibility
-			surface: {
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0,
-				materialType: 'ceramic',
-				baseColor: DEFAULT_MATERIAL_CERAMIC
-			},
-			deformation: { twist: 0, compression: 0, taper: 0 },
+			layers: [],
 			physical: { height: 150, units: 'mm', orientation: 'vertical', sculptMode: 'additive' }
 		};
 		setCurrentSculpture(testSculpture);

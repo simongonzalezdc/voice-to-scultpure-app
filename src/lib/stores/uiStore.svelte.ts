@@ -45,6 +45,11 @@ export const uiStore = $state<{
 		quantize: boolean;
 		symmetryCount: number;
 	};
+	deformation: {
+		twist: number; // Degrees of twist (-360 to 360)
+		compression: number; // Vertical stretch/compression (-1 to 1, 0 = no change)
+		taper: number; // Radius taper top-to-bottom (-1 to 1, 0 = no change)
+	};
 	showGhost: boolean;
 	sculptZone: {
 		min: number; // 0.0 = bottom
@@ -90,6 +95,11 @@ export const uiStore = $state<{
 	modifiers: {
 		quantize: false,
 		symmetryCount: 0
+	},
+	deformation: {
+		twist: 0,
+		compression: 0,
+		taper: 0
 	},
 	showGhost: true,
 	sculptZone: {

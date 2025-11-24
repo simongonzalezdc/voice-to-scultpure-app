@@ -117,20 +117,12 @@
 				id: `sculpture-${Date.now()}`,
 				name: 'Performance Sculpture',
 				createdAt: Date.now(),
-				layers: [baseLayer],
-				baseShape: 'lathe' as const,
-				radiusCurve: defaultProfile,
-				surface: {
-					textureRoughness: 0.5,
-					glazeTransmission: 0.3,
-					displacementStrength: 0.1,
-					materialType: 'ceramic' as const,
-					baseColor: '#FFFFFF'
-				},
-				deformation: { twist: 0, compression: 0, taper: 0 },
-				physical: {
-					height: DEFAULT_HEIGHT_MM,
-					units: 'mm' as const,
+			layers: [baseLayer],
+			baseShape: 'lathe' as const,
+			radiusCurve: defaultProfile,
+			physical: {
+				height: DEFAULT_HEIGHT_MM,
+				units: 'mm' as const,
 					wallThickness: 3,
 					orientation: 'vertical' as const,
 					sculptMode: 'additive' as const

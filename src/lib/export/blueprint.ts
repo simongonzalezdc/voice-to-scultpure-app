@@ -5,14 +5,17 @@ import { applyDeformation } from '$lib/engine/physicsMapping';
  * Export profile SVG blueprint for ceramic pottery wheel use
  * Scales the normalized radiusCurve to physical dimensions and adds a ruler grid
  */
-export function exportProfileSVG(sculpture: SculptureDefinition): string {
+export function exportProfileSVG(
+	sculpture: SculptureDefinition,
+	deformation?: { twist: number; compression: number; taper: number }
+): string {
 	const curve = sculpture.radiusCurve;
 	if (curve.length < 2) {
 		throw new Error('Not enough points for blueprint export');
 	}
 
 	// Apply deformation before export
-	const deformedCurve = applyDeformation(curve, sculpture.deformation);
+	const deformedCurve = deformation ? applyDeformation(curve, deformation) : curve;
 
 	// Get physical dimensions
 	const physicalHeight = sculpture.physical.height;

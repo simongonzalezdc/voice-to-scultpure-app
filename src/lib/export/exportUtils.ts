@@ -15,6 +15,12 @@ export interface ExportOptions {
 		quantizeSteps: number;
 		symmetryCount: number;
 	};
+	/** Deformation to apply (twist, compression, taper) */
+	deformation?: {
+		twist: number;
+		compression: number;
+		taper: number;
+	};
 }
 
 /**
@@ -45,8 +51,8 @@ export function generateFinalProfile(
 	}
 
 	// Step 2: Apply deformations (twist, compression, taper)
-	if (sculpture.deformation) {
-		profile = applyDeformation(profile, sculpture.deformation);
+	if (options.deformation) {
+		profile = applyDeformation(profile, options.deformation);
 	}
 
 	// Step 3: Apply fabrication constraints (if auto-fix is enabled)

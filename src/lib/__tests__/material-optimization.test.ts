@@ -14,28 +14,17 @@ describe('Material Optimization in Sculpture.svelte', () => {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [
 				{ x: 0.5, y: 0 },
 				{ x: 0.3, y: 0.5 },
 				{ x: 0.2, y: 1 }
 			],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
 			}
 		};
 
@@ -43,89 +32,59 @@ describe('Material Optimization in Sculpture.svelte', () => {
 		// This tests the optimization that prevents flashing by using
 		// a single material component with reactive props instead of conditional rendering
 
-		// Ceramic material properties should include:
-		// - transmission based on glazeTransmission
-		// - roughness based on textureRoughness
-		// - clearcoat based on glazeTransmission
-		// - color based on baseColor or white if vertex colors exist
-		// - vertexColors flag based on vertex colors or workspace
+		// Material properties should include:
+		// - roughness based on uiStore.activeGlaze.roughness
+		// - color based on material type
+		// - vertexColors flag based on workspace
 
-		const expectedCeramicProps = {
-			transmission: expect.any(Number),
-			thickness: expect.any(Number),
-			roughness: testSculpture.surface.textureRoughness,
-			clearcoat: Math.max(0, testSculpture.surface.glazeTransmission),
-			clearcoatRoughness: expect.any(Number),
+		const expectedProps = {
+			roughness: expect.any(Number),
 			color: expect.any(String),
 			metalness: expect.any(Number),
-			ior: expect.any(Number),
-			envMapIntensity: expect.any(Number),
 			vertexColors: expect.any(Boolean),
 			opacity: expect.any(Number),
 			transparent: expect.any(Boolean)
 		};
 
-		// Verify the expected properties are present
-		expect(expectedCeramicProps.roughness).toBe(0.5);
-		expect(expectedCeramicProps.clearcoat).toBe(0.3);
+		// Verify the expected properties structure is correct
+		expect(uiStore.activeGlaze.roughness).toBeGreaterThanOrEqual(0);
+		expect(uiStore.activeGlaze.roughness).toBeLessThanOrEqual(1);
 	});
 
 	it('should handle plastic material properties correctly', () => {
-		// Create a test sculpture with plastic material
+		// Create a test sculpture with subtractive mode (plastic)
 		const testSculpture: SculptureDefinition = {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [
 				{ x: 0.5, y: 0 },
 				{ x: 0.3, y: 0.5 },
 				{ x: 0.2, y: 1 }
 			],
-			surface: {
-				materialType: 'plastic',
-				baseColor: '#FF0000',
-				textureRoughness: 0.7,
-				glazeTransmission: 0.1,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
-				sculptMode: 'additive',
+				sculptMode: 'subtractive', // Subtractive mode uses plastic material
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
 			}
 		};
 
-		// Plastic material properties should include:
-		// - No transmission (plastic is opaque)
-		// - roughness with minimum of 0.3
-		// - clearcoat and metalness for plastic appearance
-		// - No vertex colors unless in glaze mode
+		// Plastic material properties are derived from uiStore settings
+		// Material color is determined by sculptMode in materialFactory
 
 		const expectedPlasticProps = {
 			color: expect.any(String),
-			roughness: Math.max(0.3, testSculpture.surface.textureRoughness),
-			clearcoat: expect.any(Number),
-			clearcoatRoughness: expect.any(Number),
+			roughness: expect.any(Number),
 			metalness: expect.any(Number),
-			flatShading: expect.any(Boolean),
-			transmission: 0,
-			thickness: 0,
-			ior: expect.any(Number),
-			envMapIntensity: expect.any(Number),
 			vertexColors: expect.any(Boolean),
 			opacity: expect.any(Number),
 			transparent: expect.any(Boolean)
 		};
 
-		// Verify the expected properties are present
-		expect(expectedPlasticProps.roughness).toBe(0.7);
-		expect(expectedPlasticProps.transmission).toBe(0);
+		// Verify sculpture is in subtractive mode
+		expect(testSculpture.physical.sculptMode).toBe('subtractive');
 	});
 
 	it('should show error color in glaze mode without vertex colors', () => {
@@ -134,30 +93,18 @@ describe('Material Optimization in Sculpture.svelte', () => {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [
 				{ x: 0.5, y: 0 },
 				{ x: 0.3, y: 0.5 },
 				{ x: 0.2, y: 1 }
 			],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
-			},
-			vertexColors: [] // Empty colors
+			}
 		};
 
 		// Set to glaze mode
@@ -170,8 +117,8 @@ describe('Material Optimization in Sculpture.svelte', () => {
 		// Verify workspace is in glaze mode
 		expect(uiStore.workspace).toBe('glaze');
 
-		// Verify sculpture has no colors
-		expect(testSculpture.vertexColors).toEqual([]);
+		// Vertex colors are now stored in geometry attributes, not sculpture
+		expect(testSculpture.layers).toEqual([]);
 	});
 
 	it('should handle error state geometry', () => {

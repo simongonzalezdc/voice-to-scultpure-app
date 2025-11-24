@@ -80,14 +80,12 @@
 		const sculpture = sculptureStore.currentSculpture;
 		if (sculpture && !isDragging) {
 			height = sculpture.physical.height;
-			twist = sculpture.deformation.twist;
-			verticalStretch = sculpture.deformation.compression;
-			roughness = sculpture.surface.textureRoughness;
-			glaze = sculpture.surface.glazeTransmission;
-			materialType = sculpture.surface.materialType ?? 'ceramic';
-			baseColor =
-				sculpture.surface.baseColor ??
-				(materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC);
+			twist = uiStore.deformation.twist;
+			verticalStretch = uiStore.deformation.compression;
+			roughness = uiStore.activeGlaze.roughness;
+			glaze = 0.3; // Default glaze transmission (removed from sculpture)
+			materialType = 'ceramic'; // Default to ceramic
+			baseColor = DEFAULT_MATERIAL_CERAMIC;
 			sculptMode = sculpture.physical.sculptMode ?? uiStore.sculptMode;
 		} else if (!sculpture && !isDragging) {
 			// When no sculpture exists, sync from uiStore

@@ -59,9 +59,9 @@
 
 		const sculpture = sculptureStore.currentSculpture;
 		if (sculpture && !isDragging) {
-			twist = sculpture.deformation.twist;
-			verticalStretch = sculpture.deformation.compression;
-			smoothness = sculpture.surface.textureRoughness;
+			twist = uiStore.deformation.twist;
+			verticalStretch = uiStore.deformation.compression;
+			smoothness = uiStore.activeGlaze.roughness;
 			sculptMode = sculpture.physical.sculptMode ?? uiStore.sculptMode;
 		} else if (!sculpture && !isDragging) {
 			sculptMode = uiStore.sculptMode;

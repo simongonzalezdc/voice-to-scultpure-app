@@ -43,24 +43,13 @@ describe('Glaze Persistence', () => {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
 			}
 		};
 		
@@ -89,24 +78,13 @@ describe('Glaze Persistence', () => {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
 			}
 		};
 		
@@ -126,24 +104,13 @@ describe('Glaze Persistence', () => {
 			id: 'test-sculpture',
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
+			layers: [],
 			radiusCurve: [],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
 			}
 		};
 		
@@ -209,7 +176,7 @@ describe('Glaze Persistence', () => {
 				compression: 1.0,
 				taper: 0
 			},
-			vertexColors: [] // Empty colors
+			// Vertex colors now stored in geometry attributes
 		};
 		
 		// Set current sculpture
@@ -225,7 +192,7 @@ describe('Glaze Persistence', () => {
 		// Verify workspace is in glaze mode
 		expect(uiStore.workspace).toBe('glaze');
 		
-		// Verify sculpture has no colors
-		expect(sculptureStore.currentSculpture.vertexColors).toEqual([]);
+		// Vertex colors now stored in geometry attributes, not sculpture object
+		expect(sculptureStore.currentSculpture).toBeDefined();
 	});
 });
