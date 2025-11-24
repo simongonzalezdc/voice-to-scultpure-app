@@ -11,20 +11,6 @@ export interface LathePoint {
 	y: number;
 }
 
-export interface SculptureSurface {
-	textureRoughness: number; // 0-1
-	glazeTransmission: number; // 0-1
-	displacementStrength: number; // 0-1
-	materialType?: 'ceramic' | 'plastic'; // Default: 'ceramic'
-	baseColor?: string; // Hex code, default depends on material
-}
-
-export interface SculptureDeformation {
-	twist: number; // radians
-	compression: number; // 0-1
-	taper: number; // 0-1
-}
-
 export interface SculpturePhysical {
 	height: number; // Physical height in millimeters (default 150mm for mug/small vase)
 	units: 'mm' | 'inch'; // Measurement units (default 'mm')
@@ -33,21 +19,47 @@ export interface SculpturePhysical {
 	sculptMode?: 'additive' | 'subtractive'; // Sculpting mode: additive (build up) or subtractive (carve in), default 'additive'
 }
 
-export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane';
+// ============================================================================
+// PHASE 1: DATA STRUCTURES (The Backbone)
+// ============================================================================
+
+export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze';
+export type BlendMode = 'add' | 'subtract' | 'multiply' | 'overwrite';
+
+export interface SculptureLayer {
+	id: string;
+	name: string;
+	visible: boolean;
+	locked: boolean;
+	type: LayerType;
+	blendMode: BlendMode;
+	opacity: number; // Global strength of this layer (0.0 - 1.0)
+
+	// DATA BUFFERS (Float32Array for performance)
+	// 1. The Shape Data (Radius offsets for deformation, RGB for glaze)
+	data: Float32Array; 
+	// 2. The Smart Mask (Records Volume/Intensity during singing)
+	mask: Float32Array; 
+}
 
 export interface SculptureDefinition {
 	id: string;
 	name: string;
 	createdAt: number;
-	baseShape?: BaseShape; // Default: 'lathe' - if not 'lathe', ignore radiusCurve
-	radiusCurve: LathePoint[]; // Only used when baseShape === 'lathe'
-	surface: SculptureSurface;
-	deformation: SculptureDeformation;
-	physical: SculpturePhysical;
-	vertexColors?: number[]; // RGB values as array (3 values per vertex) for glazing
+	
+	// NEW LAYER SYSTEM
+	layers: SculptureLayer[]; // Ordered bottom-to-top
+	
+	physical: SculpturePhysical; // Keeps existing physical props
+	
+	// DEPRECATED PROPERTIES (Maintained temporarily for types but unused)
+	// radiusCurve (Calculated dynamically from layers)
+	// surface (Moved to Glaze Layers)
+	// deformation (Moved to Deformation Layers)
+	
+	// Metadata
 	audioBlobId?: string;
 	instructions?: string[];
-	layerStack?: LayerStack; // GENERATIVE PERFORMANCE: Multi-layered composition
 }
 
 export interface UserProfile {
@@ -68,7 +80,7 @@ export interface UserProfile {
 		p75: number;
 	};
 	timbreRange: {
-		min: number; // Timbre floor (noise/silence baseline)
+		min: number;
 		max: number; // Timbre ceiling (max grit/harsh sounds)
 		p25: number;
 		p50: number;
@@ -114,27 +126,6 @@ export interface AnalysisFrame {
 		spectralFlux: number;
 	};
 	beat?: boolean; // Beat detection flag (Generative Performance)
-}
-
-// ============================================================================
-// GENERATIVE PERFORMANCE: LAYER STACK SYSTEM
-// ============================================================================
-
-export type LayerType = 'base' | 'distortion' | 'texture' | 'color';
-
-export interface SculptureLayer {
-	id: string;
-	type: LayerType;
-	name: string;
-	data: Float32Array; // The raw values (Radius curve or RGB colors)
-	opacity: number; // 0.0 to 1.0 (Blend strength)
-	visible: boolean;
-	createdAt: number;
-}
-
-export interface LayerStack {
-	layers: SculptureLayer[];
-	activeLayerId: string | null;
 }
 
 export interface ProjectMetadata {

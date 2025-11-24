@@ -4,9 +4,10 @@ import {
 	updateSculptureColors
 } from './sculptureStore.svelte';
 import { resetAnalysis, analysisStore } from './analysisStore.svelte';
-import { createSculptureFromFrames } from '$lib/engine/physicsMapping';
+import { createSculptureFromFrames } from '$lib/engine/physicsMapping'; // Keep for legacy or helper
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
+import { quantizePitch } from '$lib/audio/audioTheory';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -86,150 +87,100 @@ export function stopRecording(): void {
 	setRecordingState('processing');
 	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
 
+	// PHASE 4: Real-time Layering means data is already written.
+	// We just need to transition state.
+	// Legacy logic (createSculptureFromFrames) is bypassed for the new architecture.
+	
 	// CRITICAL: Capture vertex colors before geometry disposal in glaze mode
 	const isGlazeMode = uiStore.workspace === 'glaze';
 	if (isGlazeMode && sculptureStore.meshReference?.geometry) {
-		const geometry = sculptureStore.meshReference.geometry;
-		const colorAttribute = geometry.attributes.color;
-
-		if (colorAttribute && colorAttribute.array && colorAttribute.array instanceof Float32Array) {
-			// Extract the painted colors from the geometry BEFORE disposal
-			const colors = Array.from(colorAttribute.array);
-			// Save them to the sculpture store for persistence
-			updateSculptureColors(new Float32Array(colors));
-			console.log(`🎨 [RECORDING] Captured ${colors.length / 3} vertex colors before processing`);
-		}
+		// ... (Keep existing glaze logic if needed, or rely on Layer System)
+		// For Phase 4, we assume Glaze Layer handles this.
 	}
 
-	// Process frames immediately when stopping
-	// DEAD LOCK GUARD: use try/finally to guarantee state transition
 	try {
-		// RESCUE CHECK: Handle worker failure with empty frames
-		if (capturedFrames.length === 0) {
-			// Alert user about worker failure
-			alert('⚠️ Audio Worker Failed - Retrying with Bypass Data');
-
-			// Create fallback frames using last known micLevel and latestFrame data
-			const fallbackFrames: import('$lib/types').AnalysisFrame[] = [];
-
-			// Generate synthetic frames based on recording duration
-			// Estimate ~60 frames per second for the duration
-			const estimatedFrameCount = Math.max(1, Math.floor(duration / 16.67)); // ~60fps
-
-			for (let i = 0; i < estimatedFrameCount; i++) {
-				const t = i / estimatedFrameCount;
-
-				// Create a frame with fallback data using correct AnalysisFrame structure
-				const fallbackFrame: import('$lib/types').AnalysisFrame = {
-					time: recordingStore.startTime ? recordingStore.startTime + t * duration : Date.now(),
-					energy: analysisStore.micLevel || 0.1, // Use last known mic level or default
-					pitch: analysisStore.latestFrame?.pitch || 0, // Use last known pitch or silence
-					timbre: {
-						spectralCentroid: analysisStore.latestFrame?.timbre?.spectralCentroid || 1000,
-						zcr: analysisStore.latestFrame?.timbre?.zcr || 0.1,
-						spectralFlux: analysisStore.latestFrame?.timbre?.spectralFlux || 0
-					}
-				};
-
-				fallbackFrames.push(fallbackFrame);
-			}
-
-			console.log(
-				`🔧 [RESCUE] Generated ${fallbackFrames.length} fallback frames from micLevel: ${analysisStore.micLevel.toFixed(3)}`
-			);
-
-			// Use fallback frames for processing
-			if (isGlazeMode) {
-				if (!sculptureStore.currentSculpture) {
-					console.warn(
-						'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
-					);
-				} else {
-					console.log('🎨 [RECORDING] Glaze recording with bypass data - colors preserved');
-				}
-			} else {
-				console.log(
-					`✨ [RECORDING] Processing ${fallbackFrames.length} bypass frames into sculpture...`
-				);
-				const mode =
-					sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-				const zone =
-					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
-
-				const sculpture = createSculptureFromFrames(
-					fallbackFrames,
-					appSettings.userProfile,
-					undefined,
-					mode,
-					zone,
-					uiStore.constraintMode
-				);
-				setCurrentSculpture(sculpture);
-				console.log(
-					`🗿 [RECORDING] Bypass sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode`
-				);
-			}
-		} else if (capturedFrames.length > 0) {
-			// Normal processing with captured frames
-			if (isGlazeMode) {
-				// GLAZE MODE: Colors are now captured above
-				// The mesh geometry will be regenerated with the saved colors
-				if (!sculptureStore.currentSculpture) {
-					console.warn(
-						'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
-					);
-				} else {
-					console.log(`🎨 [RECORDING] Glaze recording stopped - colors captured and saved`);
-					// Colors are already saved above, mesh will use them when regenerated
-				}
-			} else {
-				// SCULPT MODE: Create new sculpture from frames
-				console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into sculpture...`);
-				// Create a deep copy to avoid reactivity issues during processing
-				const frames = JSON.parse(JSON.stringify(capturedFrames));
-				// Use current sculpture's mode if it exists, otherwise use uiStore preference, then default to 'additive'
-				const mode =
-					sculptureStore.currentSculpture?.physical.sculptMode ?? uiStore.sculptMode ?? 'additive';
-
-				// DIRECTIVE 4: Pass zone parameter if zone is restricted
-				const zone =
-					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
-
-				// Pass constraint mode for fabrication constraints
-				const sculpture = createSculptureFromFrames(
-					frames,
-					appSettings.userProfile,
-					undefined,
-					mode,
-					zone,
-					uiStore.constraintMode
-				);
-				setCurrentSculpture(sculpture);
-				console.log(
-					`🗿 [RECORDING] Sculpture created with ${sculpture.radiusCurve.length} points in ${mode} mode${zone ? ` (zone: ${(zone.min * 100).toFixed(0)}%-${(zone.max * 100).toFixed(0)}%)` : ''} [constraints: ${uiStore.constraintMode}]`
-				);
-			}
-		} else {
-			console.warn('⚠️ [RECORDING] No frames captured! Sculpture will be empty.');
-		}
+		console.log('✅ [RECORDING] Layer data finalized.');
 	} catch (err) {
 		console.error('❌ [RECORDING] Processing failed:', err);
 	} finally {
-		// CRITICAL: Always transition to 'complete', even if processing failed
 		setRecordingState('complete');
-		console.log('✅ [RECORDING] Processing complete (or failed gracefully)');
+		console.log('✅ [RECORDING] Processing complete');
 	}
 }
 
+/**
+ * Phase 4: Smart Recording (Smart Masking)
+ * Writes audio data directly to the active layer's buffers.
+ */
 export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): void {
-	if (recordingStore.state === 'recording') {
-		capturedFrames.push(frame);
-		// Log every 60 frames (~1 second at 60fps)
-		if (capturedFrames.length % 60 === 0) {
-			console.log(
-				`📊 [RECORDING] Captured ${capturedFrames.length} frames (${(capturedFrames.length / 60).toFixed(1)}s)`
-			);
+	if (recordingStore.state !== 'recording') return;
+
+	capturedFrames.push(frame);
+
+	// 1. Get Active Layer
+	const sculpture = sculptureStore.currentSculpture;
+	const activeLayerId = sculptureStore.activeLayerId;
+	
+	if (!sculpture || !activeLayerId) return;
+	
+	const layer = sculpture.layers.find(l => l.id === activeLayerId);
+	if (!layer || layer.locked) return;
+
+	// 2. Map Time to Index (Vertical Sweep)
+	// Hardcoded 10s duration for now (Wizard Step 1)
+	const RECORDING_DURATION_MS = 10000; 
+	const elapsed = Date.now() - (recordingStore.startTime || Date.now());
+	
+	// Calculate index based on progress (0.0 to 1.0)
+	const progress = Math.min(1.0, Math.max(0.0, elapsed / RECORDING_DURATION_MS));
+	const resolution = layer.data.length;
+	const index = Math.floor(progress * (resolution - 1));
+
+	if (index >= 0 && index < resolution) {
+		// 3. Write Data (Quantized Pitch)
+		const quantizedHz = quantizePitch(frame.pitch);
+		
+		// Normalize Pitch (e.g., C3=130Hz to C6=1046Hz)
+		// Mapping: Low pitch = Wide base? High pitch = Narrow?
+		// Or: Pitch = Radius directly.
+		// Let's map 100Hz-800Hz to Radius 0.2-1.5
+		const minHz = 100;
+		const maxHz = 800;
+		const normPitch = Math.max(0, Math.min(1, (quantizedHz - minHz) / (maxHz - minHz)));
+		
+		// SMART MASKING: Check noise threshold
+		const noiseThreshold = 0.02; // 2% volume
+		const isAudible = frame.energy > noiseThreshold;
+
+		// Only write if audible
+		if (isAudible) {
+			// Update Mask
+			layer.mask[index] = frame.energy; // Store intensity
+
+			// Update Data based on Layer Type
+			if (layer.type === 'base') {
+				// Base Layer: Pitch determines Radius
+				// Low Pitch = Wide (1.5), High Pitch = Narrow (0.2)
+				// Invert mapping? Usually Low = Big Base makes sense.
+				const radius = 1.5 - (normPitch * 1.3);
+				layer.data[index] = radius;
+			} else if (layer.type === 'deformation') {
+				// Deformation: Pitch determines Offset (-0.5 to 0.5)
+				layer.data[index] = (normPitch - 0.5);
+			} else if (layer.type === 'texture') {
+				// Texture: Pitch determines Frequency/Roughness?
+				// Or Energy determines Roughness
+				layer.data[index] = normPitch;
+			}
+			
+			// Trigger Re-render
+			sculptureStore.geometryDirty = true;
 		}
+	}
+
+	// Log every 60 frames (~1 second at 60fps)
+	if (capturedFrames.length % 60 === 0) {
+		// console.log(`📊 [RECORDING] Frame ${capturedFrames.length} -> Index ${index}`);
 	}
 }
 
@@ -238,6 +189,6 @@ export function resetRecording(): void {
 	recordingStateSetTimings(null, 0);
 	setRecordingState('idle');
 	resetAnalysis();
-	setCurrentSculpture(null);
+	// Don't nullify sculpture, just reset recording state
 	console.log('🔄 [RECORDING] Reset to idle state');
 }

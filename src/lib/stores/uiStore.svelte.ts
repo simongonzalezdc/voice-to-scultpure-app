@@ -44,6 +44,8 @@ export const uiStore = $state<{
 	};
 	constraintMode: 'digital' | 'ceramic' | '3d_print';
 	autoFixGeometry: boolean;
+	// GENERATIVE PERFORMANCE: Wizard mode
+	performanceWizardActive: boolean;
 }>({
 	panels: {
 		aiPanel: false,
@@ -79,7 +81,8 @@ export const uiStore = $state<{
 		max: 1.0 // Default: entire height (top)
 	},
 	constraintMode: 'digital', // Default: no constraints
-	autoFixGeometry: true // Default: Auto-fix enabled
+	autoFixGeometry: true, // Default: Auto-fix enabled
+	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
 });
 
 export function setAutoFixGeometry(enabled: boolean): void {
@@ -196,4 +199,13 @@ export function setSculptZone(min: number, max: number): void {
 
 export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
 	uiStore.constraintMode = mode;
+}
+
+// GENERATIVE PERFORMANCE: Wizard controls
+export function openPerformanceWizard(): void {
+	uiStore.performanceWizardActive = true;
+}
+
+export function closePerformanceWizard(): void {
+	uiStore.performanceWizardActive = false;
 }

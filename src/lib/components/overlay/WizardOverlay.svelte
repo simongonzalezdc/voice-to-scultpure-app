@@ -1,8 +1,18 @@
 <script lang="ts">
-	import { recordingStore } from '$lib/stores/recording.svelte';
-	import { sculptureStore, addLayer, createLayerFromFrames, removeLayer } from '$lib/stores/sculptureStore.svelte';
+	import {
+		recordingStore,
+		startRecording,
+		stopRecording,
+		getCapturedFrames
+	} from '$lib/stores/recording.svelte';
+	import {
+		sculptureStore,
+		addLayer,
+		createLayerFromFrames,
+		removeLayer
+	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import type { LayerType } from '$lib/types';
+	import type { LayerType, AnalysisFrame } from '$lib/types';
 	import { generateLathe } from '$lib/engine/physicsMapping';
 
 	// Props
@@ -10,8 +20,10 @@
 
 	// Wizard state
 	let currentStep = $state(0);
-	let isRecording = $state(false);
-	let recordedFrames = $state<any[]>([]);
+	let recordedFrames = $state<AnalysisFrame[]>([]);
+
+	// Reactive: Check if recording
+	const isRecording = $derived(recordingStore.state === 'recording');
 
 	const steps: Array<{
 		title: string;
@@ -52,24 +64,23 @@
 
 	const currentStepData = $derived(steps[currentStep]);
 
-	async function startRecording() {
-		if (recordingStore.isRecording) return;
+	function startRecordingLayer() {
+		if (recordingStore.state === 'recording') return;
 
-		isRecording = true;
 		recordedFrames = [];
+		startRecording(); // Call actual recording system
 		console.log(`🎙️ [WIZARD] Starting ${currentStepData.layerType} layer recording`);
-
-		// TODO: Connect to actual recording system
-		// For now, we'll simulate by collecting frames from analysisStore
 	}
 
-	function stopRecording() {
-		if (!recordingStore.isRecording) {
-			isRecording = false;
+	function stopRecordingLayer() {
+		if (recordingStore.state !== 'recording') {
 			return;
 		}
 
-		isRecording = false;
+		stopRecording(); // Call actual recording system
+		
+		// Get frames from recording store
+		recordedFrames = getCapturedFrames();
 		console.log(`⏹️ [WIZARD] Stopped recording, ${recordedFrames.length} frames captured`);
 
 		// Process recorded frames into a layer
@@ -102,7 +113,7 @@
 
 	function nextStep() {
 		if (isRecording) {
-			stopRecording();
+			stopRecordingLayer();
 		}
 
 		if (currentStep < steps.length - 1) {
@@ -116,7 +127,7 @@
 
 	function previousStep() {
 		if (isRecording) {
-			stopRecording();
+			stopRecordingLayer();
 		}
 
 		if (currentStep > 0) {
@@ -137,7 +148,7 @@
 
 	function cancel() {
 		if (isRecording) {
-			stopRecording();
+			stopRecordingLayer();
 		}
 		onCancel?.();
 	}
@@ -199,11 +210,11 @@
 			{/if}
 
 			{#if !isRecording}
-				<button class="btn-primary btn-record" onclick={startRecording}>
+				<button class="btn-primary btn-record" onclick={startRecordingLayer}>
 					🎙️ Start Recording
 				</button>
 			{:else}
-				<button class="btn-danger" onclick={stopRecording}>⏹️ Stop Recording</button>
+				<button class="btn-danger" onclick={stopRecordingLayer}>⏹️ Stop Recording</button>
 			{/if}
 
 			<button class="btn-secondary" onclick={undoCurrentLayer}>↩️ Undo Layer</button>
