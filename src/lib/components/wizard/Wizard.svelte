@@ -1,10 +1,13 @@
 <script lang="ts">
-	import { sculptureStore, addLayer } from '$lib/stores/sculptureStore.svelte';
+	import { sculptureStore, addLayer, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { recordingStore, startRecording, stopRecording, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { Mic, Check, ChevronRight, Wand2, Activity } from 'lucide-svelte';
 	import LayerPanel from './LayerPanel.svelte';
+	import { generateLathe } from '$lib/engine/physicsMapping';
+	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
+	import type { SculptureLayer } from '$lib/types';
 
 	// Wizard State
 	let currentStep = $state<'shape' | 'detail' | 'glaze' | 'export'>('shape');
@@ -86,13 +89,55 @@
         // Logic to go back? For now just forward flow as requested.
     }
 
-	// Auto-initialize Shape layer on mount
+	// Auto-initialize: Create sculpture if none exists
 	$effect(() => {
-		if (currentStep === 'shape' && sculptureStore.currentSculpture) {
-			// Only if no layers exist
-			if (sculptureStore.currentSculpture.layers.length === 0) {
-				STEPS.shape.action();
+		if (!sculptureStore.currentSculpture) {
+			// Create a default cylinder sculpture for Performance Mode
+			const defaultProfile = generateLathe([], null as any, 'additive', undefined, 'ceramic');
+			const resolution = 128;
+			const layerData = new Float32Array(resolution);
+			for (let i = 0; i < resolution; i++) {
+				layerData[i] = 0.5; // Default radius (cylinder shape)
 			}
+			
+			const baseLayer: SculptureLayer = {
+				id: crypto.randomUUID(),
+				name: 'Base Layer',
+				type: 'base',
+				visible: true,
+				locked: false,
+				blendMode: 'overwrite',
+				opacity: 1.0,
+				data: layerData,
+				mask: new Float32Array(resolution).fill(1.0),
+				sourceFrameCount: 0
+			};
+			
+			const newSculpture = {
+				id: `sculpture-${Date.now()}`,
+				name: 'Performance Sculpture',
+				createdAt: Date.now(),
+				layers: [baseLayer],
+				baseShape: 'lathe' as const,
+				radiusCurve: defaultProfile,
+				surface: {
+					textureRoughness: 0.5,
+					glazeTransmission: 0.3,
+					displacementStrength: 0.1,
+					materialType: 'ceramic' as const,
+					baseColor: '#FFFFFF'
+				},
+				deformation: { twist: 0, compression: 0, taper: 0 },
+				physical: {
+					height: DEFAULT_HEIGHT_MM,
+					units: 'mm' as const,
+					wallThickness: 3,
+					orientation: 'vertical' as const,
+					sculptMode: 'additive' as const
+				}
+			};
+			setCurrentSculpture(newSculpture);
+			console.log('🎭 [WIZARD] Created default sculpture for Performance Mode');
 		}
 	});
 
@@ -100,9 +145,9 @@
 
 <div class="flex h-full pointer-events-auto">
 	<!-- Wizard Controls (Main Area) -->
-	<div class="flex-1 flex flex-col bg-black/80 backdrop-blur-xl border-t border-white/10 p-6 relative overflow-hidden">
+	<div class="flex-1 flex flex-col bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 relative overflow-hidden">
 		<!-- Step Progress -->
-		<div class="flex items-center gap-2 mb-6 text-xs font-mono text-white/40">
+		<div class="flex items-center gap-2 mb-3 text-xs font-mono text-white/40">
 			{#each Object.keys(STEPS) as step}
 				<div class="flex items-center gap-2 {currentStep === step ? 'text-brand-primary font-bold' : ''}">
 					<span class="w-4 h-4 rounded-full border border-current flex items-center justify-center">
@@ -119,12 +164,12 @@
 		</div>
 
 		<!-- Active Step Content -->
-		<div class="flex-1 flex flex-col justify-center items-start gap-4 z-10">
-			<h2 class="text-2xl font-bold text-white flex items-center gap-3">
-				<Wand2 class="text-brand-primary" />
+		<div class="flex-1 flex flex-col justify-center items-start gap-2 z-10">
+			<h2 class="text-xl font-bold text-white flex items-center gap-2">
+				<Wand2 size={20} class="text-brand-primary" />
 				{STEPS[currentStep].title}
 			</h2>
-			<p class="text-lg text-white/60 max-w-md">
+			<p class="text-sm text-white/70 max-w-md">
 				{STEPS[currentStep].prompt}
 			</p>
 			<p class="text-xs text-white/40 font-mono max-w-md">
@@ -174,9 +219,9 @@
 			
 			<!-- Recording Controls -->
 			{#if currentStep !== 'export'}
-				<div class="mt-4 flex items-center gap-4">
+				<div class="mt-2 flex items-center gap-3">
 					<button
-						class="flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 active:scale-95
+						class="flex items-center gap-2 px-6 py-3 rounded-full font-bold text-base transition-all hover:scale-105 active:scale-95
 						{isRecording ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-white text-black hover:bg-brand-primary hover:text-white'}"
 						onclick={async () => {
 							if (isRecording) {
@@ -197,11 +242,11 @@
 					
 					{#if !isRecording && sculptureStore.currentSculpture?.layers.length > 0}
 						<button 
-							class="flex items-center gap-2 px-6 py-4 rounded-full border border-white/20 text-white hover:bg-white/10 hover:border-white/40 transition-colors"
+							class="flex items-center gap-2 px-4 py-3 rounded-full border border-white/20 text-sm text-white hover:bg-white/10 hover:border-white/40 transition-colors"
 							onclick={nextStep}
 						>
 							<span>NEXT STEP</span>
-							<ChevronRight size={18} />
+							<ChevronRight size={16} />
 						</button>
 					{/if}
 				</div>

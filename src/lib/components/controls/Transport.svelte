@@ -42,6 +42,7 @@
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		const isForceMode = uiStore.workspace === 'force';
+		console.log(`🔘 [TRANSPORT] Button clicked, current state: ${recordingStore.state}`);
 
 		if (recordingStore.state === 'idle') {
 			// Glaze/Force mode: Require existing sculpture
@@ -53,17 +54,11 @@
 		} else if (recordingStore.state === 'recording') {
 			await stopRecordingFlow();
 		} else {
-			// Complete state: Reset behavior
-			// In glaze/force mode, we don't want to destroy the sculpture, just reset recording state
-			if (isGlazeMode || isForceMode) {
-				// Non-destructive reset: Only reset recording state, keep sculpture
-				recordingStore.state = 'idle';
-				recordingStore.startTime = null;
-				recordingStore.duration = 0;
-			} else {
-				// Sculpt mode: Full reset (clears sculpture)
-				resetRecording();
-			}
+			// Complete or processing state: Reset behavior
+			// Reset recording state but keep sculpture (resetRecording doesn't destroy the sculpture)
+			console.log('🔘 [TRANSPORT] Button in complete/processing state, calling resetRecording()');
+			resetRecording();
+			console.log(`🔘 [TRANSPORT] After reset, state is now: ${recordingStore.state}`);
 		}
 	}
 

@@ -14,7 +14,8 @@
 		chalice: { name: 'Chalice', points: chalice as LathePoint[] }
 	};
 
-	let lineGeometry = $state<BufferGeometry | null>(null);
+	// Use $state.raw for Three.js objects to track assignment but not internal properties
+	let lineGeometry = $state.raw<BufferGeometry | null>(null);
 	let lineRef = $state<any>(null);
 
 	let activeBlueprint = $derived(BLUEPRINTS[uiStore.view.blueprintId || 'amphora']);
@@ -24,15 +25,23 @@
 		return calculateMatch(userProfile, activeBlueprint.points);
 	});
 
+	// Recreate geometry when blueprint changes
 	$effect(() => {
 		if (!activeBlueprint) return;
-		if (lineGeometry) lineGeometry.dispose();
+		
+		// Clean up old geometry
+		if (lineGeometry) {
+			lineGeometry.dispose();
+		}
 
-		lineGeometry = new BufferGeometry();
+		// Create new geometry (non-reactive assignment)
+		const newGeometry = new BufferGeometry();
 		const pts = activeBlueprint.points.map((p) => new Vector3(p.x, p.y, 0));
-		lineGeometry.setFromPoints(pts);
-		lineGeometry.computeBoundingSphere();
+		newGeometry.setFromPoints(pts);
+		newGeometry.computeBoundingSphere();
+		lineGeometry = newGeometry;
 
+		// Update line distances after render
 		queueMicrotask(() => {
 			lineRef?.computeLineDistances?.();
 		});

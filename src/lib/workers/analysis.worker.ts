@@ -22,16 +22,24 @@ let fftSize = 2048;
 let hopSize = 512; // Standard hop size: 11.6ms at 44.1kHz. Pitch detection improved via autocorrelation tuning.
 let running = false;
 let lastAnalysisTime = 0;
-const ANALYSIS_INTERVAL_MS = 16; // ~60fps
+const ANALYSIS_INTERVAL_MS = 33; // ~30fps (aligned with rendering frame rate)
 let framesSent = 0;
 
 // ============================================================================
 // GENERATIVE PERFORMANCE: BEAT DETECTION
 // ============================================================================
-const BEAT_HISTORY_SIZE = 43; // ~700ms at 60fps (43 * 16ms)
+const BEAT_HISTORY_SIZE = 21; // ~700ms at 30fps (21 * 33ms = 693ms)
 const energyHistory: number[] = [];
 let lastBeatTime = 0;
 const BEAT_COOLDOWN_MS = 150; // Minimum time between beats (150ms = ~400 BPM max)
+
+// ============================================================================
+// TEMPORAL SMOOTHING: Reduce jitter for musical gestures
+// ============================================================================
+let smoothedPitch = 0;
+let smoothedSpectralCentroid = 0;
+const PITCH_SMOOTHING = 0.3; // Higher = more responsive, lower = smoother (0.3 = ~100ms smoothing at 30fps)
+const TIMBRE_SMOOTHING = 0.25; // Timbre can be even smoother (0.25 = ~130ms smoothing)
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {
@@ -59,12 +67,25 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		pitch = quantizePitch(rawPitch, 'major'); // Use major scale by default
 	}
 
+	// TEMPORAL SMOOTHING: Apply exponential smoothing to reduce jitter
+	// Only smooth if we have a valid pitch (don't smooth toward zero during silence)
+	if (pitch > 0) {
+		smoothedPitch = smoothedPitch + (pitch - smoothedPitch) * PITCH_SMOOTHING;
+	} else {
+		// During silence, decay smoothed pitch toward zero more slowly
+		smoothedPitch = smoothedPitch * 0.95;
+	}
+
+	// Smooth spectral centroid (timbre)
+	const rawSpectralCentroid = features.spectralCentroid || 0;
+	smoothedSpectralCentroid = smoothedSpectralCentroid + (rawSpectralCentroid - smoothedSpectralCentroid) * TIMBRE_SMOOTHING;
+
 	return {
 		time: Date.now() / 1000,
-		pitch: pitch || 0,
+		pitch: smoothedPitch, // Use smoothed value
 		energy,
 		timbre: {
-			spectralCentroid: features.spectralCentroid || 0,
+			spectralCentroid: smoothedSpectralCentroid, // Use smoothed value
 			zcr: features.zcr || 0,
 			spectralFlux: 0 // Calculate if needed
 		},
@@ -359,7 +380,11 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 				console.warn('⚠️ [ANALYSIS WORKER] Already running - ignoring duplicate start call to prevent concurrent loops');
 				return; // Guard against duplicate processLoop chains
 			}
-			console.log('🚀 [ANALYSIS WORKER] Starting analysis loop');
+			// Reset smoothing state for new recording
+			smoothedPitch = 0;
+			smoothedSpectralCentroid = 0;
+			energyHistory.length = 0;
+			console.log('🚀 [ANALYSIS WORKER] Starting analysis loop (smoothing reset)');
 			running = true;
 			framesSent = 0;
 			lastAnalysisTime = 0; // Reset timing

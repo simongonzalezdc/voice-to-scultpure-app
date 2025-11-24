@@ -229,8 +229,8 @@ export async function startVisualizerBypass(): Promise<void> {
 		analysisStoreModule.updateMicLevel(smoothedMicLevel);
 	};
 
-	// Poll at ~60fps
-	visualizerPollInterval = setInterval(poll, 16) as unknown as number;
+	// Poll at ~30fps (aligned with analysis and rendering)
+	visualizerPollInterval = setInterval(poll, 33) as unknown as number;
 }
 
 function stopVisualizerBypass(): void {

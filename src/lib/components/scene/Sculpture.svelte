@@ -2,7 +2,8 @@
 	import { T } from '@threlte/core';
 	import {
 		sculptureStore,
-		setMeshReference
+		setMeshReference,
+		setInteractionPoint
 	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import {
@@ -14,6 +15,7 @@
 	import {
 		LatheGeometry,
 		Vector2,
+		Vector3,
 		Mesh,
 		BufferAttribute,
 		BufferGeometry,
@@ -26,8 +28,9 @@
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
-	import { applyModifiers, applyDeformation } from '$lib/engine/physicsMapping';
+	import { applyModifiers, applyDeformation, generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
@@ -118,10 +121,25 @@
 	let lastCompositionTime = 0;
 	let lastProfileVectors = $state<Vector2[]>([]);
 
+	// Frame rate limiting for smoother, less jittery updates
+	let lastUpdateTime = 0;
+	const TARGET_FPS = 30; // 30fps is plenty for a sculpture tool
+	const FRAME_TIME = 1000 / TARGET_FPS;
+
 	// COMPOSITOR LOOP
 	// Directive 3.2: Call computeProfile in useTask
 	useTask((_delta) => {
-		if (!sculpture) return;
+		if (!sculpture) {
+			console.log('⚠️ [SCULPTURE] No sculpture prop provided');
+			return;
+		}
+
+		// Frame rate limiting - skip frames to maintain target FPS
+		const now = Date.now();
+		if (now - lastUpdateTime < FRAME_TIME) {
+			return; // Skip this frame
+		}
+		lastUpdateTime = now;
 
 		// Optimization: Only re-compute if layers changed or recording
 		const isRecording = recordingStore.state === 'recording';
@@ -129,37 +147,130 @@
 
 		if (!needsUpdate) return;
 		
-		// Safety check for layers
-		if (!sculpture.layers || sculpture.layers.length === 0) {
-			// If no layers, fallback to legacy radiusCurve if exists, else skip
-			if (!liveGeometry && sculpture.radiusCurve) {
-				// Use legacy path once
-				const { geometry, vectors } = createGeometryFromProfile(sculpture.radiusCurve);
-				lastProfileVectors = vectors;
-				liveGeometry = geometry;
-			}
-			return;
-		}
-
 		try {
-			// Check for resolution mismatches before computing (track errors here, not in pure function)
-			const resolution = 128;
-			for (const layer of sculpture.layers) {
-				if (layer.visible && layer.data.length !== resolution) {
-					trackError('compositorResolutionMismatch');
+			let profile: LathePoint[];
+			
+			// LIVE RECORDING PREVIEW: Generate geometry from captured frames in real-time
+			// CRITICAL: Use ALL frames (no downsampling) so sculpture actually GROWS as you sing
+			if (isRecording) {
+				const frames = getCapturedFrames();
+				if (frames && frames.length > 5) { // Need at least a few frames
+					// Pass maxPoints = 0 to use EVERY frame without compression
+					// This makes the sculpture grow vertically as you sing longer
+					const radiusCurve = generateLathe(
+						frames, 
+						appSettings.userProfile, 
+						uiStore.sculptMode || 'additive', 
+						undefined, 
+						uiStore.constraintMode,
+						'standard',
+						'lathe',
+						0 // <-- UNLIMITED RESOLUTION: No downsampling during live recording
+					);
+					
+					// Convert to layer data (exactly as stopRecording does)
+					const resolution = 128;
+					const tempLayerData = new Float32Array(resolution);
+					for (let i = 0; i < resolution; i++) {
+						const normalizedY = i / (resolution - 1);
+						const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
+						const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
+						tempLayerData[i] = radiusCurve[clampedIndex].x;
+					}
+					
+					// If we have existing layers, composite with them
+					if (sculpture.layers && sculpture.layers.length > 0) {
+						// Create temp layer and composite
+						const tempLayers = [
+							...sculpture.layers,
+							{
+								id: 'preview-temp',
+								name: 'Live Preview',
+								type: 'distortion' as const,
+								visible: true,
+								locked: false,
+								blendMode: 'add' as const,
+								opacity: 1.0,
+								data: tempLayerData,
+								mask: new Float32Array(resolution).fill(1.0),
+								sourceFrameCount: frames.length
+							}
+						];
+						profile = computeProfile(tempLayers);
+					} else {
+						// First recording - convert layer data back to LathePoint[]
+						profile = Array.from({ length: resolution }, (_, i) => ({
+							x: tempLayerData[i],
+							y: i / (resolution - 1)
+						}));
+					}
+				} else if (sculpture.layers && sculpture.layers.length > 0) {
+					// Not enough frames yet, use existing layers
+					profile = computeProfile(sculpture.layers);
+				} else {
+					// No frames and no layers - skip
+					return;
+				}
+			} else {
+				// NOT RECORDING: Use normal layer composition
+				if (!sculpture.layers || sculpture.layers.length === 0) {
+					// Fallback to legacy radiusCurve
+					if (!liveGeometry && sculpture.radiusCurve) {
+						const { geometry, vectors } = createGeometryFromProfile(sculpture.radiusCurve);
+						lastProfileVectors = vectors;
+						liveGeometry = geometry;
+					}
+					return;
+				}
+				
+				// Check for resolution mismatches
+				const resolution = 128;
+				for (const layer of sculpture.layers) {
+					if (layer.visible && layer.data.length !== resolution) {
+						trackError('compositorResolutionMismatch');
+					}
+				}
+				
+				// Compute profile from layers
+				profile = computeProfile(sculpture.layers);
+			}
+			
+			// GENERATE GEOMETRY from profile
+			const { geometry, vectors } = createGeometryFromProfile(profile);
+			
+			// GENERATE VERTEX COLORS if in glaze mode and recording
+			if (isRecording && uiStore.workspace === 'glaze') {
+				const frames = getCapturedFrames();
+				if (frames && frames.length > 0) {
+					const colors = generateGlaze(frames, uiStore.activeGlaze);
+					// Apply colors to geometry
+					const positions = geometry.getAttribute('position');
+					const vertexCount = positions.count;
+					const colorArray = new Float32Array(vertexCount * 3);
+					
+					// Resample colors to match vertex count
+					const colorCount = colors.length / 3;
+					if (colorCount > 0) {
+						for (let i = 0; i < vertexCount; i++) {
+							// Map vertex to color by height (Y coordinate)
+							const y = positions.getY(i);
+							const normalizedHeight = (y + 1) / 2; // Normalize 0-1
+							const colorIndex = Math.floor(normalizedHeight * (colorCount - 1));
+							const clampedIndex = Math.max(0, Math.min(colorCount - 1, colorIndex));
+							
+							colorArray[i * 3] = colors[clampedIndex * 3];
+							colorArray[i * 3 + 1] = colors[clampedIndex * 3 + 1];
+							colorArray[i * 3 + 2] = colors[clampedIndex * 3 + 2];
+						}
+						geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
+					}
 				}
 			}
 			
-			// 1. COMPUTE PROFILE (pure function, no side effects)
-			const profile = computeProfile(sculpture.layers);
-			
-			// 2. GENERATE GEOMETRY (pure function, no side effects)
-			const { geometry, vectors } = createGeometryFromProfile(profile);
-			
-			// 3. Update state outside of derived context
+			// Update state
 			lastProfileVectors = vectors;
 
-			// 4. UPDATE MESH
+			// UPDATE MESH
 			if (liveGeometry) liveGeometry.dispose();
 			liveGeometry = geometry;
 			
@@ -167,7 +278,6 @@
 		} catch (err) {
 			console.error("❌ [COMPOSITOR] Failed to compute profile:", err);
 			trackError('geometryComputation');
-			// Check if it's a state mutation error
 			if (err instanceof Error && err.message.includes('state_unsafe_mutation')) {
 				trackError('stateUnsafeMutation');
 			}
@@ -286,14 +396,6 @@
 		return [];
 	});
 
-	// Update lastProfileVectors when vectors change (for heatmap colors)
-	// This must be in $effect, not $derived, because it mutates state
-	$effect(() => {
-		if (derivedVectors.length > 0) {
-			lastProfileVectors = derivedVectors;
-		}
-	});
-
 	// Apply geometry mutations in $effect (side effects belong here, not in $derived)
 	$effect(() => {
 		if (!currentGeometry) return;
@@ -302,7 +404,8 @@
 		applySymmetryDistortion(currentGeometry);
 		
 		// Apply heatmap colors if we have vectors and view mode is heatmap
-		// Use derivedVectors which is always up-to-date
+		// For live geometry, use lastProfileVectors (updated by useTask)
+		// For static geometry, use derivedVectors
 		const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
 		if (vectorsToUse.length > 0) {
 			applyHeatmapColors(currentGeometry, vectorsToUse);
@@ -323,17 +426,80 @@
 		materialProps.emissive = uiStore.activeGlaze.color;
 	});
 
-	// Voice-reactive emission (bioluminescence)
+	// Voice-reactive emission (bioluminescence) with smoothing
+	let smoothedEmission = $state(0);
 	useTask(() => {
 		const isRecording = recordingStore.state === 'recording';
 		if (isRecording) {
-			const glow = Math.max(0, (analysisStore.micLevel - 0.1) * 2.0);
-			materialProps.emissiveIntensity = glow * 3.0;
+			const targetGlow = Math.max(0, (analysisStore.micLevel - 0.1) * 2.0) * 3.0;
+			// Smooth transition with exponential easing (0.15 = slower, less jittery)
+			smoothedEmission += (targetGlow - smoothedEmission) * 0.15;
+			materialProps.emissiveIntensity = smoothedEmission;
 		} else {
 			const idlePulse = 0.2 + Math.sin(Date.now() / 1000) * 0.2;
 			materialProps.emissiveIntensity = Math.max(0, idlePulse);
 		}
 		materialProps.emissive = uiStore.activeGlaze.color;
+	});
+
+	// Force Mode: Update interaction point based on pitch
+	useTask(() => {
+		if (uiStore.workspace !== 'force' || !sculpture || !meshRef) {
+			setInteractionPoint(null, null);
+			return;
+		}
+
+		const pitch = analysisStore.latestFrame?.pitch || 0;
+		const micLevel = analysisStore.micLevel;
+
+		// Only show target if there's voice input
+		if (pitch === 0 || micLevel < 0.05) {
+			setInteractionPoint(null, null);
+			return;
+		}
+
+		// Get the mesh's actual bounding box to know the real Y range
+		if (!meshRef.geometry.boundingBox) {
+			meshRef.geometry.computeBoundingBox();
+		}
+		const bbox = meshRef.geometry.boundingBox;
+		if (!bbox) {
+			setInteractionPoint(null, null);
+			return;
+		}
+
+		// Map pitch to height (80Hz = bottom, 800Hz = top)
+		const MIN_PITCH = 80;
+		const MAX_PITCH = 800;
+		const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH) / (MAX_PITCH - MIN_PITCH)));
+		
+		// Map to actual geometry Y range (accounting for transforms)
+		const minY = bbox.min.y * heightScale;
+		const maxY = bbox.max.y * heightScale;
+		const targetY = minY + normalizedPitch * (maxY - minY);
+		
+		// Find the radius at this height by sampling the geometry
+		// Get a ring of vertices at approximately this Y position
+		const positions = meshRef.geometry.getAttribute('position');
+		let closestRadius = 0.5; // Fallback
+		let minYDiff = Infinity;
+		
+		for (let i = 0; i < positions.count; i++) {
+			const y = positions.getY(i) * heightScale; // Apply scale transform
+			const yDiff = Math.abs(y - targetY);
+			if (yDiff < minYDiff) {
+				minYDiff = yDiff;
+				const x = positions.getX(i);
+				const z = positions.getZ(i);
+				closestRadius = Math.sqrt(x * x + z * z); // Radial distance from center
+			}
+		}
+		
+		// Place point on the front of the sculpture
+		const point = new Vector3(closestRadius, targetY, 0);
+		const normal = new Vector3(1, 0, 0); // Normal pointing outward
+		
+		setInteractionPoint(point, normal);
 	});
 
 </script>
@@ -355,7 +521,7 @@
 					transparent={uiStore.view.mode === 'xray'}
 					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
 					wireframe={uiStore.view.mode === 'wireframe'}
-					vertexColors={uiStore.view.mode === 'heatmap'}
+					vertexColors={uiStore.view.mode === 'heatmap' || uiStore.workspace === 'glaze'}
 				/>
 			</T.Mesh>
 		{/if}

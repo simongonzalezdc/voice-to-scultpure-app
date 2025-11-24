@@ -327,7 +327,7 @@
 
 		<!-- GENERATIVE PERFORMANCE: Wizard Overlay -->
 		{#if uiStore.performanceWizardActive}
-			<div class="fixed inset-x-0 bottom-0 z-[100] h-[400px] shadow-2xl border-t border-white/10">
+			<div class="fixed inset-x-0 bottom-0 z-[100] h-[280px] shadow-2xl border-t border-white/10">
 				<div class="absolute top-0 right-0 p-4 z-[110]">
 					<button 
 						class="p-2 bg-black/50 hover:bg-red-500/50 rounded-full text-white transition-colors"

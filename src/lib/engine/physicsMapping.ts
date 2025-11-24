@@ -67,7 +67,8 @@ export function generateLathe(
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone Sculpting
 	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
 	controlMode: 'standard' | 'melodic' = 'standard', // DIRECTIVE 1: Virtuoso Mode
-	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape-specific beat response
+	baseShape: BaseShape = 'lathe', // GENERATIVE PERFORMANCE: Shape-specific beat response
+	maxPoints?: number // Optional: Override max points (for live recording with unlimited resolution)
 ): LathePoint[] {
 	// LIVE GUARD: If frames are missing/sparse, return a visible default cylinder
 	if (!frames || frames.length === 0) {
@@ -83,8 +84,10 @@ export function generateLathe(
 	const silenceThreshold = noiseFloor * SILENCE_THRESHOLD_MULTIPLIER;
 
 	// 2. Resample: Limit to max points (High Res)
-	const samplingRate = Math.ceil(frames.length / GEOMETRY_MAX_POINTS);
-	const sampledFrames = frames.filter((_, i) => i % samplingRate === 0);
+	// For live recording, we can pass maxPoints = 0 to use ALL frames (no downsampling)
+	const effectiveMaxPoints = maxPoints !== undefined ? maxPoints : GEOMETRY_MAX_POINTS;
+	const samplingRate = effectiveMaxPoints > 0 ? Math.ceil(frames.length / effectiveMaxPoints) : 1;
+	const sampledFrames = samplingRate > 1 ? frames.filter((_, i) => i % samplingRate === 0) : frames;
 
 	// Constants for radius calculation (using centralized constants)
 	const BASE_RADIUS = SCULPTURE_BASE_RADIUS;
@@ -296,8 +299,11 @@ export function applyModifiers(
 	return curve.map((point) => {
 		let radius = point.x;
 		if (modifiers?.quantize) {
-			const step = 10; // 10mm blocks
-			radius = Math.round((radius * safeHeightScale) / step) * (step / safeHeightScale);
+			// Quantize to create faceted/stepped surfaces
+			// Radius is in normalized units (typically 0-1.5 range)
+			// Use a step size relative to the typical radius range, not millimeters
+			const step = 0.1; // 10% increments (creates ~10 distinct radius levels)
+			radius = Math.round(radius / step) * step;
 		}
 
 		return {

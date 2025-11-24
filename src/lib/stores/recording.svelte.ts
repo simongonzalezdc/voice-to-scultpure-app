@@ -244,6 +244,13 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 	capturedFrames.push(frame);
 	recordingStore.historyPosition = 1;
 	
+	// Mark geometry as dirty to trigger live preview update
+	// Update every 15 frames for smoother, less jittery updates (~2 updates per second at 30fps)
+	// This makes the sculpting feel more intentional and easier to control
+	if (capturedFrames.length % 15 === 0) {
+		sculptureStore.geometryDirty = true;
+	}
+	
 	// Log first frame and periodic updates
 	if (capturedFrames.length === 1) {
 		console.log('✅ [RECORDING] First frame added to capturedFrames');
@@ -253,13 +260,14 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 }
 
 export function resetRecording(): void {
+	console.log(`🔄 [RECORDING] Resetting from state: ${recordingStore.state}`);
 	capturedFrames = [];
 	recordingStateSetTimings(null, 0);
 	setRecordingState('idle');
 	recordingStore.historyPosition = 1;
 	resetAnalysis();
 	// Don't nullify sculpture, just reset recording state
-	console.log('🔄 [RECORDING] Reset to idle state');
+	console.log(`✅ [RECORDING] Reset complete, new state: ${recordingStore.state}`);
 }
 
 function triggerResonanceFeedback(): void {

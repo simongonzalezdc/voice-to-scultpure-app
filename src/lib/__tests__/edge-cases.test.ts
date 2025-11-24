@@ -285,7 +285,7 @@ describe('Edge Cases and Error Handling', () => {
 			
 			for (let i = 0; i < largeFrameCount; i++) {
 				largeFrames.push({
-					time: i * 0.016, // ~60fps
+					time: i * 0.033, // ~30fps
 					pitch: 220 + Math.sin(i * 0.1) * 100,
 					energy: 0.5 + Math.sin(i * 0.05) * 0.3,
 					timbre: { 

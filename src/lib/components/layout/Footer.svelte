@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Transport from '$lib/components/controls/Transport.svelte';
+	import WorkspaceSwitcher from '$lib/components/layout/WorkspaceSwitcher.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore } from '$lib/stores/recording.svelte';
 
@@ -32,6 +33,10 @@
 
 <div class="footer">
 	<Transport />
+	
+	<div class="workspace-switcher-container">
+		<WorkspaceSwitcher />
+	</div>
 
 	<div class="status-bar">
 		<div class="stat">
@@ -71,6 +76,10 @@
 		align-items: center;
 		gap: 16px;
 		width: 100%;
+	}
+
+	.workspace-switcher-container {
+		flex-shrink: 0;
 	}
 
 	.status-bar {
