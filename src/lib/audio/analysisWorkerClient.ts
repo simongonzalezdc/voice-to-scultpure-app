@@ -24,8 +24,17 @@ export function createAnalysisWorkerClient(
 	});
 
 	let frameCount = 0;
+	let configConfirmed = false;
+	
 	worker.onmessage = (e) => {
 		const { type, payload } = e.data;
+		
+		if (type === 'status' && payload === 'configured') {
+			configConfirmed = true;
+			configured = true;
+			console.log('✅ [WORKER] Configuration confirmed by worker');
+		}
+		
 		if (type === 'analysis-frame') {
 			frameCount++;
 			if (frameCount === 1) {
@@ -33,13 +42,20 @@ export function createAnalysisWorkerClient(
 			}
 			onFrame(payload as AnalysisFrame);
 		}
+		
+		if (type === 'error') {
+			console.error('❌ [WORKER] Worker error:', payload);
+		}
 	};
 
 	worker.onerror = (error) => {
-		console.error('Analysis worker error:', error);
+		console.error('❌ [WORKER] Analysis worker error:', error);
+		configured = false;
+		configConfirmed = false;
 	};
 
-	// Configure worker
+	// Configure worker - wait for confirmation before marking as configured
+	configured = false; // Reset to false
 	worker.postMessage({
 		type: 'config',
 		payload: {
@@ -49,16 +65,28 @@ export function createAnalysisWorkerClient(
 			hopSize: 512 // REVERT: 2048 caused Meyda buffer size error. Improved pitch detection in autocorrelation instead.
 		}
 	});
-
-	configured = true;
+	
+	// Set a timeout to mark as configured even if we don't get confirmation
+	// (some browsers might not send status messages)
+	setTimeout(() => {
+		if (!configConfirmed) {
+			console.warn('⚠️ [WORKER] Config confirmation timeout - assuming configured');
+			configured = true;
+		}
+	}, 100);
 
 	return {
 		start: () => {
-			if (worker && configured) {
-				console.log('▶️ [WORKER] Starting analysis worker');
-				frameCount = 0;
-				worker.postMessage({ type: 'start' });
+			if (!worker) {
+				console.error('❌ [WORKER] Cannot start: worker is null');
+				return;
 			}
+			if (!configured) {
+				console.warn('⚠️ [WORKER] Starting before configuration confirmed - this may cause issues');
+			}
+			console.log('▶️ [WORKER] Starting analysis worker');
+			frameCount = 0;
+			worker.postMessage({ type: 'start' });
 		},
 		stop: () => {
 			if (worker) {

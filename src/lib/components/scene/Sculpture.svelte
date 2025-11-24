@@ -28,6 +28,7 @@
 	import { computeProfile } from '$lib/engine/compositor';
 	import { applyModifiers } from '$lib/engine/physicsMapping';
 	import { calculateStressColors } from '$lib/engine/analysis';
+	import { trackError } from '$lib/stores/metricsStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import {
 		DEFAULT_HEIGHT_MM,
@@ -132,39 +133,59 @@
 			// If no layers, fallback to legacy radiusCurve if exists, else skip
 			if (!liveGeometry && sculpture.radiusCurve) {
 				// Use legacy path once
-				liveGeometry = createGeometryFromProfile(sculpture.radiusCurve);
+				const { geometry, vectors } = createGeometryFromProfile(sculpture.radiusCurve);
+				lastProfileVectors = vectors;
+				liveGeometry = geometry;
 			}
 			return;
 		}
 
 		try {
-			// 1. COMPUTE PROFILE
+			// Check for resolution mismatches before computing (track errors here, not in pure function)
+			const resolution = 128;
+			for (const layer of sculpture.layers) {
+				if (layer.visible && layer.data.length !== resolution) {
+					trackError('compositorResolutionMismatch');
+				}
+			}
+			
+			// 1. COMPUTE PROFILE (pure function, no side effects)
 			const profile = computeProfile(sculpture.layers);
 			
-			// 2. GENERATE GEOMETRY
-			const geometry = createGeometryFromProfile(profile);
+			// 2. GENERATE GEOMETRY (pure function, no side effects)
+			const { geometry, vectors } = createGeometryFromProfile(profile);
+			
+			// 3. Update state outside of derived context
+			lastProfileVectors = vectors;
 
-			// 3. UPDATE MESH
+			// 4. UPDATE MESH
 			if (liveGeometry) liveGeometry.dispose();
 			liveGeometry = geometry;
 			
 			sculptureStore.geometryDirty = false; // Mark clean
 		} catch (err) {
 			console.error("❌ [COMPOSITOR] Failed to compute profile:", err);
+			trackError('geometryComputation');
+			// Check if it's a state mutation error
+			if (err instanceof Error && err.message.includes('state_unsafe_mutation')) {
+				trackError('stateUnsafeMutation');
+			}
 		}
 	});
 
-	function createGeometryFromProfile(profile: LathePoint[]): BufferGeometry {
+	/**
+	 * Pure function: Creates geometry from profile without side effects
+	 * Returns both geometry and vectors for use by callers
+	 */
+	function createGeometryFromProfile(profile: LathePoint[]): { geometry: BufferGeometry; vectors: Vector2[] } {
 		const modifiedProfile = applyModifiers(profile, heightScale, uiStore.modifiers);
 		const vectors = modifiedProfile.map((p) => new Vector2(p.x, p.y));
-		lastProfileVectors = vectors;
 		// Default segments
 		const segments = 64; 
 		const geometry = new LatheGeometry(vectors, segments);
-		applySymmetryDistortion(geometry);
-		applyHeatmapColors(geometry, vectors);
+		// Note: Geometry mutations (symmetry, heatmap) are now handled in $effect
 		geometry.computeVertexNormals();
-		return geometry;
+		return { geometry, vectors };
 	}
 
 	function applySymmetryDistortion(geometry: BufferGeometry): void {
@@ -213,7 +234,7 @@
 		geometry.setAttribute('color', new BufferAttribute(colors, 3));
 	}
 
-	// Initial geometry creation (reactive)
+	// Initial geometry creation (reactive, but pure - no side effects)
 	let currentGeometry = $derived.by(() => {
 		if (liveGeometry) return liveGeometry;
 		if (!sculpture) return null;
@@ -221,17 +242,56 @@
 		// Fallback for initial load
 		if (sculpture.layers && sculpture.layers.length > 0) {
 			const profile = computeProfile(sculpture.layers);
-			return createGeometryFromProfile(profile);
+			const { geometry } = createGeometryFromProfile(profile);
+			return geometry;
 		} else if (sculpture.radiusCurve) {
-			return createGeometryFromProfile(sculpture.radiusCurve);
+			const { geometry } = createGeometryFromProfile(sculpture.radiusCurve);
+			return geometry;
 		}
 		
 		return new CylinderGeometry(DEFAULT_CYLINDER_RADIUS, DEFAULT_CYLINDER_RADIUS, 1, DEFAULT_CYLINDER_SEGMENTS);
 	});
 
+	// Compute vectors for derived geometry (needed for heatmap colors)
+	// This is pure - no state mutation
+	let derivedVectors = $derived.by((): Vector2[] => {
+		if (liveGeometry) return lastProfileVectors; // Use vectors from useTask
+		if (!sculpture) return [];
+		
+		// Compute vectors for derived geometry
+		if (sculpture.layers && sculpture.layers.length > 0) {
+			const profile = computeProfile(sculpture.layers);
+			const modifiedProfile = applyModifiers(profile, heightScale, uiStore.modifiers);
+			return modifiedProfile.map((p) => new Vector2(p.x, p.y));
+		} else if (sculpture.radiusCurve) {
+			const modifiedProfile = applyModifiers(sculpture.radiusCurve, heightScale, uiStore.modifiers);
+			return modifiedProfile.map((p) => new Vector2(p.x, p.y));
+		}
+		
+		return [];
+	});
+
+	// Update lastProfileVectors when vectors change (for heatmap colors)
+	// This must be in $effect, not $derived, because it mutates state
 	$effect(() => {
-		if (!currentGeometry || !lastProfileVectors.length) return;
-		applyHeatmapColors(currentGeometry, lastProfileVectors);
+		if (derivedVectors.length > 0) {
+			lastProfileVectors = derivedVectors;
+		}
+	});
+
+	// Apply geometry mutations in $effect (side effects belong here, not in $derived)
+	$effect(() => {
+		if (!currentGeometry) return;
+		
+		// Apply symmetry distortion if needed
+		applySymmetryDistortion(currentGeometry);
+		
+		// Apply heatmap colors if we have vectors and view mode is heatmap
+		// Use derivedVectors which is always up-to-date
+		const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
+		if (vectorsToUse.length > 0) {
+			applyHeatmapColors(currentGeometry, vectorsToUse);
+		}
 	});
 
 	let materialProps = $state({

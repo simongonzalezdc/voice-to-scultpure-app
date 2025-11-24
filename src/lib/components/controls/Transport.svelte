@@ -23,7 +23,6 @@
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
-	let isInitialized = $state(false);
 
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.workspace === 'glaze';
@@ -54,58 +53,114 @@
 	}
 
 	async function startRecordingFlow() {
+		const pipelineReady = isPipelineReady();
+		console.log(`🎬 [TRANSPORT] startRecordingFlow called (pipelineReady: ${pipelineReady}, ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`);
+		
+		pipelineMetrics.initAttempts++;
 		const maxRetries = 3;
 		let lastError: Error | null = null;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			console.log(`🔄 [TRANSPORT] Initialization attempt ${attempt}/${maxRetries}`);
 			try {
-				if (!isInitialized) {
+				// Initialize if any pipeline component is missing
+				if (!ringBuffer || !workerClient) {
+					console.log(`🛠️ [TRANSPORT] Starting initialization... (ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`);
+					pipelineMetrics.initStartTime = Date.now();
 					// Initialize ring buffer
 					if (typeof SharedArrayBuffer === 'undefined') {
+						console.error('❌ [TRANSPORT] SharedArrayBuffer not available');
 						alert('SharedArrayBuffer not available. Please ensure COOP/COEP headers are set.');
 						return;
 					}
 
 					ringBuffer = createAudioRingBuffer(44100 * 10, 44100); // 10 seconds capacity
 					if (!ringBuffer) {
+						console.error('❌ [TRANSPORT] Failed to create ring buffer');
 						throw new Error('Failed to create ring buffer');
 					}
+					console.log('✅ [TRANSPORT] Ring buffer created');
 
 					// Initialize audio context and worklet
+					console.log('🎛️ [TRANSPORT] Initializing audio context...');
 					await initializeAudioContext(ringBuffer.buffer, 44100);
+					console.log('✅ [TRANSPORT] Audio context initialized');
 
 					// Resume audio context (required for browser autoplay policy)
+					console.log('🔊 [TRANSPORT] Resuming audio context...');
 					const audioContext = await import('$lib/audio/audioContext').then((m) =>
 						m.getAudioContext()
 					);
 					if (audioContext && audioContext.state === 'suspended') {
+						console.log('⏸️ [TRANSPORT] Audio context was suspended, resuming...');
 						await audioContext.resume();
 					}
+					console.log(`✅ [TRANSPORT] Audio context state: ${audioContext?.state}`);
 
+					console.log('🎤 [TRANSPORT] Starting microphone capture...');
 					const stream = await startMicrophoneCapture();
+					console.log('✅ [TRANSPORT] Microphone stream acquired');
+					
 					connectMicrophoneToWorklet(stream);
+					console.log('✅ [TRANSPORT] Microphone connected to worklet');
 
 					// Create analysis worker
 					let frameCallbackCount = 0;
 					workerClient = createAnalysisWorkerClient(ringBuffer, (frame) => {
 						frameCallbackCount++;
+						pipelineMetrics.frameCount++;
 						if (frameCallbackCount === 1) {
-							console.log('🎯 [TRANSPORT] First frame received in callback');
+							pipelineMetrics.firstFrameTime = Date.now();
+							const delay = pipelineMetrics.firstFrameTime - pipelineMetrics.initStartTime;
+							console.log(`🎯 [TRANSPORT] First frame received (${delay}ms after init start)`);
 						}
 						// DIRECTIVE 2: Always update analysis store for live monitoring (GlazeMixer)
 						updateAnalysisFrame(frame);
 						// Only add to recording store when actually recording
-						if (recordingStore.state === 'recording') {
+						const isRecording = recordingStore.state === 'recording';
+						if (isRecording) {
 							addAnalysisFrame(frame);
+							if (frameCallbackCount % 30 === 0) {
+								console.log(`📊 [TRANSPORT] Recording: ${frameCallbackCount} frames captured (state: ${recordingStore.state})`);
+							}
+						} else if (frameCallbackCount % 60 === 0) {
+							console.log(`👁️ [TRANSPORT] Monitoring: ${frameCallbackCount} frames processed (not recording, state: ${recordingStore.state})`);
 						}
 					});
 
-					isInitialized = true;
+					console.log('✅ [TRANSPORT] Pipeline initialized successfully');
+					pipelineMetrics.initSuccesses++;
 
-					// DIRECTIVE 2: Start worker immediately for continuous monitoring
-					// This ensures GlazeMixer gets pitch/timbre data even when not recording
-					workerClient?.start();
-					console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
+					// DIRECTIVE 2: Verify worklet is writing before starting worker
+					// Wait for worklet to write some data to the ring buffer
+					const verifyWorkletWriting = () => {
+						const intView = new Int32Array(ringBuffer.buffer);
+						const writePtr = Atomics.load(intView, 0);
+						if (writePtr > 0) {
+							console.log(`✅ [TRANSPORT] Worklet is writing (writePtr=${writePtr}) - starting worker`);
+							if (workerClient) {
+								workerClient.start();
+								console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
+							} else {
+								console.error('❌ [TRANSPORT] Worker client is null - cannot start');
+							}
+						} else {
+							// Retry after a short delay
+							setTimeout(verifyWorkletWriting, 50);
+						}
+					};
+
+					// Start verification after initial delay
+					setTimeout(verifyWorkletWriting, 200);
+				}
+
+				// Ensure worker is running before starting recording
+				if (workerClient) {
+					// Restart worker to ensure it's active
+					workerClient.start();
+					console.log('🔄 [TRANSPORT] Worker restarted before recording');
+				} else {
+					console.error('❌ [TRANSPORT] Worker client is null - cannot start recording');
 				}
 
 				// Only start recording if not already running
@@ -115,11 +170,13 @@
 				return; // Success, exit retry loop
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
-				console.error(`Recording initialization attempt ${attempt} failed:`, error);
+				console.error(`❌ [TRANSPORT] Initialization attempt ${attempt} failed:`, error);
+				pipelineMetrics.initFailures++;
 
 				// Reset state for retry
 				resetRecording();
-				isInitialized = false;
+				ringBuffer = null;
+				workerClient = null;
 
 				if (attempt < maxRetries) {
 					// Wait before retry
@@ -129,10 +186,32 @@
 		}
 
 		// All retries failed
+		console.error('📊 [METRICS] Pipeline initialization failed after all retries', pipelineMetrics);
 		alert(`Failed to start recording after ${maxRetries} attempts: ${lastError?.message}`);
 	}
 
+	// Log metrics when recording stops
+	function logMetrics() {
+		const initTime = pipelineMetrics.firstFrameTime - pipelineMetrics.initStartTime;
+		console.log(`
+📊 [PIPELINE METRICS]
+  Initialization:
+    - Attempts: ${pipelineMetrics.initAttempts}
+    - Successes: ${pipelineMetrics.initSuccesses}
+    - Failures: ${pipelineMetrics.initFailures}
+    - Time to first frame: ${initTime > 0 ? initTime + 'ms' : 'N/A'}
+  Frame Capture:
+    - Total frames received: ${pipelineMetrics.frameCount}
+  Pipeline State:
+    - Ring Buffer: ${ringBuffer !== null ? 'Active' : 'NULL'}
+    - Worker Client: ${workerClient !== null ? 'Active' : 'NULL'}
+		`.trim());
+	}
+
 	async function stopRecordingFlow() {
+		// Log metrics before stopping
+		logMetrics();
+		
 		// DIRECTIVE 2: Don't stop the worker - keep it running for continuous monitoring
 		// The analysis worker should stay active for GlazeMixer to receive pitch/timbre data
 		// workerClient?.stop(); // REMOVED - keep worker running

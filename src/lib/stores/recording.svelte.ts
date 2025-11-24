@@ -152,10 +152,20 @@ export function stopRecording(): void {
  * Writes audio data directly to the active layer's buffers.
  */
 export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): void {
-	if (recordingStore.state !== 'recording') return;
+	if (recordingStore.state !== 'recording') {
+		console.warn(`⚠️ [RECORDING] Frame received but not recording (state: ${recordingStore.state})`);
+		return;
+	}
 
 	capturedFrames.push(frame);
 	recordingStore.historyPosition = 1;
+	
+	// Log first frame and periodic updates
+	if (capturedFrames.length === 1) {
+		console.log('✅ [RECORDING] First frame added to capturedFrames');
+	} else if (capturedFrames.length % 30 === 0) {
+		console.log(`📊 [RECORDING] ${capturedFrames.length} frames captured`);
+	}
 
 	// 1. Get Active Layer
 	const sculpture = sculptureStore.currentSculpture;

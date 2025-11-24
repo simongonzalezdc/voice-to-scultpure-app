@@ -2,6 +2,7 @@
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { recordingStore } from '$lib/stores/recording.svelte';
+	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { Activity, Mic, Box, Palette, Save, Cpu, AlertTriangle } from 'lucide-svelte';
 
 	// 1. Audio Input
@@ -45,11 +46,15 @@
 	function statusColor(healthy: boolean) {
 		return healthy ? 'text-emerald-400' : 'text-red-500 animate-pulse';
 	}
+	
+	// Hide when Performance Mode is active to avoid blocking wizard instructions
+	let isVisible = $derived(!uiStore.performanceWizardActive);
 </script>
 
-<div
-	class="fixed bottom-16 left-20 z-[200] bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-xs font-mono text-white/80 shadow-2xl select-none pointer-events-none"
->
+{#if isVisible}
+	<div
+		class="fixed bottom-16 left-20 z-[200] bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-xs font-mono text-white/80 shadow-2xl select-none pointer-events-none"
+	>
 	<div class="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
 		<Activity size={14} />
 		<span class="font-bold">SYSTEM HEALTH</span>
@@ -115,3 +120,4 @@
 		</div>
 	</div>
 </div>
+{/if}

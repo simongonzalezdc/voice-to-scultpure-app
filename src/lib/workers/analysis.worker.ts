@@ -296,6 +296,15 @@ function processLoop(): void {
 	const buffer = new Float32Array(hopSize);
 	const read = readIntoBuffer(ringBuffer, buffer);
 
+	// Debug: Log ring buffer state occasionally
+	if (framesSent === 0 && Date.now() % 2000 < ANALYSIS_INTERVAL_MS) {
+		const intView = new Int32Array(ringBuffer.buffer);
+		const writePtr = Atomics.load(intView, 0);
+		const readPtr = Atomics.load(intView, 1);
+		const available = writePtr - readPtr;
+		console.log(`🔍 [ANALYSIS WORKER] Ring buffer check: writePtr=${writePtr}, readPtr=${readPtr}, available=${available}, read=${read}`);
+	}
+
 	if (read > 0) {
 		// Create a properly sized buffer with only the read samples
 		const signal = buffer.subarray(0, read);
@@ -326,9 +335,10 @@ function processLoop(): void {
 			});
 		}
 	} else {
-		// Log if no audio data is being read
-		if (framesSent === 0) {
-			console.warn('⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet');
+		// Log if no audio data is being read (but only occasionally to avoid spam)
+		if (framesSent === 0 && Date.now() - lastAnalysisTime > 1000) {
+			// Only warn once per second if no frames have been sent
+			console.warn('⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet - check worklet connection');
 		}
 	}
 
@@ -341,12 +351,17 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 	switch (type) {
 		case 'start': {
 			if (!ringBuffer) {
+				console.error('❌ [ANALYSIS WORKER] Cannot start: ring buffer not configured');
 				self.postMessage({ type: 'error', payload: 'Ring buffer not configured' });
 				return;
+			}
+			if (running) {
+				console.log('⚠️ [ANALYSIS WORKER] Already running - restarting');
 			}
 			console.log('🚀 [ANALYSIS WORKER] Starting analysis loop');
 			running = true;
 			framesSent = 0;
+			lastAnalysisTime = 0; // Reset timing
 			// No analyzer needed - using stateless Meyda.extract() API
 			processLoop();
 			self.postMessage({ type: 'status', payload: 'started' });

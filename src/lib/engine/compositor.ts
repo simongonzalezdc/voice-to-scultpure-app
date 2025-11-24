@@ -3,6 +3,8 @@ import type { SculptureLayer, LathePoint } from '$lib/types';
 /**
  * Phase 3: The Compositor (The Engine)
  * Merges layers into a final mesh profile in real-time.
+ * 
+ * Pure function: No side effects, can be called from $derived blocks
  */
 export function computeProfile(layers: SculptureLayer[], resolution: number = 128): LathePoint[] {
 	// 1. Start with a base profile (default cylinder)
@@ -16,6 +18,7 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 		// Check resolution match
 		if (layer.data.length !== resolution) {
 			console.warn(`⚠️ [COMPOSITOR] Layer ${layer.name} resolution mismatch (${layer.data.length} vs ${resolution})`);
+			// Note: Error tracking moved to caller to avoid state mutation in $derived
 			continue;
 		}
 

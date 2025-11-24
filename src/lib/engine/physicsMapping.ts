@@ -472,11 +472,19 @@ export function createSculptureFromFrames(
 	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode, 'standard', baseShape);
 	const surface = deriveSurfaceParameters(frames, profile);
 
-	// Convert LathePoint[] to Float32Array format [x, y, x, y, ...] for layer data
-	const layerData = new Float32Array(radiusCurve.length * 2);
-	for (let i = 0; i < radiusCurve.length; i++) {
-		layerData[i * 2] = radiusCurve[i].x;
-		layerData[i * 2 + 1] = radiusCurve[i].y;
+	// Resample geometry to compositor resolution (128 points)
+	// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
+	const resolution = 128;
+	const layerData = new Float32Array(resolution);
+	
+	// Resample: map radiusCurve points to resolution points
+	for (let i = 0; i < resolution; i++) {
+		const normalizedY = i / (resolution - 1); // 0 to 1
+		// Find corresponding point in radiusCurve
+		const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
+		const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
+		// Store only radius (x value) - height (y) is implicit from index
+		layerData[i] = radiusCurve[clampedIndex].x;
 	}
 
 	// Create base layer from generated geometry
@@ -488,8 +496,8 @@ export function createSculptureFromFrames(
 		locked: false,
 		blendMode: 'overwrite',
 		opacity: 1.0,
-		data: layerData,
-		mask: new Float32Array(radiusCurve.length).fill(1.0)
+		data: layerData, // 1D array of radius values (128 elements)
+		mask: new Float32Array(resolution).fill(1.0) // Mask matches resolution
 	};
 
 	return {

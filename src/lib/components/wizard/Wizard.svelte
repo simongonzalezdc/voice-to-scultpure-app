@@ -1,31 +1,42 @@
 <script lang="ts">
 	import { sculptureStore, addLayer } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore, startRecording, stopRecording } from '$lib/stores/recording.svelte';
+	import { recordingStore, startRecording, stopRecording, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
-	import { Mic, Check, ChevronRight, Wand2 } from 'lucide-svelte';
+	import { analysisStore } from '$lib/stores/analysisStore.svelte';
+	import { Mic, Check, ChevronRight, Wand2, Activity } from 'lucide-svelte';
 	import LayerPanel from './LayerPanel.svelte';
 
 	// Wizard State
 	let currentStep = $state<'shape' | 'detail' | 'glaze' | 'export'>('shape');
 	let isRecording = $derived(recordingStore.state === 'recording');
+	
+	// Real-time audio feedback
+	const micLevel = $derived(analysisStore.micLevel);
+	const latestFrame = $derived(analysisStore.latestFrame);
+	const hasBeat = $derived(latestFrame?.beat === true);
+	const quantizedNote = $derived(latestFrame?.quantizedPitch?.note);
+	const quantizedHue = $derived(latestFrame?.quantizedPitch?.hue);
 
 	// Step Configurations
 	const STEPS = {
 		shape: {
 			title: 'Define Silhouette',
 			prompt: 'Sing a long, steady tone to shape the vase profile.',
+			hint: 'Pitch controls the radius • Volume controls the height',
 			layerType: 'base',
 			action: () => ensureLayer('base')
 		},
 		detail: {
-			title: 'Add Texture',
-			prompt: 'Sing percussively (Pa! Ka!) to add ridges and details.',
+			title: 'Add Rhythmic Texture',
+			prompt: 'Make percussive sounds (Pa! Ka! Ts!) to add beat-driven ribs.',
+			hint: '🥁 Beat detection active • Pulses appear on rhythm hits',
 			layerType: 'deformation',
 			action: () => ensureLayer('deformation')
 		},
 		glaze: {
-			title: 'Apply Glaze',
-			prompt: 'Sing a melody to paint colors onto the surface.',
+			title: 'Apply Musical Glaze',
+			prompt: 'Sing a melody to paint harmonious colors.',
+			hint: '🎵 Pitch quantization active • Colors follow musical scale',
 			layerType: 'glaze',
 			action: () => {
 				ensureLayer('glaze');
@@ -35,6 +46,7 @@
 		export: {
 			title: 'Finish & Export',
 			prompt: 'Your masterpiece is ready.',
+			hint: 'Download as STL, GLB, or high-res render',
 			layerType: null,
 			action: () => {}
 		}
@@ -115,6 +127,50 @@
 			<p class="text-lg text-white/60 max-w-md">
 				{STEPS[currentStep].prompt}
 			</p>
+			<p class="text-xs text-white/40 font-mono max-w-md">
+				{STEPS[currentStep].hint}
+			</p>
+			
+			<!-- Real-time Audio Feedback -->
+			{#if isRecording}
+				<div class="mt-2 flex items-center gap-6">
+					<!-- Mic Level Meter -->
+					<div class="flex items-center gap-2">
+						<Mic size={14} class="text-brand-primary" />
+						<div class="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+							<div 
+								class="h-full bg-gradient-to-r from-brand-primary to-brand-secondary transition-all duration-75"
+								style="width: {micLevel * 100}%"
+							></div>
+						</div>
+						<span class="text-xs text-white/50 w-10">{Math.round(micLevel * 100)}%</span>
+					</div>
+					
+					<!-- Beat Indicator (Detail Step) -->
+					{#if currentStep === 'detail' && hasBeat}
+						<div class="flex items-center gap-2 text-red-400 animate-pulse">
+							<Activity size={16} />
+							<span class="text-xs font-bold">BEAT!</span>
+						</div>
+					{/if}
+					
+					<!-- Pitch Display (Glaze Step) -->
+					{#if currentStep === 'glaze' && quantizedNote}
+						<div class="flex items-center gap-2">
+							<div 
+								class="w-6 h-6 rounded-full border-2 border-white/30"
+								style="background-color: hsl({quantizedHue}, 80%, 60%)"
+							></div>
+							<span class="text-sm font-mono text-white/80">{quantizedNote}</span>
+						</div>
+					{/if}
+					
+					<!-- Pitch Display (Shape Step) -->
+					{#if currentStep === 'shape' && latestFrame?.pitch > 0}
+						<span class="text-xs text-white/50">{latestFrame.pitch.toFixed(1)} Hz</span>
+					{/if}
+				</div>
+			{/if}
 			
 			<!-- Recording Controls -->
 			{#if currentStep !== 'export'}

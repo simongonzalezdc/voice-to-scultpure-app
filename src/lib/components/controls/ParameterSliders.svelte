@@ -8,7 +8,6 @@
 	import {
 		uiStore,
 		setSculptMode,
-		setSculptZone,
 		setControlMode,
 		setQuantizeEnabled,
 		setSymmetryCount
@@ -44,8 +43,6 @@
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
 	let baseColor = $state(DEFAULT_MATERIAL_CERAMIC);
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
-	let zoneMin = $state(0.0);
-	let zoneMax = $state(1.0);
 	let constraintMode = $derived(uiStore.constraintMode); // DIRECTIVE: Constraints in Design tab
 	let controlMode = $state(uiStore.controlMode);
 	// DIRECTIVE 1: The "Twist" Ban
@@ -95,12 +92,6 @@
 		} else if (!sculpture && !isDragging) {
 			// When no sculpture exists, sync from uiStore
 			sculptMode = uiStore.sculptMode;
-		}
-
-		// Sync zone sliders from uiStore
-		if (!isDragging) {
-			zoneMin = uiStore.sculptZone.min;
-			zoneMax = uiStore.sculptZone.max;
 		}
 
 		// Sync control mode from uiStore
@@ -635,82 +626,6 @@
 				onpointerdown={handlePointerDown}
 				onpointerup={handlePointerUp}
 			/>
-		</div>
-
-		<!-- DIRECTIVE 2: Zone Sculpting Sliders -->
-		<div class="border-t border-subtle pt-4">
-			<h3 class="text-sm font-semibold mb-2 text-secondary">Sculpt Zone (Additive Layers)</h3>
-			<p class="text-xs text-secondary opacity-75 mb-3">
-				Lock areas by adjusting the focus range. Only the highlighted zone will be affected during
-				recording.
-			</p>
-			{#if sculptureStore.currentSculpture}
-				<div class="mb-3 surface-panel-alt p-2 rounded">
-					<p class="text-xs text-brand-primary font-medium flex items-center gap-1">
-						<Sparkles size={12} /> Live Preview: Move sliders to see zones dim in real-time!
-					</p>
-				</div>
-			{/if}
-
-			<!-- Zone Bottom Slider -->
-			<div class="mb-3">
-				<label
-					for="zone-min-slider"
-					class="text-sm text-secondary block mb-1 flex items-center gap-2"
-					title="Bottom of the active sculpting zone (0 = base, 1 = top)"
-				>
-					Focus Bottom: {(zoneMin * 100).toFixed(0)}%
-				</label>
-				<input
-					id="zone-min-slider"
-					type="range"
-					min="0"
-					max="1"
-					step="0.01"
-					bind:value={zoneMin}
-					oninput={() => {
-						// Ensure min doesn't exceed max
-						if (zoneMin > zoneMax) {
-							zoneMin = zoneMax;
-						}
-						setSculptZone(zoneMin, zoneMax);
-					}}
-					class="w-full"
-				/>
-			</div>
-
-			<!-- Zone Top Slider -->
-			<div>
-				<label
-					for="zone-max-slider"
-					class="text-sm text-secondary block mb-1 flex items-center gap-2"
-					title="Top of the active sculpting zone (0 = base, 1 = top)"
-				>
-					Focus Top: {(zoneMax * 100).toFixed(0)}%
-				</label>
-				<input
-					id="zone-max-slider"
-					type="range"
-					min="0"
-					max="1"
-					step="0.01"
-					bind:value={zoneMax}
-					oninput={() => {
-						// Ensure max doesn't go below min
-						if (zoneMax < zoneMin) {
-							zoneMax = zoneMin;
-						}
-						setSculptZone(zoneMin, zoneMax);
-					}}
-					class="w-full"
-				/>
-			</div>
-
-			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span class="flex items-center gap-1"><Lock size={10} /> Locked</span>
-				<span>Active Zone</span>
-				<span class="flex items-center gap-1"><Lock size={10} /> Locked</span>
-			</div>
 		</div>
 
 		<!-- DIRECTIVE: Fabrication Constraints (Persistent) -->

@@ -81,11 +81,19 @@
 		// Create new sculpture with initial settings
 		const initialGeometry = createDefaultGeometry();
 
-		// Convert LathePoint[] to Float32Array format [x, y, x, y, ...] for layer data
-		const layerData = new Float32Array(initialGeometry.length * 2);
-		for (let i = 0; i < initialGeometry.length; i++) {
-			layerData[i * 2] = initialGeometry[i].x;
-			layerData[i * 2 + 1] = initialGeometry[i].y;
+		// Resample geometry to compositor resolution (128 points)
+		// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
+		const resolution = 128;
+		const layerData = new Float32Array(resolution);
+		
+		// Resample: map initial geometry points to resolution points
+		for (let i = 0; i < resolution; i++) {
+			const normalizedY = i / (resolution - 1); // 0 to 1
+			// Find corresponding point in initial geometry
+			const targetIndex = Math.round(normalizedY * (initialGeometry.length - 1));
+			const clampedIndex = Math.min(targetIndex, initialGeometry.length - 1);
+			// Store only radius (x value) - height (y) is implicit from index
+			layerData[i] = initialGeometry[clampedIndex].x;
 		}
 
 		// Create base layer from initial geometry
@@ -97,8 +105,8 @@
 			locked: false,
 			blendMode: 'overwrite',
 			opacity: 1.0,
-			data: layerData,
-			mask: new Float32Array(initialGeometry.length).fill(1.0)
+			data: layerData, // 1D array of radius values (128 elements)
+			mask: new Float32Array(resolution).fill(1.0) // Mask matches resolution
 		};
 
 		const newSculpture = {
