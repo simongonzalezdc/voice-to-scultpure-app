@@ -64,16 +64,9 @@
 			// And if a sculpture exists, we should update it to remove twist?
 			// Ideally, we just prevent user from changing it.
 			// But if they switch modes, we should probably reset it.
-			if (
-				sculptureStore.currentSculpture &&
-				sculptureStore.currentSculpture.deformation.twist !== 0
-			) {
-				// Auto-correct existing sculpture
-				const updated = {
-					...sculptureStore.currentSculpture,
-					deformation: { ...sculptureStore.currentSculpture.deformation, twist: 0 }
-				};
-				setCurrentSculpture(updated);
+			// Twist is now in uiStore, not sculpture
+			if (uiStore.deformation.twist !== 0) {
+				uiStore.deformation.twist = 0;
 			}
 		}
 
@@ -101,19 +94,21 @@
 		if (!sculptureStore.currentSculpture) return;
 		isDragging = true;
 		// Clone sculpture for preview - DIRECTIVE 4: Include physical height
+		const current = sculptureStore.currentSculpture;
 		previewSculpture = {
-			...sculptureStore.currentSculpture,
-			radiusCurve: sculptureStore.currentSculpture.radiusCurve.map((p) => ({ ...p })),
-			surface: { ...sculptureStore.currentSculpture.surface },
-			deformation: { ...sculptureStore.currentSculpture.deformation },
-			physical: { ...sculptureStore.currentSculpture.physical }
+			...current,
+			radiusCurve: current.radiusCurve ? current.radiusCurve.map((p) => ({ ...p })) : undefined,
+			physical: { ...current.physical }
 		};
 		applyPreview();
 	}
 
 	function applyPreview() {
 		if (!previewSculpture) return;
-		const deformed = applyDeformation(previewSculpture.radiusCurve, {
+		const radiusCurve = previewSculpture.radiusCurve || [];
+		if (radiusCurve.length === 0) return;
+		
+		const deformed = applyDeformation(radiusCurve, {
 			twist: twist,
 			compression: verticalStretch,
 			taper: 0
@@ -121,18 +116,6 @@
 		setGhostSculpture({
 			...previewSculpture,
 			radiusCurve: deformed,
-			surface: {
-				...previewSculpture.surface,
-				textureRoughness: roughness,
-				glazeTransmission: glaze,
-				materialType: materialType,
-				baseColor: baseColor
-			},
-			deformation: {
-				twist,
-				compression: verticalStretch,
-				taper: 0
-			},
 			physical: {
 				...previewSculpture.physical,
 				height: height, // DIRECTIVE 4: Update height from slider
@@ -148,19 +131,6 @@
 			// The Sculpture component handles that visually based on the deformation params.
 			setCurrentSculpture({
 				...previewSculpture,
-				// radiusCurve: previewSculpture.radiusCurve, // Keep original!
-				surface: {
-					...previewSculpture.surface,
-					textureRoughness: roughness,
-					glazeTransmission: glaze,
-					materialType: materialType,
-					baseColor: baseColor
-				},
-				deformation: {
-					twist,
-					compression: verticalStretch,
-					taper: 0
-				},
 				physical: {
 					...previewSculpture.physical,
 					height: height, // DIRECTIVE 4: Include height in committed changes
@@ -190,7 +160,10 @@
 		// BUT we must ensure we start from the ORIGINAL radiusCurve, not the already deformed one.
 		// previewSculpture.radiusCurve is the clean copy we made in handlePointerDown.
 
-		const deformed = applyDeformation(previewSculpture.radiusCurve, {
+		const radiusCurve = previewSculpture.radiusCurve || [];
+		if (radiusCurve.length === 0) return;
+		
+		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
 			compression: currentVerticalStretch,
 			taper: 0
@@ -199,18 +172,6 @@
 		setGhostSculpture({
 			...previewSculpture,
 			radiusCurve: deformed,
-			surface: {
-				...previewSculpture.surface,
-				textureRoughness: currentRoughness,
-				glazeTransmission: currentGlaze,
-				materialType: materialType,
-				baseColor: baseColor
-			},
-			deformation: {
-				twist: currentTwist,
-				compression: currentVerticalStretch,
-				taper: 0
-			},
 			physical: {
 				...previewSculpture.physical,
 				height: currentHeight,
@@ -220,15 +181,8 @@
 	});
 
 	function handleMaterialChange() {
-		if (!sculptureStore.currentSculpture) return;
-		const updated: SculptureDefinition = {
-			...sculptureStore.currentSculpture,
-			surface: {
-				...sculptureStore.currentSculpture.surface,
-				materialType: materialType
-			}
-		};
-		setCurrentSculpture(updated);
+		// Material type is now handled via uiStore, not sculpture
+		// No need to update sculpture for material type changes
 	}
 
 	// DIRECTIVE: Handle constraint mode changes in Design tab
@@ -239,15 +193,8 @@
 	}
 
 	function handleColorChange() {
-		if (!sculptureStore.currentSculpture) return;
-		const updated: SculptureDefinition = {
-			...sculptureStore.currentSculpture,
-			surface: {
-				...sculptureStore.currentSculpture.surface,
-				baseColor: baseColor
-			}
-		};
-		setCurrentSculpture(updated);
+		// Base color is now handled via uiStore.activeGlaze.color, not sculpture
+		uiStore.activeGlaze.color = baseColor;
 	}
 
 	// DIRECTIVE 3: Handle base shape change with confirmation

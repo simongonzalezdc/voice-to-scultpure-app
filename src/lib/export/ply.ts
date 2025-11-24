@@ -1,6 +1,7 @@
 import type { SculptureDefinition } from '$lib/types';
 import { LatheGeometry, Vector2 } from 'three';
 import { generateFinalProfile, type ExportOptions } from './exportUtils';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 
 /**
  * Export sculpture to PLY format with vertex colors
@@ -26,7 +27,8 @@ export function exportSculptureToPLY(
 	}
 
 	// Determine segment count (match main sculpture logic)
-	const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+	// Read from uiStore (legacy property moved there)
+	const roughnessInput = uiStore.activeGlaze.roughness ?? 0.5;
 	const segments = Math.floor(6 + roughnessInput * 58);
 
 	// Generate geometry to get vertex positions
@@ -34,12 +36,16 @@ export function exportSculptureToPLY(
 	const geometry = new LatheGeometry(vectors, segments);
 
 	const positions = geometry.attributes.position;
+	if (!positions) {
+		throw new Error('Geometry has no position attribute');
+	}
 	const vertexCount = positions.count;
 	const posArray = positions.array as Float32Array;
 
 	// Build vertex list with colors
 	const vertices: string[] = [];
-	const vertexColors = sculpture.vertexColors || [];
+	// TODO: Extract vertex colors from layers if needed
+	const vertexColors: number[] = []; // Empty for now - colors are in layers
 
 	// Resample colors if needed (similar to Sculpture.svelte logic)
 	const colorCount = vertexColors.length / 3;
@@ -54,7 +60,7 @@ export function exportSculptureToPLY(
 		let minY = Infinity;
 		let maxY = -Infinity;
 		for (let i = 0; i < vertexCount; i++) {
-			const y = posArray[i * 3 + 1];
+			const y = posArray[i * 3 + 1] ?? 0;
 			if (y < minY) minY = y;
 			if (y > maxY) maxY = y;
 		}
@@ -62,7 +68,7 @@ export function exportSculptureToPLY(
 
 		if (totalHeight > 0) {
 			for (let i = 0; i < vertexCount; i++) {
-				const y = posArray[i * 3 + 1];
+				const y = posArray[i * 3 + 1] ?? 0;
 				const normalizedHeight = (y - minY) / totalHeight;
 				const oldVertexIdx = Math.floor(normalizedHeight * (colorCount - 1));
 				const clampedIdx = Math.max(0, Math.min(colorCount - 1, oldVertexIdx));
@@ -88,12 +94,12 @@ export function exportSculptureToPLY(
 
 	// Write vertices with colors (PLY format: x y z r g b)
 	for (let i = 0; i < vertexCount; i++) {
-		const x = posArray[i * 3];
-		const y = posArray[i * 3 + 1];
-		const z = posArray[i * 3 + 2];
-		const r = Math.round(colors[i * 3] * 255);
-		const g = Math.round(colors[i * 3 + 1] * 255);
-		const b = Math.round(colors[i * 3 + 2] * 255);
+		const x = posArray[i * 3] ?? 0;
+		const y = posArray[i * 3 + 1] ?? 0;
+		const z = posArray[i * 3 + 2] ?? 0;
+		const r = Math.round((colors[i * 3] ?? 1) * 255);
+		const g = Math.round((colors[i * 3 + 1] ?? 1) * 255);
+		const b = Math.round((colors[i * 3 + 2] ?? 1) * 255);
 		vertices.push(`${x} ${y} ${z} ${r} ${g} ${b}`);
 	}
 

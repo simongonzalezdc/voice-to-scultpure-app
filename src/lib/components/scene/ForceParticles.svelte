@@ -52,13 +52,15 @@
 
 			for (let i = 0; i < COUNT; i++) {
 				if (spawned >= spawnCount) break;
-
-				if (!particles[i].active) {
-					particles[i].active = true;
-					particles[i].life = 1.0;
+				const particle = particles[i];
+				if (!particle) continue;
+				
+				if (!particle.active) {
+					particle.active = true;
+					particle.life = 1.0;
 
 					// Spawn at interaction point with slight jitter
-					particles[i].position
+					particle.position
 						.copy(interactionPoint!)
 						.add(
 							new Vector3(
@@ -78,7 +80,7 @@
 
 					if (isSubtractive) {
 						// Debris: Fly OUT along normal + random spread
-						particles[i].velocity
+						particle.velocity
 							.copy(normal)
 							.add(randomDir.multiplyScalar(0.5))
 							.normalize()
@@ -90,9 +92,9 @@
 						// Let's stick to directive: "Particles fly in".
 						// Spawn at Radius (0.5) and fly to center
 						const radius = 0.5;
-						particles[i].position.copy(interactionPoint!).add(randomDir.multiplyScalar(radius));
-						particles[i].velocity
-							.copy(particles[i].position)
+						particle.position.copy(interactionPoint!).add(randomDir.multiplyScalar(radius));
+						particle.velocity
+							.copy(particle.position)
 							.sub(interactionPoint!)
 							.normalize()
 							.negate()
@@ -108,6 +110,7 @@
 		let activeCount = 0;
 		for (let i = 0; i < COUNT; i++) {
 			const p = particles[i];
+			if (!p) continue;
 			if (p.active) {
 				// Move
 				p.position.addScaledVector(p.velocity, delta);

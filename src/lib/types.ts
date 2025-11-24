@@ -23,8 +23,9 @@ export interface SculpturePhysical {
 // PHASE 1: DATA STRUCTURES (The Backbone)
 // ============================================================================
 
-export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze';
+export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze' | 'distortion';
 export type BlendMode = 'add' | 'subtract' | 'multiply' | 'overwrite';
+export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane'; // Legacy shape types
 
 export interface SculptureLayer {
 	id: string;
@@ -39,7 +40,10 @@ export interface SculptureLayer {
 	// 1. The Shape Data (Radius offsets for deformation, RGB for glaze)
 	data: Float32Array; 
 	// 2. The Smart Mask (Records Volume/Intensity during singing)
-	mask: Float32Array; 
+	mask: Float32Array;
+	
+	// Optional metadata
+	sourceFrameCount?: number; // Number of audio frames used to generate this layer
 }
 
 export interface SculptureDefinition {
@@ -55,7 +59,8 @@ export interface SculptureDefinition {
 	// LEGACY PROPERTIES (Maintained for backward compatibility with old saved files)
 	// These are populated when loading old sculptures but not used in new code
 	radiusCurve?: LathePoint[]; // Deprecated: Use layers instead
-	baseShape?: string; // Deprecated: Was 'lathe' or 'cylinder'
+	baseShape?: BaseShape; // Deprecated: Use layers instead
+	vertexColors?: number[]; // Deprecated: Legacy vertex colors (now in glaze layers)
 	
 	// Metadata
 	audioBlobId?: string;

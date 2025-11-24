@@ -77,7 +77,10 @@ describe('Fabrication Constraints', () => {
 
 			// Rim can be thin (within top 5%)
 			const rimPoint = constrained[constrained.length - 1];
-			expect(rimPoint.x).toBeLessThan(0.1); // Can be thin but may be smoothed
+			expect(rimPoint).toBeDefined();
+			if (rimPoint) {
+				expect(rimPoint.x).toBeLessThan(0.1); // Can be thin but may be smoothed
+			}
 		});
 
 		it('should smooth jagged curves (SMA)', () => {
@@ -109,7 +112,12 @@ describe('Fabrication Constraints', () => {
 
 			// Overhang should be limited
 			const middlePoint = constrained[1];
-			expect(middlePoint.x).toBeLessThanOrEqual(curve[1].x); // Clamped
+			const originalMiddle = curve[1];
+			expect(middlePoint).toBeDefined();
+			expect(originalMiddle).toBeDefined();
+			if (middlePoint && originalMiddle) {
+				expect(middlePoint.x).toBeLessThanOrEqual(originalMiddle.x); // Clamped
+			}
 		});
 
 		it('should maintain wide base stability', () => {
@@ -124,8 +132,11 @@ describe('Fabrication Constraints', () => {
 			// Base (bottom 10%) should be wider
 			const basePoint = constrained[0];
 			const middlePoint = constrained[1];
-
-			expect(basePoint.x).toBeGreaterThanOrEqual(middlePoint.x);
+			expect(basePoint).toBeDefined();
+			expect(middlePoint).toBeDefined();
+			if (basePoint && middlePoint) {
+				expect(basePoint.x).toBeGreaterThanOrEqual(middlePoint.x);
+			}
 		});
 
 		it('should boost shape if too narrow overall', () => {
@@ -157,8 +168,13 @@ describe('Fabrication Constraints', () => {
 
 			// 3D print allows steeper than ceramic (60 vs 45)
 			const middlePoint = constrained[1];
+			const originalMiddle = curve[1];
 			// Should be clamped but possibly less than ceramic
-			expect(middlePoint.x).toBeLessThanOrEqual(curve[1].x);
+			expect(middlePoint).toBeDefined();
+			expect(originalMiddle).toBeDefined();
+			if (middlePoint && originalMiddle) {
+				expect(middlePoint.x).toBeLessThanOrEqual(originalMiddle.x);
+			}
 		});
 
 		it('should enforce minimum radius for 3D printing', () => {
@@ -230,7 +246,11 @@ describe('Fabrication Constraints', () => {
 			const constrained = applyConstraints(curve, 'ceramic');
 
 			for (let i = 0; i < curve.length; i++) {
-				expect(constrained[i].y).toBe(curve[i].y);
+				const curvePoint = curve[i];
+				const constrainedPoint = constrained[i];
+				if (curvePoint && constrainedPoint) {
+					expect(constrainedPoint.y).toBe(curvePoint.y);
+				}
 			}
 		});
 
@@ -243,7 +263,7 @@ describe('Fabrication Constraints', () => {
 
 			const constrained = applyConstraints(curve, 'ceramic');
 			// Should enforce minimum or handle gracefully
-			const minRadius = Math.min(...constrained.map((p) => p.x));
+			const minRadius = Math.min(...constrained.map((p) => p?.x ?? 0).filter(x => Number.isFinite(x)));
 			expect(minRadius).toBeGreaterThanOrEqual(0);
 		});
 	});

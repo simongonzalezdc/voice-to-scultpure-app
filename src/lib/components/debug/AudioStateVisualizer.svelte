@@ -12,7 +12,7 @@
 	 * - Status changes are animated for better UX
 	 */
 
-	import { useTask } from '@threlte/core';
+	import { onMount } from 'svelte';
 	import { getAudioContext, getWorkletNode } from '$lib/audio/audioContext';
 
 	type AudioStatus = 'running' | 'suspended' | 'disconnected' | 'error';
@@ -21,52 +21,64 @@
 	let statusMessage = $state('Audio Not Initialized');
 	let lastErrorTime = 0;
 
-	// Poll audio context state at high frequency (10Hz for responsiveness)
-	useTask(() => {
-		try {
-			const audioContext = getAudioContext();
-			const workletNode = getWorkletNode();
+	// Poll audio context state at 10Hz (every 100ms) for responsiveness
+	// Using setInterval instead of useTask since this component is outside Canvas
+	onMount(() => {
+		const pollAudioState = () => {
+			try {
+				const audioContext = getAudioContext();
+				const workletNode = getWorkletNode();
 
-			if (!audioContext || !workletNode) {
-				audioStatus = 'disconnected';
-				statusMessage = 'No Audio Context';
-				return;
-			}
-
-			// Check AudioContext state
-			switch (audioContext.state) {
-				case 'running':
-					audioStatus = 'running';
-					statusMessage = `Audio Running (${audioContext.sampleRate}Hz)`;
-					break;
-
-				case 'suspended':
-					audioStatus = 'suspended';
-					statusMessage = 'Audio Suspended - Waiting for User Gesture';
-					// Attempt auto-resume
-					audioContext.resume().catch(() => {
-						// Suppress error, will retry next frame
-					});
-					break;
-
-				case 'closed':
+				if (!audioContext || !workletNode) {
 					audioStatus = 'disconnected';
-					statusMessage = 'Audio Context Closed';
-					break;
+					statusMessage = 'No Audio Context';
+					return;
+				}
 
-				default:
-					audioStatus = 'error';
-					statusMessage = `Unknown State: ${audioContext.state}`;
+				// Check AudioContext state
+				switch (audioContext.state) {
+					case 'running':
+						audioStatus = 'running';
+						statusMessage = `Audio Running (${audioContext.sampleRate}Hz)`;
+						break;
+
+					case 'suspended':
+						audioStatus = 'suspended';
+						statusMessage = 'Audio Suspended - Waiting for User Gesture';
+						// Attempt auto-resume
+						audioContext.resume().catch(() => {
+							// Suppress error, will retry next interval
+						});
+						break;
+
+					case 'closed':
+						audioStatus = 'disconnected';
+						statusMessage = 'Audio Context Closed';
+						break;
+
+					default:
+						audioStatus = 'error';
+						statusMessage = `Unknown State: ${audioContext.state}`;
+				}
+
+				// Check for worklet errors (port messages indicate active connection)
+				// If worklet was created but no frames coming through, it's still considered running
+				// since the audio chain is established
+			} catch (err) {
+				audioStatus = 'error';
+				statusMessage = `Error: ${err instanceof Error ? err.message : 'Unknown'}`;
+				lastErrorTime = Date.now();
 			}
+		};
 
-			// Check for worklet errors (port messages indicate active connection)
-			// If worklet was created but no frames coming through, it's still considered running
-			// since the audio chain is established
-		} catch (err) {
-			audioStatus = 'error';
-			statusMessage = `Error: ${err instanceof Error ? err.message : 'Unknown'}`;
-			lastErrorTime = Date.now();
-		}
+		// Initial poll
+		pollAudioState();
+		
+		// Set up interval for continuous polling (10Hz)
+		const intervalId = setInterval(pollAudioState, 100);
+		
+		// Cleanup on component destroy
+		return () => clearInterval(intervalId);
 	});
 
 	// Status light colors and descriptions

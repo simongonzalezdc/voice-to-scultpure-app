@@ -57,7 +57,7 @@
 			title: 'Step 4: The Glaze',
 			description: 'Paint with your voice',
 			instruction: 'Sing a melody to add color. Higher notes = different colors. Louder = brighter.',
-			layerType: 'color',
+			layerType: 'glaze',
 			icon: '🎨'
 		}
 	];
@@ -66,6 +66,7 @@
 
 	function startRecordingLayer() {
 		if (recordingStore.state === 'recording') return;
+		if (!currentStepData) return;
 
 		recordedFrames = [];
 		startRecording(); // Call actual recording system
@@ -91,6 +92,7 @@
 
 	function processRecordingIntoLayer() {
 		const stepData = currentStepData;
+		if (!stepData) return;
 
 		// Convert frames to radius data using generateLathe
 		// This creates a Float32Array of x,y pairs (radius, height)
@@ -99,8 +101,10 @@
 		// Flatten to Float32Array
 		const data = new Float32Array(lathePoints.length * 2);
 		for (let i = 0; i < lathePoints.length; i++) {
-			data[i * 2] = lathePoints[i].x;
-			data[i * 2 + 1] = lathePoints[i].y;
+			const point = lathePoints[i];
+			if (!point) continue;
+			data[i * 2] = point.x ?? 0;
+			data[i * 2 + 1] = point.y ?? 0;
 		}
 
 		// Create and add layer
@@ -137,8 +141,10 @@
 
 	function undoCurrentLayer() {
 		// Remove the most recent layer of the current type
+		if (!currentStepData) return;
 		const layerType = currentStepData.layerType;
-		const layer = sculptureStore.layers.findLast((l) => l.type === layerType);
+		const layers = sculptureStore.currentSculpture?.layers || [];
+		const layer = layers.findLast((l) => l.type === layerType);
 
 		if (layer) {
 			removeLayer(layer.id);
@@ -171,13 +177,13 @@
 
 	<!-- Main Content -->
 	<div class="wizard-content">
-		<h1>{currentStepData.title}</h1>
-		<p class="description">{currentStepData.description}</p>
+		<h1>{currentStepData?.title ?? 'Loading...'}</h1>
+		<p class="description">{currentStepData?.description ?? ''}</p>
 
 		<!-- Instruction Card -->
 		<div class="instruction-card">
-			<div class="instruction-icon">{currentStepData.icon}</div>
-			<p class="instruction">{currentStepData.instruction}</p>
+			<div class="instruction-icon">{currentStepData?.icon ?? '🎤'}</div>
+			<p class="instruction">{currentStepData?.instruction ?? ''}</p>
 		</div>
 
 		<!-- Mic Level Meter -->

@@ -62,6 +62,9 @@ describe('Glaze Persistence', () => {
 		
 		// Extract colors from mesh
 		const colorAttribute = mockMesh.geometry.attributes.color;
+		if (!colorAttribute || !colorAttribute.array) {
+			throw new Error('Color attribute not found on mock mesh');
+		}
 		const expectedColors = Array.from(colorAttribute.array);
 		
 		// Update sculpture colors
@@ -158,25 +161,14 @@ describe('Glaze Persistence', () => {
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
 			radiusCurve: [],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3,
-				displacementStrength: 0
-			},
+			layers: [],
 			physical: {
 				height: 150,
 				sculptMode: 'additive',
 				units: 'mm',
 				orientation: 'vertical'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0,
-				taper: 0
-			},
-			// Vertex colors now stored in geometry attributes
+			}
+			// Vertex colors now stored in geometry attributes (legacy support)
 		};
 		
 		// Set current sculpture

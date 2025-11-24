@@ -297,7 +297,10 @@ export function applyModifiers(
 ): LathePoint[] {
 	const safeHeightScale = Math.max(0.0001, heightScale || 1);
 	return curve.map((point) => {
-		let radius = point.x;
+		if (!point) {
+			return { x: 0.5, y: 0 }; // Fallback point
+		}
+		let radius = point.x ?? 0.5;
 		if (modifiers?.quantize) {
 			// Quantize to create faceted/stepped surfaces
 			// Radius is in normalized units (typically 0-1.5 range)
@@ -321,15 +324,19 @@ export function applyDeformation(
 	// compression range: -0.5 (stretch) to 0.5 (squash)
 	// Formula: Apply more effect at the top, less at the bottom (normalized by height)
 	return curve.map((point, i) => {
+		if (!point) {
+			return { x: 0.5, y: i / curve.length }; // Fallback point
+		}
+		
 		const normalizedHeight = i / curve.length;
 		const angle = deformation.twist * normalizedHeight * Math.PI * 2;
 
 		// Compression formula: Linear scaling based on normalized height
 		// Negative compression stretches (factor > 1), positive compresses (factor < 1)
 		const compressionFactor = 1 - deformation.compression * normalizedHeight;
-		const compressedY = point.y * compressionFactor;
+		const compressedY = (point.y ?? 0) * compressionFactor;
 
-		const taperedX = point.x * (1 - deformation.taper * normalizedHeight);
+		const taperedX = (point.x ?? 0.5) * (1 - deformation.taper * normalizedHeight);
 
 		// Apply twist (rotate around Y axis)
 		const rotatedX = taperedX * Math.cos(angle);
@@ -476,7 +483,7 @@ export function createSculptureFromFrames(
 	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape type
 ): SculptureDefinition {
 	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode, 'standard', baseShape);
-	const surface = deriveSurfaceParameters(frames, profile);
+	// Surface parameters are now handled via uiStore, not sculpture
 
 	// Resample geometry to compositor resolution (128 points)
 	// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
@@ -490,7 +497,8 @@ export function createSculptureFromFrames(
 		const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
 		const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
 		// Store only radius (x value) - height (y) is implicit from index
-		layerData[i] = radiusCurve[clampedIndex].x;
+		const point = radiusCurve[clampedIndex];
+		layerData[i] = point?.x ?? 0.5; // Default radius if point is undefined
 	}
 
 	// Create base layer from generated geometry
@@ -513,18 +521,6 @@ export function createSculptureFromFrames(
 		layers: [baseLayer], // Required: Initialize with base layer
 		baseShape, // Use provided shape
 		radiusCurve,
-		surface: {
-			...surface,
-			displacementStrength: 0,
-			// Default to ceramic/beige if not specified
-			materialType: 'ceramic',
-			baseColor: '#E0C9A6'
-		},
-		deformation: {
-			twist: 0,
-			compression: 0,
-			taper: 0
-		},
 		physical: {
 			height: DEFAULT_HEIGHT_MM, // Default height from constants
 			units: 'mm',

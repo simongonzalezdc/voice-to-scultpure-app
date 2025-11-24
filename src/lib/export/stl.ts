@@ -25,6 +25,9 @@ export function lathePointsToSTL(
 	for (let i = 0; i < points.length - 1; i++) {
 		const currentPoint = points[i];
 		const nextPoint = points[i + 1];
+		
+		// Skip if either point is undefined
+		if (!currentPoint || !nextPoint) continue;
 
 		// Create triangles between this ring and the next
 		for (let j = 0; j < segments; j++) {
@@ -63,17 +66,19 @@ export function lathePointsToSTL(
 	}
 
 	// Add top and bottom caps if the sculpture is closed
-	if (points[0].x < 0.01) {
+	const firstPoint = points[0];
+	const secondPoint = points[1];
+	if (firstPoint && firstPoint.x < 0.01 && secondPoint) {
 		// Bottom cap
-		const bottomY = points[0].y;
+		const bottomY = firstPoint.y;
 		for (let j = 0; j < segments; j++) {
 			const angle1 = (j / segments) * Math.PI * 2;
 			const angle2 = ((j + 1) / segments) * Math.PI * 2;
 
-			const x1 = Math.cos(angle1) * points[1].x;
-			const z1 = Math.sin(angle1) * points[1].x;
-			const x2 = Math.cos(angle2) * points[1].x;
-			const z2 = Math.sin(angle2) * points[1].x;
+			const x1 = Math.cos(angle1) * secondPoint.x;
+			const z1 = Math.sin(angle1) * secondPoint.x;
+			const x2 = Math.cos(angle2) * secondPoint.x;
+			const z2 = Math.sin(angle2) * secondPoint.x;
 
 			triangles.push(
 				createTriangle(
@@ -86,17 +91,18 @@ export function lathePointsToSTL(
 	}
 
 	const lastPoint = points[points.length - 1];
-	if (lastPoint.x < 0.01) {
+	const secondLastPoint = points[points.length - 2];
+	if (lastPoint && lastPoint.x < 0.01 && secondLastPoint) {
 		// Top cap
 		const topY = lastPoint.y;
 		for (let j = 0; j < segments; j++) {
 			const angle1 = (j / segments) * Math.PI * 2;
 			const angle2 = ((j + 1) / segments) * Math.PI * 2;
 
-			const x1 = Math.cos(angle1) * points[points.length - 2].x;
-			const z1 = Math.sin(angle1) * points[points.length - 2].x;
-			const x2 = Math.cos(angle2) * points[points.length - 2].x;
-			const z2 = Math.sin(angle2) * points[points.length - 2].x;
+			const x1 = Math.cos(angle1) * secondLastPoint.x;
+			const z1 = Math.sin(angle1) * secondLastPoint.x;
+			const x2 = Math.cos(angle2) * secondLastPoint.x;
+			const z2 = Math.sin(angle2) * secondLastPoint.x;
 
 			triangles.push(
 				createTriangle(

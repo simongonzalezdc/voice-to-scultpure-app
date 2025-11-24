@@ -2,6 +2,7 @@ import type { AISculptor, SculptureMutation, AISculptorStatus } from './types';
 import { AISculptorErrorImpl } from './types';
 import type { SculptureDefinition } from '$lib/types';
 import { SYSTEM_PROMPT } from './systemPrompt';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 
 export class CloudAISculptor implements AISculptor {
 	private status: AISculptorStatus = 'idle';
@@ -57,12 +58,19 @@ export class CloudAISculptor implements AISculptor {
 
 		this.status = 'generating';
 
+		// Read current values from uiStore (legacy properties moved there)
+		const radiusCurve = current.radiusCurve || [];
+		const roughness = uiStore.activeGlaze.roughness ?? 0.5;
+		const transmission = 0.5; // TODO: Map from glaze color/intensity if needed
+		const twist = uiStore.deformation.twist;
+		const compression = uiStore.deformation.compression;
+		
 		const userMessage = `Current sculpture:
-- Radius curve: ${JSON.stringify(current.radiusCurve.slice(0, 10))}... (${current.radiusCurve.length} points)
-- Surface roughness: ${current.surface.textureRoughness}
-- Glaze transmission: ${current.surface.glazeTransmission}
-- Twist: ${current.deformation.twist}
-- Compression: ${current.deformation.compression}
+- Radius curve: ${JSON.stringify(radiusCurve.slice(0, 10))}... (${radiusCurve.length} points)
+- Surface roughness: ${roughness}
+- Glaze transmission: ${transmission}
+- Twist: ${twist}
+- Compression: ${compression}
 
 User instruction: ${instruction}
 

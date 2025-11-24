@@ -12,7 +12,7 @@ export interface ExportOptions {
 	/** Modifiers to apply (quantize, symmetry) */
 	modifiers?: {
 		quantize: boolean;
-		quantizeSteps: number;
+		quantizeSteps?: number; // Optional - not used everywhere
 		symmetryCount: number;
 	};
 	/** Deformation to apply (twist, compression, taper) */
@@ -40,10 +40,10 @@ export function generateFinalProfile(
 	// Step 1: Compose layers or use legacy radiusCurve
 	let profile: LathePoint[];
 	
-	if (sculpture.layers && sculpture.layers.length > 0) {
+	if (sculpture?.layers && sculpture.layers.length > 0) {
 		// New layer-based system: compose all visible layers
 		profile = computeProfile(sculpture.layers);
-	} else if (sculpture.radiusCurve && sculpture.radiusCurve.length > 0) {
+	} else if (sculpture?.radiusCurve && sculpture.radiusCurve.length > 0) {
 		// Legacy system: use radiusCurve directly
 		profile = sculpture.radiusCurve;
 	} else {

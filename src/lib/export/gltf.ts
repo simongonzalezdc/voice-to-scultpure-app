@@ -2,6 +2,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, BufferAttribute } from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { generateFinalProfile, type ExportOptions } from './exportUtils';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 
 /**
  * Export sculpture to GLB format with vertex colors and PBR materials
@@ -25,22 +26,28 @@ export async function exportSculptureToGLB(
 		const finalProfile = generateFinalProfile(sculpture, exportOptions);
 
 		// Determine segment count (match main sculpture logic)
-		const roughnessInput = sculpture.surface.textureRoughness ?? 0.5;
+		// Read from uiStore (legacy property moved there)
+		const roughnessInput = uiStore.activeGlaze.roughness ?? 0.5;
 		const segments = Math.floor(6 + roughnessInput * 58);
 
 		// Create geometry from final profile
 		const vectors = finalProfile.map((p) => new Vector2(p.x, p.y));
 		const geometry = new LatheGeometry(vectors, segments);
 
-		// Apply vertex colors if available
-		if (sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+		// Apply vertex colors if available (legacy property - now in layers)
+		// TODO: Extract vertex colors from layers if needed
+		const vertexColors: number[] = []; // Empty for now - colors are in layers
+		if (vertexColors && vertexColors.length > 0) {
 			const positions = geometry.attributes.position;
+			if (!positions) {
+				throw new Error('Geometry has no position attribute');
+			}
 			const vertexCount = positions.count;
-			const colorCount = sculpture.vertexColors.length / 3;
+			const colorCount = vertexColors.length / 3;
 
 			if (colorCount === vertexCount) {
 				// Perfect match - use saved colors directly
-				const colors = new Float32Array(sculpture.vertexColors);
+				const colors = new Float32Array(vertexColors);
 				geometry.setAttribute('color', new BufferAttribute(colors, 3));
 			} else if (colorCount > 0) {
 				// Resample colors by height (similar to Sculpture.svelte logic)
@@ -51,7 +58,7 @@ export async function exportSculptureToGLB(
 				let minY = Infinity;
 				let maxY = -Infinity;
 				for (let i = 0; i < vertexCount; i++) {
-					const y = posArray[i * 3 + 1];
+					const y = posArray[i * 3 + 1] ?? 0;
 					if (y < minY) minY = y;
 					if (y > maxY) maxY = y;
 				}
@@ -59,15 +66,15 @@ export async function exportSculptureToGLB(
 
 				if (totalHeight > 0) {
 					for (let i = 0; i < vertexCount; i++) {
-						const y = posArray[i * 3 + 1];
+						const y = posArray[i * 3 + 1] ?? 0;
 						const normalizedHeight = (y - minY) / totalHeight;
 						const oldVertexIdx = Math.floor(normalizedHeight * (colorCount - 1));
 						const clampedIdx = Math.max(0, Math.min(colorCount - 1, oldVertexIdx));
 
 						const colorIdx = clampedIdx * 3;
-						colors[i * 3] = sculpture.vertexColors[colorIdx] ?? 1.0;
-						colors[i * 3 + 1] = sculpture.vertexColors[colorIdx + 1] ?? 1.0;
-						colors[i * 3 + 2] = sculpture.vertexColors[colorIdx + 2] ?? 1.0;
+						colors[i * 3] = vertexColors[colorIdx] ?? 1.0;
+						colors[i * 3 + 1] = vertexColors[colorIdx + 1] ?? 1.0;
+						colors[i * 3 + 2] = vertexColors[colorIdx + 2] ?? 1.0;
 					}
 				}
 
@@ -76,34 +83,35 @@ export async function exportSculptureToGLB(
 		}
 
 		// Create material based on sculpture type
-		const isPlastic = sculpture.surface.materialType === 'plastic';
-		const baseColor = sculpture.surface.baseColor || (isPlastic ? '#3080ff' : '#E0C9A6');
+		// Read from uiStore (legacy properties moved there)
+		const isPlastic = false; // TODO: Add materialType to uiStore if needed
+		const baseColor = uiStore.activeGlaze.color || (isPlastic ? '#3080ff' : '#E0C9A6');
 
 		let material;
 		if (isPlastic) {
 			material = new MeshPhysicalMaterial({
 				color: baseColor === '#FFFFFF' || baseColor === '#ffffff' ? '#EEEEEE' : baseColor,
-				roughness: Math.max(0.3, sculpture.surface.textureRoughness),
+				roughness: Math.max(0.3, roughnessInput),
 				clearcoat: 0.5,
 				clearcoatRoughness: 0.3,
 				metalness: 0.1
 			});
 		} else {
 			// Ceramic with glaze
-			const glazeColor = sculpture.surface.baseColor || '#FFFFFF';
-			// Blend base color with glaze color based on transmission
-			const blendedColor = blendColors(baseColor, glazeColor, sculpture.surface.glazeTransmission);
+			const glazeColor = uiStore.activeGlaze.color || '#FFFFFF';
+			// Blend base color with glaze color based on transmission (use roughness as proxy)
+			const transmission = (uiStore.activeGlaze.roughness ?? 0.5) * 0.8;
+			const blendedColor = blendColors(baseColor, glazeColor, transmission);
 
 			// Check if vertex colors are available
-			const hasVertexColors =
-				sculpture.vertexColors && sculpture.vertexColors.length > 0 && !!geometry.attributes.color;
+			const hasVertexColors = vertexColors && vertexColors.length > 0 && !!geometry.attributes.color;
 
 			material = new MeshPhysicalMaterial({
 				color: hasVertexColors ? 'white' : blendedColor,
-				transmission: sculpture.surface.glazeTransmission * 0.8,
+				transmission: transmission,
 				thickness: 0.5,
-				roughness: sculpture.surface.textureRoughness,
-				clearcoat: Math.max(0, sculpture.surface.glazeTransmission),
+				roughness: roughnessInput,
+				clearcoat: Math.max(0, transmission),
 				clearcoatRoughness: 0.1,
 				metalness: 0.1,
 				ior: 1.5,

@@ -6,6 +6,7 @@
  */
 
 import type { LathePoint } from '$lib/types';
+import { safeArrayAccess, isValidIndex } from '$lib/utils/arrayHelpers';
 
 export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
 
@@ -49,9 +50,13 @@ export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): n
 	// Compare original vs constrained to determine risk
 	// If significant deviation, mark as violation
 	for (let i = 0; i < curve.length; i++) {
-		const original = curve[i].x;
-		const fixed = constrained[i].x;
-		const diff = Math.abs(original - fixed);
+		const original = safeArrayAccess(curve, i);
+		const fixed = safeArrayAccess(constrained, i);
+		
+		// Skip if either is undefined (shouldn't happen, but safety check)
+		if (!original || !fixed) continue;
+		
+		const diff = Math.abs(original.x - fixed.x);
 
 		// If fixed is different, it was a violation
 		if (diff > 0.001) {
@@ -98,13 +103,19 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// Exception: Top 5% (rim) can be narrower for closure
 	const topThreshold = 0.95; // Top 5% exempt
 	for (let i = 0; i < constrained.length; i++) {
-		const normalizedHeight = constrained[i].y;
+		const point = safeArrayAccess(constrained, i);
+		if (!point) {
+			constrained[i] = { x: MIN_HAND_RADIUS, y: i / constrained.length };
+			continue;
+		}
+		
+		const normalizedHeight = point.y;
 
 		// Allow rim to close (top 5%)
 		if (normalizedHeight < topThreshold) {
 			// HARDENED: Enforce stricter minimum radius for hand access
-			if (constrained[i].x < MIN_HAND_RADIUS) {
-				constrained[i].x = MIN_HAND_RADIUS;
+			if (point.x < MIN_HAND_RADIUS) {
+				point.x = MIN_HAND_RADIUS;
 			}
 		}
 	}
@@ -115,32 +126,46 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const smoothed: LathePoint[] = [];
 
 	for (let i = 0; i < constrained.length; i++) {
+		const currentPoint = safeArrayAccess(constrained, i);
+		if (!currentPoint) continue;
+		
 		const start = Math.max(0, i - Math.floor(SMOOTH_WINDOW / 2));
 		const end = Math.min(constrained.length, i + Math.floor(SMOOTH_WINDOW / 2) + 1);
 
 		let sumRadius = 0;
 		let count = 0;
 		for (let j = start; j < end; j++) {
-			sumRadius += constrained[j].x;
-			count++;
+			const point = safeArrayAccess(constrained, j);
+			if (point) {
+				sumRadius += point.x;
+				count++;
+			}
 		}
 
-		smoothed.push({
-			x: sumRadius / count, // Average radius
-			y: constrained[i].y // Keep original height
-		});
+		if (count > 0) {
+			smoothed.push({
+				x: sumRadius / count, // Average radius
+				y: currentPoint.y // Keep original height
+			});
+		}
 	}
 
 	// Copy smoothed values back
-	for (let i = 0; i < smoothed.length; i++) {
-		constrained[i] = smoothed[i];
+	for (let i = 0; i < smoothed.length && i < constrained.length; i++) {
+		const smoothedPoint = safeArrayAccess(smoothed, i);
+		if (smoothedPoint) {
+			constrained[i] = smoothedPoint;
+		}
 	}
 
 	// RULE B: Gravity/Slump - Limit outward overhang
 	// Clay cannot grow outward more than 45° without collapsing
 	for (let i = 1; i < constrained.length; i++) {
-		const prevPoint = constrained[i - 1];
-		const currPoint = constrained[i];
+		const prevPoint = safeArrayAccess(constrained, i - 1);
+		const currPoint = safeArrayAccess(constrained, i);
+		
+		// Skip if either point is undefined
+		if (!prevPoint || !currPoint) continue;
 
 		const dy = Math.abs(currPoint.y - prevPoint.y);
 		const dx = currPoint.x - prevPoint.x;
@@ -152,7 +177,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 			if (angle > MAX_OVERHANG_ANGLE) {
 				// Clamp to max overhang angle
 				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
-				constrained[i].x = prevPoint.x + maxDx;
+				currPoint.x = prevPoint.x + maxDx;
 			}
 		}
 	}
@@ -170,24 +195,33 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 		// );
 
 		for (let i = 0; i < constrained.length; i++) {
-			constrained[i].x += boostAmount;
+			const point = safeArrayAccess(constrained, i);
+			if (point) {
+				point.x += boostAmount;
+			}
 		}
 	}
 
 	// RULE C: Base Stability - Wide base to support upper mass
 	// Bottom 10% should be wider than average radius
 	const baseThreshold = 0.1;
-	const updatedAverageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
+	const updatedAverageRadius = constrained.reduce((sum, p) => {
+		if (!p) return sum;
+		return sum + p.x;
+	}, 0) / constrained.length;
 	const minBaseRadius = Math.max(
 		updatedAverageRadius * BASE_STABILITY_RATIO,
 		MIN_HAND_RADIUS * 1.2
 	);
 
 	for (let i = 0; i < constrained.length; i++) {
-		if (constrained[i].y < baseThreshold) {
+		const point = safeArrayAccess(constrained, i);
+		if (!point) continue;
+		
+		if (point.y < baseThreshold) {
 			// Enforce wide base
-			if (constrained[i].x < minBaseRadius) {
-				constrained[i].x = minBaseRadius;
+			if (point.x < minBaseRadius) {
+				point.x = minBaseRadius;
 			}
 		}
 	}
@@ -207,8 +241,11 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	// RULE A: Overhang Constraints
 	// Limit how fast radius can grow relative to layer height
 	for (let i = 1; i < constrained.length; i++) {
-		const prevPoint = constrained[i - 1];
-		const currPoint = constrained[i];
+		const prevPoint = safeArrayAccess(constrained, i - 1);
+		const currPoint = safeArrayAccess(constrained, i);
+		
+		// Skip if either point is undefined
+		if (!prevPoint || !currPoint) continue;
 
 		const dy = Math.abs(currPoint.y - prevPoint.y);
 		const dx = currPoint.x - prevPoint.x;
@@ -221,7 +258,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 			if (angle > MAX_OVERHANG_ANGLE) {
 				// Clamp to max printable overhang
 				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
-				constrained[i].x = prevPoint.x + maxDx;
+				currPoint.x = prevPoint.x + maxDx;
 			}
 		}
 
@@ -230,7 +267,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 		if (dx < 0) {
 			const maxNegativeDx = -dy * Math.tan((75 * Math.PI) / 180); // Allow steep inward
 			if (dx < maxNegativeDx) {
-				constrained[i].x = prevPoint.x + maxNegativeDx;
+				currPoint.x = prevPoint.x + maxNegativeDx;
 			}
 		}
 	}
@@ -238,17 +275,23 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	// RULE B: No Floating Islands - Ensure contiguous geometry
 	// Enforce minimum radius to prevent zero-width sections
 	for (let i = 0; i < constrained.length; i++) {
-		if (constrained[i].x < MIN_RADIUS) {
-			constrained[i].x = MIN_RADIUS;
+		const point = safeArrayAccess(constrained, i);
+		if (!point) continue;
+		
+		if (point.x < MIN_RADIUS) {
+			point.x = MIN_RADIUS;
 		}
 	}
 
 	// Additional: Smooth bottom layer for bed adhesion
 	// First point should have good contact area
 	if (constrained.length > 0) {
-		const firstLayerMinRadius = 0.01; // 10mm minimum first layer
-		if (constrained[0].x < firstLayerMinRadius) {
-			constrained[0].x = firstLayerMinRadius;
+		const firstPoint = safeArrayAccess(constrained, 0);
+		if (firstPoint) {
+			const firstLayerMinRadius = 0.01; // 10mm minimum first layer
+			if (firstPoint.x < firstLayerMinRadius) {
+				firstPoint.x = firstLayerMinRadius;
+			}
 		}
 	}
 

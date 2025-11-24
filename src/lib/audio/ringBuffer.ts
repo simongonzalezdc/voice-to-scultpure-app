@@ -39,7 +39,10 @@ export function writeToRingBuffer(ringBuffer: AudioRingBuffer, samples: Float32A
 
 	for (let i = 0; i < toWrite; i++) {
 		const writeIndex = ((writePtr + i) % ringBuffer.capacity) + DATA_START_INDEX;
-		view[writeIndex] = samples[i];
+		const sample = samples[i];
+		if (sample !== undefined) {
+			view[writeIndex] = sample;
+		}
 	}
 
 	if (toWrite > 0) {
@@ -64,7 +67,7 @@ export function readFromRingBuffer(ringBuffer: AudioRingBuffer, output: Float32A
 
 	for (let i = 0; i < toRead; i++) {
 		const readIndex = ((readPtr + i) % ringBuffer.capacity) + DATA_START_INDEX;
-		output[i] = view[readIndex];
+		output[i] = view[readIndex] ?? 0;
 	}
 
 	Atomics.store(intView, READ_PTR_INDEX, readPtr + toRead);

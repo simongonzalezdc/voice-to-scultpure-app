@@ -78,8 +78,9 @@
 	}
 
 	function handleRetry() {
-		if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-			const lastMessage = messages[messages.length - 1].content;
+		const lastMsg = messages[messages.length - 1];
+		if (messages.length > 0 && lastMsg?.role === 'user') {
+			const lastMessage = lastMsg.content;
 			messages = messages.slice(0, -1);
 			inputText = lastMessage;
 			handleSend();

@@ -45,15 +45,9 @@
 		// Force twist to 0 if disabled
 		if (isTwistDisabled && twist !== 0) {
 			twist = 0;
-			if (
-				sculptureStore.currentSculpture &&
-				sculptureStore.currentSculpture.deformation.twist !== 0
-			) {
-				const updated = {
-					...sculptureStore.currentSculpture,
-					deformation: { ...sculptureStore.currentSculpture.deformation, twist: 0 }
-				};
-				setCurrentSculpture(updated);
+			// Twist is now in uiStore, not sculpture
+			if (uiStore.deformation.twist !== 0) {
+				uiStore.deformation.twist = 0;
 			}
 		}
 
@@ -74,51 +68,34 @@
 	function handlePointerDown() {
 		if (!sculptureStore.currentSculpture) return;
 		isDragging = true;
+		const current = sculptureStore.currentSculpture;
 		previewSculpture = {
-			...sculptureStore.currentSculpture,
-			radiusCurve: sculptureStore.currentSculpture.radiusCurve.map((p) => ({ ...p })),
-			surface: { ...sculptureStore.currentSculpture.surface },
-			deformation: { ...sculptureStore.currentSculpture.deformation },
-			physical: { ...sculptureStore.currentSculpture.physical }
+			...current,
+			radiusCurve: current.radiusCurve ? current.radiusCurve.map((p) => ({ ...p })) : undefined,
+			physical: { ...current.physical }
 		};
 		applyPreview();
 	}
 
 	function applyPreview() {
 		if (!previewSculpture) return;
-		const deformed = applyDeformation(previewSculpture.radiusCurve, {
+		const radiusCurve = previewSculpture.radiusCurve || [];
+		if (radiusCurve.length === 0) return;
+		const deformed = applyDeformation(radiusCurve, {
 			twist: twist,
 			compression: verticalStretch,
 			taper: 0
 		});
 		setGhostSculpture({
 			...previewSculpture,
-			radiusCurve: deformed,
-			surface: {
-				...previewSculpture.surface,
-				textureRoughness: smoothness
-			},
-			deformation: {
-				twist,
-				compression: verticalStretch,
-				taper: 0
-			}
+			radiusCurve: deformed
 		});
 	}
 
 	function handlePointerUp() {
 		if (isDragging && previewSculpture) {
 			setCurrentSculpture({
-				...previewSculpture,
-				surface: {
-					...previewSculpture.surface,
-					textureRoughness: smoothness
-				},
-				deformation: {
-					twist,
-					compression: verticalStretch,
-					taper: 0
-				}
+				...previewSculpture
 			});
 		}
 		isDragging = false;
@@ -134,7 +111,10 @@
 		const currentVerticalStretch = verticalStretch;
 		const currentSmoothness = smoothness;
 
-		const deformed = applyDeformation(previewSculpture.radiusCurve, {
+		const radiusCurve = previewSculpture.radiusCurve || [];
+		if (radiusCurve.length === 0) return;
+		
+		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
 			compression: currentVerticalStretch,
 			taper: 0
@@ -142,16 +122,7 @@
 
 		setGhostSculpture({
 			...previewSculpture,
-			radiusCurve: deformed,
-			surface: {
-				...previewSculpture.surface,
-				textureRoughness: currentSmoothness
-			},
-			deformation: {
-				twist: currentTwist,
-				compression: currentVerticalStretch,
-				taper: 0
-			}
+			radiusCurve: deformed
 		});
 	});
 

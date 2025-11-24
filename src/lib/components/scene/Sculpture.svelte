@@ -27,7 +27,7 @@
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
-	import { generateLathe, generateGlaze } from '$lib/engine/physicsMapping';
+	import { generateLathe, generateGlaze, applyModifiers } from '$lib/engine/physicsMapping';
 	import {
 		applyGlazeColors
 	} from '$lib/engine/geometryFactory';
@@ -195,13 +195,15 @@
 					const tempLayerData = new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR);
 					for (let i = 0; i < GEOMETRY_RESOLUTION_COMPOSITOR; i++) {
 						const normalizedY = i / (GEOMETRY_RESOLUTION_COMPOSITOR - 1);
-						const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
-						const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
-						tempLayerData[i] = radiusCurve[clampedIndex].x;
+						const curveLen = radiusCurve?.length ?? 1;
+						const targetIndex = Math.round(normalizedY * (curveLen - 1));
+						const clampedIndex = Math.min(targetIndex, curveLen - 1);
+						const point = radiusCurve?.[clampedIndex];
+						tempLayerData[i] = point?.x ?? 0.5; // Default radius if point is undefined
 					}
 					
 					// If we have existing layers, composite with them
-					if (sculpture.layers && sculpture.layers.length > 0) {
+					if (sculpture?.layers && sculpture.layers.length > 0) {
 						// Create temp layer and composite
 						const tempLayers = [
 							...sculpture.layers,
@@ -221,12 +223,13 @@
 						profile = computeProfile(tempLayers);
 					} else {
 						// First recording - convert layer data back to LathePoint[]
-						profile = Array.from({ length: resolution }, (_, i) => ({
-							x: tempLayerData[i],
-							y: i / (resolution - 1)
+						const profileResolution = GEOMETRY_RESOLUTION_COMPOSITOR;
+						profile = Array.from({ length: profileResolution }, (_, i) => ({
+							x: tempLayerData[i] ?? 0.5,
+							y: i / (profileResolution - 1)
 						}));
 					}
-				} else if (sculpture.layers && sculpture.layers.length > 0) {
+				} else if (sculpture?.layers && sculpture.layers.length > 0) {
 					// Not enough frames yet, use existing layers
 					profile = computeProfile(sculpture.layers);
 				} else {
@@ -235,7 +238,7 @@
 				}
 			} else {
 				// NOT RECORDING: Use normal layer composition
-				if (!sculpture.layers || sculpture.layers.length === 0) {
+				if (!sculpture?.layers || sculpture.layers.length === 0) {
 					// Fallback to legacy radiusCurve
 					if (!liveGeometry && sculpture.radiusCurve) {
 						const { geometry, vectors } = createGeometryFromProfile(sculpture.radiusCurve);
@@ -257,7 +260,13 @@
 			}
 			
 			// GENERATE GEOMETRY from profile
+			if (!profile || profile.length === 0) {
+				return;
+			}
 			const { geometry, vectors } = createGeometryFromProfile(profile);
+			if (!geometry) {
+				return;
+			}
 			
 					// GENERATE VERTEX COLORS if in glaze mode and recording
 					if (isRecording && uiStore.workspace === 'glaze') {
@@ -302,9 +311,9 @@
 			const profile = computeProfile(sculpture.layers);
 			const { geometry } = createGeometryFromProfile(profile);
 			return geometry;
-		} else if (sculpture.radiusCurve) {
+		} else if (sculpture.radiusCurve && sculpture.radiusCurve.length > 0) {
 			const { geometry } = createGeometryFromProfile(sculpture.radiusCurve);
-			return geometry;
+			if (geometry) return geometry;
 		}
 		
 		return new CylinderGeometry(DEFAULT_CYLINDER_RADIUS, DEFAULT_CYLINDER_RADIUS, 1, DEFAULT_CYLINDER_SEGMENTS);
@@ -320,10 +329,16 @@
 		if (sculpture.layers && sculpture.layers.length > 0) {
 			const profile = computeProfile(sculpture.layers);
 			const modifiedProfile = applyModifiers(profile, heightScale, uiStore.modifiers);
-			return modifiedProfile.map((p) => new Vector2(p.x, p.y));
-		} else if (sculpture.radiusCurve) {
+			return modifiedProfile.map((p) => {
+				if (!p) return new Vector2(0, 0);
+				return new Vector2(p.x ?? 0, p.y ?? 0);
+			});
+		} else if (sculpture.radiusCurve && sculpture.radiusCurve.length > 0) {
 			const modifiedProfile = applyModifiers(sculpture.radiusCurve, heightScale, uiStore.modifiers);
-			return modifiedProfile.map((p) => new Vector2(p.x, p.y));
+			return modifiedProfile.map((p) => {
+				if (!p) return new Vector2(0, 0);
+				return new Vector2(p.x ?? 0, p.y ?? 0);
+			});
 		}
 		
 		return [];
@@ -347,8 +362,11 @@
 				if (stressColors && stressColors.length > 0) {
 					heatmapBuffer = applyHeatmapColors(geometry, vectorsToUse, stressColors, heatmapBuffer) ?? heatmapBuffer;
 				}
-			} else if (geometry.getAttribute('color')) {
-				geometry.deleteAttribute('color');
+			} else {
+				const colorAttr = geometry.getAttribute('color');
+				if (colorAttr) {
+					geometry.deleteAttribute('color');
+				}
 			}
 		} catch (err) {
 			console.warn('⚠️ [SCULPTURE] Geometry mutation failed (non-fatal):', err);
@@ -427,23 +445,29 @@
 		const normalizedPitch = Math.max(0, Math.min(1, (pitch - FORCE_MODE_PITCH_MIN_HZ) / (FORCE_MODE_PITCH_MAX_HZ - FORCE_MODE_PITCH_MIN_HZ)));
 		
 		// Map to actual geometry Y range (accounting for transforms)
-		const minY = bbox.min.y * heightScale;
-		const maxY = bbox.max.y * heightScale;
+		const minY = (bbox.min.y ?? 0) * heightScale;
+		const maxY = (bbox.max.y ?? 1) * heightScale;
 		const targetY = minY + normalizedPitch * (maxY - minY);
 		
 		// Find the radius at this height by sampling the geometry
 		// Get a ring of vertices at approximately this Y position
 		const positions = meshRef.geometry.getAttribute('position');
+		if (!positions) {
+			return FORCE_MODE_FALLBACK_RADIUS;
+		}
+		
 		let closestRadius = FORCE_MODE_FALLBACK_RADIUS;
 		let minYDiff = Infinity;
 		
 		for (let i = 0; i < positions.count; i++) {
-			const y = positions.getY(i) * heightScale; // Apply scale transform
-			const yDiff = Math.abs(y - targetY);
+			const y = positions.getY(i);
+			if (y === undefined) continue;
+			const scaledY = y * heightScale; // Apply scale transform
+			const yDiff = Math.abs(scaledY - targetY);
 			if (yDiff < minYDiff) {
 				minYDiff = yDiff;
-				const x = positions.getX(i);
-				const z = positions.getZ(i);
+				const x = positions.getX(i) ?? 0;
+				const z = positions.getZ(i) ?? 0;
 				closestRadius = Math.sqrt(x * x + z * z); // Radial distance from center
 			}
 		}

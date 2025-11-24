@@ -118,9 +118,9 @@
 	// Combined rotation: base orientation + Virtuoso spin
 	// Spin rotation is applied to Y-axis (second element)
 	let finalRotation = $derived([
-		ringOrientation[0],
-		ringOrientation[1] + spinRotation,
-		ringOrientation[2]
+		ringOrientation[0] ?? 0,
+		(ringOrientation[1] ?? 0) + spinRotation,
+		ringOrientation[2] ?? 0
 	] as [number, number, number]);
 
 	// Virtuoso Color: Timbre -> Color

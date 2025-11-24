@@ -73,6 +73,7 @@
 		const lerp = idx - i0;
 		const p0 = curve[i0];
 		const p1 = curve[i1];
+		if (!p0 || !p1) return { x: 0, y: 0 };
 		return {
 			x: p0.x + (p1.x - p0.x) * lerp,
 			y: p0.y + (p1.y - p0.y) * lerp

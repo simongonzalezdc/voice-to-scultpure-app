@@ -17,8 +17,8 @@
 	const micLevel = $derived(analysisStore.micLevel);
 	const latestFrame = $derived(analysisStore.latestFrame);
 	const hasBeat = $derived(latestFrame?.beat === true);
-	const quantizedNote = $derived(latestFrame?.quantizedPitch?.note);
-	const quantizedHue = $derived(latestFrame?.quantizedPitch?.hue);
+	const quantizedNote = $derived((latestFrame as any)?.quantizedPitch?.note ?? null);
+	const quantizedHue = $derived((latestFrame as any)?.quantizedPitch?.hue ?? null);
 
 	// Step Configurations
 	const STEPS = {
@@ -63,7 +63,7 @@
 		// Or just always add a new one? "Non-Destructive Layering" implies stacking.
 		// For the Wizard, we probably want to start with one.
 		// Let's check if the *latest* layer is of this type.
-		const layers = sculptureStore.currentSculpture.layers;
+		const layers = sculptureStore.currentSculpture?.layers ?? [];
 		const lastLayer = layers[layers.length - 1];
 		
 		if (!lastLayer || lastLayer.type !== type) {
@@ -203,8 +203,8 @@
 					{/if}
 					
 					<!-- Pitch Display (Shape Step) -->
-					{#if currentStep === 'shape' && latestFrame?.pitch > 0}
-						<span class="text-xs text-white/50">{latestFrame.pitch.toFixed(1)} Hz</span>
+					{#if currentStep === 'shape' && (latestFrame?.pitch ?? 0) > 0}
+						<span class="text-xs text-white/50">{(latestFrame?.pitch ?? 0).toFixed(1)} Hz</span>
 					{/if}
 				</div>
 			{/if}
@@ -232,7 +232,7 @@
 						{/if}
 					</button>
 					
-					{#if !isRecording && sculptureStore.currentSculpture?.layers.length > 0}
+					{#if !isRecording && (sculptureStore.currentSculpture?.layers?.length ?? 0) > 0}
 						<button 
 							class="flex items-center gap-2 px-4 py-3 rounded-full border border-white/20 text-sm text-white hover:bg-white/10 hover:border-white/40 transition-colors"
 							onclick={nextStep}

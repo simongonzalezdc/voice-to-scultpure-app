@@ -134,7 +134,8 @@ export async function stopRecording(): Promise<void> {
 
 		if (colorAttribute && colorAttribute.array && colorAttribute.array instanceof Float32Array) {
 			// Extract the painted colors from the geometry BEFORE disposal
-			const colors = Array.from(colorAttribute.array);
+			const colorArray = colorAttribute.array as Float32Array;
+			const colors = Array.from(colorArray);
 			// Save them to the sculpture store for persistence
 			updateSculptureColors(new Float32Array(colors));
 			console.log(`🎨 [RECORDING] Captured ${colors.length / 3} vertex colors before processing`);
@@ -172,7 +173,8 @@ export async function stopRecording(): Promise<void> {
 				);
 				
 				setCurrentSculpture(sculpture);
-				console.log(`🗿 [RECORDING] Initial sculpture created with ${sculpture.radiusCurve.length} points`);
+				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
+				console.log(`🗿 [RECORDING] Initial sculpture created with ${pointCount} points`);
 			} else {
 				// Subsequent recordings - add as new layer
 				const mode = sculptureStore.currentSculpture.physical.sculptMode ?? 'additive';
@@ -191,11 +193,13 @@ export async function stopRecording(): Promise<void> {
 				// Convert to layer data (just radius values)
 				const resolution = 128;
 				const layerData = new Float32Array(resolution);
+				const curveLen = radiusCurve?.length ?? 1;
 				for (let i = 0; i < resolution; i++) {
 					const normalizedY = i / (resolution - 1);
-					const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
-					const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
-					layerData[i] = radiusCurve[clampedIndex].x;
+					const targetIndex = Math.round(normalizedY * (curveLen - 1));
+					const clampedIndex = Math.min(targetIndex, curveLen - 1);
+					const point = radiusCurve?.[clampedIndex];
+					layerData[i] = point?.x ?? 0.5;
 				}
 				
 				// Create new layer

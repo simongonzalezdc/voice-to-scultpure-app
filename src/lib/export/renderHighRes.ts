@@ -11,6 +11,7 @@ import {
 } from 'three';
 import JSZip from 'jszip';
 import type { SculptureDefinition } from '$lib/types';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 
 export async function renderHighRes(
 	sculpture: SculptureDefinition,
@@ -36,12 +37,13 @@ export async function renderHighRes(
 	scene.add(ambientLight);
 
 	// Create geometry
-	const points = sculpture.radiusCurve.map((p) => new Vector2(p.x, p.y));
+	const radiusCurve = sculpture.radiusCurve || [];
+	const points = radiusCurve.map((p) => new Vector2(p.x, p.y));
 	const geometry = new LatheGeometry(points, 32);
 	const material = new MeshPhysicalMaterial({
-		transmission: sculpture.surface.glazeTransmission,
+		transmission: (uiStore.activeGlaze.roughness ?? 0.5) * 0.8,
 		thickness: 0.5,
-		roughness: sculpture.surface.textureRoughness,
+		roughness: uiStore.activeGlaze.roughness ?? 0.5,
 		clearcoat: 0.8,
 		clearcoatRoughness: 0.2,
 		color: 0xffffff

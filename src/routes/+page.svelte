@@ -62,11 +62,13 @@
 		const resolution = 128;
 		const layerData = new Float32Array(resolution);
 		
+		const profileLen = profile?.length ?? 1;
 		for (let i = 0; i < resolution; i++) {
 			const normalizedY = i / (resolution - 1);
-			const targetIndex = Math.round(normalizedY * (profile.length - 1));
-			const clampedIndex = Math.min(targetIndex, profile.length - 1);
-			layerData[i] = profile[clampedIndex].x;
+			const targetIndex = Math.round(normalizedY * (profileLen - 1));
+			const clampedIndex = Math.min(targetIndex, profileLen - 1);
+			const point = profile?.[clampedIndex];
+			layerData[i] = point?.x ?? 0.5;
 		}
 
 		const baseLayer: SculptureLayer = {

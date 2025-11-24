@@ -29,10 +29,14 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 			// For this engine, we treat 'data' as the value to blend.
 			
 			// If mask is not fully initialized or wrong size, default to 1.0
-			const maskVal = (layer.mask && layer.mask.length === resolution) ? layer.mask[i] : 1.0;
+			const maskVal: number = (layer.mask && layer.mask.length === resolution && layer.mask[i] !== undefined) 
+				? (layer.mask[i] ?? 1.0)
+				: 1.0;
 			
-			const effect = layer.data[i] * maskVal * layer.opacity;
+			const dataVal = layer.data[i] ?? 0;
+			const effect = dataVal * maskVal * layer.opacity;
 
+			const currentVal = profile[i] ?? 0.5;
 			if (layer.type === 'base') {
 				// Base layer typically overwrites or provides the foundation
 				// If it's the first visible base layer, it sets the shape.
@@ -40,16 +44,16 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 				if (layer.blendMode === 'overwrite') {
 					profile[i] = effect;
 				} else {
-					profile[i] += effect; // Fallback
+					profile[i] = currentVal + effect; // Fallback
 				}
 			} else {
 				// Apply blend modes
 				if (layer.blendMode === 'add') {
-					profile[i] += effect;
+					profile[i] = currentVal + effect;
 				} else if (layer.blendMode === 'subtract') {
-					profile[i] -= effect;
+					profile[i] = currentVal - effect;
 				} else if (layer.blendMode === 'multiply') {
-					profile[i] *= effect;
+					profile[i] = currentVal * effect;
 				} else if (layer.blendMode === 'overwrite') {
 					profile[i] = effect;
 				}

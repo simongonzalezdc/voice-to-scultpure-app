@@ -1,6 +1,10 @@
 import type { LathePoint } from '$lib/types';
 
 export function radiusCurveToSvg(curve: LathePoint[], scale: number = 10): string {
+	if (!curve || curve.length === 0) {
+		return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>';
+	}
+
 	// Scale: pixels per unit (default 10px = 1 unit)
 	// Convert to mm coordinates (assuming 1 unit = 1mm)
 	const mmScale = scale;
@@ -8,8 +12,10 @@ export function radiusCurveToSvg(curve: LathePoint[], scale: number = 10): strin
 	let path = 'M';
 	for (let i = 0; i < curve.length; i++) {
 		const point = curve[i];
-		const x = point.x * mmScale;
-		const y = point.y * mmScale;
+		if (!point) continue;
+		
+		const x = (point.x ?? 0) * mmScale;
+		const y = (point.y ?? 0) * mmScale;
 		if (i === 0) {
 			path += ` ${x} ${y}`;
 		} else {
@@ -17,8 +23,8 @@ export function radiusCurveToSvg(curve: LathePoint[], scale: number = 10): strin
 		}
 	}
 
-	const maxX = Math.max(...curve.map((p) => p.x)) * mmScale;
-	const maxY = Math.max(...curve.map((p) => p.y)) * mmScale;
+	const maxX = Math.max(...curve.map((p) => p?.x ?? 0)) * mmScale;
+	const maxY = Math.max(...curve.map((p) => p?.y ?? 0)) * mmScale;
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX + 20}" height="${maxY + 20}" viewBox="0 0 ${maxX + 20} ${maxY + 20}">
   <g transform="translate(10, 10)">

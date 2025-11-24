@@ -205,7 +205,9 @@ export async function startVisualizerBypass(): Promise<void> {
 		// Calculate RMS from frequency bins
 		let sum = 0;
 		for (let i = 0; i < analyserDataArray.length; i++) {
-			const normalized = analyserDataArray[i] / 255; // 0-1 range
+			const value = analyserDataArray[i];
+			if (value === undefined) continue;
+			const normalized = value / 255; // 0-1 range
 			sum += normalized * normalized;
 		}
 		let rms = Math.sqrt(sum / analyserDataArray.length);

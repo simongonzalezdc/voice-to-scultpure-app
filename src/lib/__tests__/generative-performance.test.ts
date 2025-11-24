@@ -37,8 +37,10 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		// Convert to Float32Array
 		const data = new Float32Array(lathePoints.length * 2);
 		for (let i = 0; i < lathePoints.length; i++) {
-			data[i * 2] = lathePoints[i].x;
-			data[i * 2 + 1] = lathePoints[i].y;
+			const point = lathePoints[i];
+			if (!point) continue;
+			data[i * 2] = point.x ?? 0;
+			data[i * 2 + 1] = point.y ?? 0;
 		}
 
 		// Create base layer
@@ -59,7 +61,7 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		const baseLayer = createLayerFromFrames('base', 'Base', baseData);
 		addLayer(baseLayer);
 
-		expect(sculptureStore.layers.length).toBe(1);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(1);
 		expect(sculptureStore.activeLayerId).toBe(baseLayer.id);
 
 		// Add distortion layer
@@ -71,12 +73,16 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		const distortionLayer = createLayerFromFrames('distortion', 'Distortion', distortionData);
 		addLayer(distortionLayer);
 
-		expect(sculptureStore.layers.length).toBe(2);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(2);
 
 		// Compose geometry
 		const composed = composeGeometry();
 		expect(composed.length).toBe(3); // 3 points
-		expect(composed[0].x).toBeGreaterThan(baseData[0]); // Distortion added
+		const firstPoint = composed[0];
+		expect(firstPoint).toBeDefined();
+		if (firstPoint) {
+			expect(firstPoint.x).toBeGreaterThan(baseData[0] ?? 0); // Distortion added
+		}
 	});
 
 	it('should remove layers (UNDO functionality)', () => {
@@ -95,13 +101,13 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		addLayer(layer1);
 		addLayer(layer2);
 
-		expect(sculptureStore.layers.length).toBe(2);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(2);
 
 		// Remove layer 2 (UNDO)
 		removeLayer(layer2.id);
 
-		expect(sculptureStore.layers.length).toBe(1);
-		expect(sculptureStore.layers[0].id).toBe(layer1.id);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(1);
+		expect(sculptureStore.currentSculpture?.layers[0]?.id).toBe(layer1.id);
 		expect(sculptureStore.activeLayerId).toBe(layer1.id);
 	});
 
@@ -116,10 +122,10 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		expect(layer.visible).toBe(true);
 
 		toggleLayerVisibility(layer.id);
-		expect(sculptureStore.layers[0].visible).toBe(false);
+		expect(sculptureStore.currentSculpture?.layers[0]?.visible).toBe(false);
 
 		toggleLayerVisibility(layer.id);
-		expect(sculptureStore.layers[0].visible).toBe(true);
+		expect(sculptureStore.currentSculpture?.layers[0]?.visible).toBe(true);
 	});
 
 	it('should adjust layer opacity', () => {
@@ -133,14 +139,14 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		expect(layer.opacity).toBe(1.0);
 
 		setLayerOpacity(layer.id, 0.5);
-		expect(sculptureStore.layers[0].opacity).toBe(0.5);
+		expect(sculptureStore.currentSculpture?.layers[0]?.opacity).toBe(0.5);
 
 		// Test clamping
 		setLayerOpacity(layer.id, 2.0);
-		expect(sculptureStore.layers[0].opacity).toBe(1.0);
+		expect(sculptureStore.currentSculpture?.layers[0]?.opacity).toBe(1.0);
 
 		setLayerOpacity(layer.id, -0.5);
-		expect(sculptureStore.layers[0].opacity).toBe(0.0);
+		expect(sculptureStore.currentSculpture?.layers[0]?.opacity).toBe(0.0);
 	});
 
 	it('should compose layers with different opacities', () => {
@@ -162,8 +168,12 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		// distortionData[0] = 0.8, baseData[0] = 0.5
 		// Effect: (0.8 - 0.5) * 0.5 * 0.5 = 0.075
 		// Result should be approximately 0.5 + 0.075 = 0.575
-		expect(composed[0].x).toBeGreaterThan(0.5);
-		expect(composed[0].x).toBeLessThan(0.7); // Not full distortion
+		const firstPoint = composed[0];
+		expect(firstPoint).toBeDefined();
+		if (firstPoint) {
+			expect(firstPoint.x).toBeGreaterThan(0.5);
+			expect(firstPoint.x).toBeLessThan(0.7); // Not full distortion
+		}
 	});
 });
 
@@ -318,14 +328,16 @@ describe('GENERATIVE PERFORMANCE: Integration Test', () => {
 		const basePoints = generateLathe(baseFrames);
 		const baseData = new Float32Array(basePoints.length * 2);
 		for (let i = 0; i < basePoints.length; i++) {
-			baseData[i * 2] = basePoints[i].x;
-			baseData[i * 2 + 1] = basePoints[i].y;
+			const point = basePoints[i];
+			if (!point) continue;
+			baseData[i * 2] = point.x ?? 0;
+			baseData[i * 2 + 1] = point.y ?? 0;
 		}
 
 		const baseLayer = createLayerFromFrames('base', 'Base Layer', baseData);
 		addLayer(baseLayer);
 
-		expect(sculptureStore.layers.length).toBe(1);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(1);
 
 		// Step 2: Add Rhythm Layer (percussive beats)
 		const rhythmFrames: AnalysisFrame[] = Array.from({ length: 20 }, (_, i) => ({
@@ -339,14 +351,16 @@ describe('GENERATIVE PERFORMANCE: Integration Test', () => {
 		const rhythmPoints = generateLathe(rhythmFrames, undefined, 'additive', undefined, 'digital', 'standard', 'lathe');
 		const rhythmData = new Float32Array(rhythmPoints.length * 2);
 		for (let i = 0; i < rhythmPoints.length; i++) {
-			rhythmData[i * 2] = rhythmPoints[i].x;
-			rhythmData[i * 2 + 1] = rhythmPoints[i].y;
+			const point = rhythmPoints[i];
+			if (!point) continue;
+			rhythmData[i * 2] = point.x ?? 0;
+			rhythmData[i * 2 + 1] = point.y ?? 0;
 		}
 
 		const rhythmLayer = createLayerFromFrames('distortion', 'Rhythm Layer', rhythmData);
 		addLayer(rhythmLayer);
 
-		expect(sculptureStore.layers.length).toBe(2);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(2);
 
 		// Step 3: Compose final geometry
 		const finalGeometry = composeGeometry();
@@ -354,14 +368,14 @@ describe('GENERATIVE PERFORMANCE: Integration Test', () => {
 
 		// Step 4: Test UNDO (remove rhythm layer)
 		removeLayer(rhythmLayer.id);
-		expect(sculptureStore.layers.length).toBe(1);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(1);
 
 		const geometryAfterUndo = composeGeometry();
 		expect(geometryAfterUndo.length).toBeGreaterThan(0);
 
 		// Step 5: Verify we can redo by adding the layer back
 		addLayer(rhythmLayer);
-		expect(sculptureStore.layers.length).toBe(2);
+		expect(sculptureStore.currentSculpture?.layers.length).toBe(2);
 
 		console.log('✅ GENERATIVE PERFORMANCE: Full workflow test passed!');
 	});

@@ -10,12 +10,15 @@ export function exportProfileSVG(
 	deformation?: { twist: number; compression: number; taper: number }
 ): string {
 	const curve = sculpture.radiusCurve;
-	if (curve.length < 2) {
+	if (!curve || curve.length < 2) {
 		throw new Error('Not enough points for blueprint export');
 	}
 
 	// Apply deformation before export
 	const deformedCurve = deformation ? applyDeformation(curve, deformation) : curve;
+	if (!deformedCurve || deformedCurve.length < 2) {
+		throw new Error('Deformation resulted in invalid curve');
+	}
 
 	// Get physical dimensions
 	const physicalHeight = sculpture.physical.height;
@@ -23,9 +26,9 @@ export function exportProfileSVG(
 	const isMetric = units === 'mm';
 
 	// Find max radius to determine SVG width
-	const maxRadius = Math.max(...deformedCurve.map((p) => p.x));
-	const minY = Math.min(...deformedCurve.map((p) => p.y));
-	const maxY = Math.max(...deformedCurve.map((p) => p.y));
+	const maxRadius = Math.max(...deformedCurve.map((p) => p?.x ?? 0.5).filter(x => Number.isFinite(x)));
+	const minY = Math.min(...deformedCurve.map((p) => p?.y ?? 0).filter(y => Number.isFinite(y)));
+	const maxY = Math.max(...deformedCurve.map((p) => p?.y ?? 1).filter(y => Number.isFinite(y)));
 	const maxHeight = Math.max(0.001, maxY - minY); // Prevent division by zero
 
 	// Scale to physical dimensions
@@ -49,8 +52,10 @@ export function exportProfileSVG(
 	const minYValue = minY; // Use pre-calculated minY
 	for (let i = 0; i < deformedCurve.length; i++) {
 		const point = deformedCurve[i];
-		const normalizedY = point.y - minYValue;
-		const x = padding + physicalMaxRadius - point.x * radiusScale * scaleFactor; // Center horizontally
+		if (!point) continue;
+		
+		const normalizedY = (point.y ?? 0) - minYValue;
+		const x = padding + physicalMaxRadius - (point.x ?? 0.5) * radiusScale * scaleFactor; // Center horizontally
 		const y = padding + normalizedY * heightScale * scaleFactor; // Top to bottom
 
 		if (i === 0) {

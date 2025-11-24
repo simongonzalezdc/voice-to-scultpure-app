@@ -56,6 +56,9 @@ describe('Glaze Persistence - Core Functionality', () => {
 		
 		// Extract colors from mesh
 		const colorAttribute = mockMesh.geometry.attributes.color;
+		if (!colorAttribute || !colorAttribute.array) {
+			throw new Error('Color attribute not found on mock mesh');
+		}
 		const expectedColors = Array.from(colorAttribute.array);
 		
 		// Update sculpture colors
@@ -99,19 +102,12 @@ describe('Glaze Persistence - Core Functionality', () => {
 			name: 'Test Sculpture',
 			createdAt: Date.now(),
 			radiusCurve: [],
-			surface: {
-				materialType: 'ceramic',
-				baseColor: '#FFFFFF',
-				textureRoughness: 0.5,
-				glazeTransmission: 0.3
-			},
+			layers: [],
 			physical: {
 				height: 150,
-				sculptMode: 'additive'
-			},
-			deformation: {
-				twist: 0,
-				compression: 1.0
+				sculptMode: 'additive',
+				units: 'mm',
+				orientation: 'vertical'
 			}
 		};
 		

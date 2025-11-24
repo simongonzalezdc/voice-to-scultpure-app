@@ -139,9 +139,9 @@ const steps: OnboardingStep[] = [
 	'ai-tutorial'
 ];
 
-export function startOnboarding(step: OnboardingStep = steps[0]): void {
+export function startOnboarding(step?: OnboardingStep): void {
 	uiStore.onboarding.active = true;
-	uiStore.onboarding.currentStep = step;
+	uiStore.onboarding.currentStep = step ?? steps[0] ?? null;
 }
 
 export function completeOnboardingStep(step: OnboardingStep): void {
@@ -151,13 +151,18 @@ export function completeOnboardingStep(step: OnboardingStep): void {
 export function nextOnboardingStep(): void {
 	const current = uiStore.onboarding.currentStep;
 	if (!current) {
-		uiStore.onboarding.currentStep = steps[0];
+		uiStore.onboarding.currentStep = steps[0] ?? null;
 		return;
 	}
 	const currentIndex = steps.indexOf(current);
-	if (currentIndex < steps.length - 1) {
-		uiStore.onboarding.currentStep = steps[currentIndex + 1];
-		completeOnboardingStep(current);
+	if (currentIndex < steps.length - 1 && currentIndex >= 0) {
+		const nextStep = steps[currentIndex + 1];
+		if (nextStep) {
+			uiStore.onboarding.currentStep = nextStep;
+			completeOnboardingStep(current);
+		} else {
+			finishOnboarding();
+		}
 	} else {
 		finishOnboarding();
 	}

@@ -51,8 +51,9 @@ export function setCurrentSculpture(sculpture: SculptureDefinition | null): void
 	}
 	sculptureStore.geometryDirty = true;
 	// Safety check: layers might be undefined for legacy sculptures
-	if (sculpture && sculpture.layers && sculpture.layers.length > 0) {
-		sculptureStore.activeLayerId = sculpture.layers[sculpture.layers.length - 1].id;
+	if (sculpture?.layers && sculpture.layers.length > 0) {
+		const lastLayer = sculpture.layers[sculpture.layers.length - 1];
+		sculptureStore.activeLayerId = lastLayer?.id ?? null;
 	} else {
 		sculptureStore.activeLayerId = null;
 	}
@@ -98,8 +99,7 @@ export function updateSculptureColors(colors: Float32Array): void {
 	}
 
 	const vertexCount =
-		sculptureStore.meshReference?.geometry?.getAttribute('position')?.count ??
-		(sculptureStore.currentSculpture.vertexColors?.length || 0) / 3;
+		sculptureStore.meshReference?.geometry?.getAttribute('position')?.count ?? colors.length / 3;
 	const expectedColorCount = vertexCount ? vertexCount * 3 : null;
 
 	if (expectedColorCount && colors.length !== expectedColorCount) {
@@ -108,12 +108,18 @@ export function updateSculptureColors(colors: Float32Array): void {
 			`Color/Vertex Mismatch (expected ${expectedColorCount}, received ${colors.length})`
 		);
 		window.alert?.('Data Corruption Detected: vertex color array length mismatch.');
-		sculptureStore.currentSculpture.vertexColors = [];
+		// Clear legacy vertexColors if mismatch
+		const updated: SculptureDefinition = {
+			...sculptureStore.currentSculpture,
+			vertexColors: []
+		};
+		sculptureStore.currentSculpture = updated;
 		return;
 	}
 
-	// Store colors in sculpture definition for persistence
+	// Store colors in sculpture definition for persistence (legacy support)
 	// Convert Float32Array to regular array for serialization
+	// TODO: Migrate to glaze layer system
 	const updated: SculptureDefinition = {
 		...sculptureStore.currentSculpture,
 		vertexColors: Array.from(colors)
@@ -172,12 +178,19 @@ export function removeLayer(layerId: string): void {
 	const index = sculptureStore.currentSculpture.layers.findIndex(l => l.id === layerId);
 	if (index > -1) {
 		const removed = sculptureStore.currentSculpture.layers.splice(index, 1)[0];
-		console.log(`🗑️ [LAYER] Removed layer: ${removed.name}`);
+		if (removed) {
+			console.log(`🗑️ [LAYER] Removed layer: ${removed.name}`);
+		}
 		
 		// Update active layer
 		if (sculptureStore.activeLayerId === layerId) {
-			const count = sculptureStore.currentSculpture.layers.length;
-			sculptureStore.activeLayerId = count > 0 ? sculptureStore.currentSculpture.layers[count - 1].id : null;
+			const count = sculptureStore.currentSculpture?.layers.length ?? 0;
+			if (count > 0 && sculptureStore.currentSculpture) {
+				const lastLayer = sculptureStore.currentSculpture.layers[count - 1];
+				sculptureStore.activeLayerId = lastLayer?.id ?? null;
+			} else {
+				sculptureStore.activeLayerId = null;
+			}
 		}
 		sculptureStore.geometryDirty = true;
 	}
@@ -278,8 +291,12 @@ export function composeGeometry(): LathePoint[] {
 	const points: LathePoint[] = [];
 
 	for (let i = 0; i < pointCount; i++) {
-		let x = baseLayer.data[i * 2];
-		let y = baseLayer.data[i * 2 + 1];
+		const baseX = baseLayer.data[i * 2];
+		const baseY = baseLayer.data[i * 2 + 1];
+		if (baseX === undefined || baseY === undefined) continue;
+		
+		let x = baseX;
+		let y = baseY;
 
 		// Apply other layers on top
 		for (const layer of layers) {
@@ -290,6 +307,7 @@ export function composeGeometry(): LathePoint[] {
 			if (i < layerPointCount) {
 				const layerX = layer.data[i * 2];
 				const layerY = layer.data[i * 2 + 1];
+				if (layerX === undefined || layerY === undefined) continue;
 
 				// Apply blend mode
 				if (layer.blendMode === 'add') {

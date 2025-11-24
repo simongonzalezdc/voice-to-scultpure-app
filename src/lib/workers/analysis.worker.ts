@@ -163,10 +163,11 @@ function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 
 	const semitone = midiNote % 12;
 
 	// Find closest note in scale
-	let closestInterval = intervals[0];
-	let minDistance = Math.abs(semitone - intervals[0]);
+	let closestInterval = intervals[0] ?? 0;
+	let minDistance = Math.abs(semitone - (intervals[0] ?? 0));
 
 	for (const interval of intervals) {
+		if (interval === undefined) continue;
 		const distance = Math.abs(semitone - interval);
 		if (distance < minDistance) {
 			minDistance = distance;
@@ -175,7 +176,7 @@ function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 
 	}
 
 	// Reconstruct quantized MIDI note
-	const quantizedMidi = octave * 12 + closestInterval;
+	const quantizedMidi = octave * 12 + (closestInterval ?? 0);
 
 	// Convert back to Hz
 	const quantizedPitch = 440 * Math.pow(2, (quantizedMidi - 69) / 12);
@@ -204,7 +205,7 @@ function pitchToHue(pitch: number, palette: 'earth' | 'neon' | 'ocean' = 'earth'
 		ocean: [180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290] // Cool blues/purples
 	};
 
-	return palettes[palette][semitone];
+	return palettes[palette]?.[semitone] ?? 0;
 }
 
 function estimatePitch(audioData: Float32Array, sampleRate: number): number | null {
@@ -213,7 +214,10 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 	// Step 1: Pre-process - Remove DC offset and normalize
 	let sum = 0;
 	for (let i = 0; i < audioData.length; i++) {
-		sum += audioData[i];
+		const val = audioData[i];
+		if (val !== undefined) {
+			sum += val;
+		}
 	}
 	const mean = sum / audioData.length;
 
@@ -221,14 +225,18 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 	const centered = new Float32Array(audioData.length);
 	let maxAbs = 0;
 	for (let i = 0; i < audioData.length; i++) {
-		centered[i] = audioData[i] - mean;
-		maxAbs = Math.max(maxAbs, Math.abs(centered[i]));
+		const val = audioData[i] ?? 0;
+		centered[i] = val - mean;
+		maxAbs = Math.max(maxAbs, Math.abs(centered[i] ?? 0));
 	}
 
 	// Normalize to prevent very quiet signals from failing
 	if (maxAbs > 0) {
 		for (let i = 0; i < centered.length; i++) {
-			centered[i] /= maxAbs;
+			const val = centered[i];
+			if (val !== undefined) {
+				centered[i] = val / maxAbs;
+			}
 		}
 	}
 
@@ -249,9 +257,11 @@ function estimatePitch(audioData: Float32Array, sampleRate: number): number | nu
 		let energy2 = 0;
 
 		for (let i = 0; i < centered.length - period; i++) {
-			correlation += centered[i] * centered[i + period];
-			energy1 += centered[i] * centered[i];
-			energy2 += centered[i + period] * centered[i + period];
+			const val1 = centered[i] ?? 0;
+			const val2 = centered[i + period] ?? 0;
+			correlation += val1 * val2;
+			energy1 += val1 * val1;
+			energy2 += val2 * val2;
 		}
 
 		// Normalized correlation (prevents bias toward loud signals)

@@ -31,7 +31,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
 		for (let i = 0; i < toWrite; i++) {
 			const writeIndex = ((writePtr + i) % this.capacity) + DATA_START_INDEX;
-			this.view[writeIndex] = samples[i];
+			this.view[writeIndex] = samples[i] ?? 0;
 		}
 
 		if (toWrite > 0) {

@@ -51,10 +51,16 @@ export function createGeometryFromProfile(profile: LathePoint[]): {
 		}
 
 		// 2. Convert profile points to Vector2
-		const vectors = validProfile.map((p) => new Vector2(p.x, p.y));
+		const vectors = validProfile.map((p) => {
+			if (!p) return new Vector2(0.5, 0);
+			return new Vector2(p.x ?? 0.5, p.y ?? 0);
+		}).filter((v): v is Vector2 => v !== undefined);
 
 		// 3. Create LatheGeometry with appropriate segment count
 		// Use GEOMETRY_MIN_SEGMENTS as baseline, scale up if we have more profile points
+		if (vectors.length === 0) {
+			return createFallbackGeometry();
+		}
 		const segments = Math.max(GEOMETRY_MIN_SEGMENTS, Math.min(64, vectors.length));
 		const geometry = new LatheGeometry(vectors, segments);
 
@@ -314,6 +320,7 @@ export function deriveProfileWithTransforms(
 
 		// 4. Final validation pass
 		return finalProfile.filter((p) => {
+			if (!p) return false;
 			const safeX = Number.isFinite(p.x) && !Number.isNaN(p.x) && p.x >= 0;
 			const safeY = Number.isFinite(p.y) && !Number.isNaN(p.y) && p.y >= 0;
 			return safeX && safeY;

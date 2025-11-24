@@ -148,6 +148,7 @@
 					// DIRECTIVE 2: Verify worklet is writing before starting worker
 					// Wait for worklet to write some data to the ring buffer
 					const verifyWorkletWriting = () => {
+						if (!ringBuffer) return;
 						const intView = new Int32Array(ringBuffer.buffer);
 						const writePtr = Atomics.load(intView, 0);
 						if (writePtr > 0) {

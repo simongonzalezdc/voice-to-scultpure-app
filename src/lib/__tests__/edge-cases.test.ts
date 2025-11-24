@@ -31,9 +31,12 @@ describe('Edge Cases and Error Handling', () => {
 			expect(curve.length).toBeGreaterThan(0);
 
 			// Verify no NaN values in output
-			curve.forEach((point: LathePoint) => {
-				expect(Number.isNaN(point.x)).toBe(false);
-				expect(Number.isNaN(point.y)).toBe(false);
+			curve.forEach((point: LathePoint | undefined) => {
+				expect(point).toBeDefined();
+				if (point) {
+					expect(Number.isNaN(point.x)).toBe(false);
+					expect(Number.isNaN(point.y)).toBe(false);
+				}
 			});
 		});
 
@@ -53,9 +56,12 @@ describe('Edge Cases and Error Handling', () => {
 			expect(curve).toBeDefined();
 			
 			// Values should be clamped to reasonable ranges
-			curve.forEach((point: LathePoint) => {
-				expect(Number.isFinite(point.x)).toBe(true);
-				expect(Number.isFinite(point.y)).toBe(true);
+			curve.forEach((point: LathePoint | undefined) => {
+				expect(point).toBeDefined();
+				if (point) {
+					expect(Number.isFinite(point.x)).toBe(true);
+					expect(Number.isFinite(point.y)).toBe(true);
+				}
 			});
 		});
 	});
@@ -224,8 +230,13 @@ describe('Edge Cases and Error Handling', () => {
 			
 			// Points should be very close to original
 			deformed.forEach((point, i) => {
-				expect(point.x).toBeCloseTo(simpleCurve[i].x, 0.001);
-				expect(point.y).toBeCloseTo(simpleCurve[i].y, 0.001);
+				const original = simpleCurve[i];
+				expect(point).toBeDefined();
+				expect(original).toBeDefined();
+				if (point && original) {
+					expect(point.x).toBeCloseTo(original.x, 0.001);
+					expect(point.y).toBeCloseTo(original.y, 0.001);
+				}
 			});
 		});
 	});
@@ -246,9 +257,12 @@ describe('Edge Cases and Error Handling', () => {
 			expect(curve).toBeDefined();
 			
 			// Should handle tiny values without underflow
-			curve.forEach((point: LathePoint) => {
-				expect(point.x).toBeGreaterThanOrEqual(0);
-				expect(point.y).toBeGreaterThanOrEqual(0);
+			curve.forEach((point: LathePoint | undefined) => {
+				expect(point).toBeDefined();
+				if (point) {
+					expect(point.x).toBeGreaterThanOrEqual(0);
+					expect(point.y).toBeGreaterThanOrEqual(0);
+				}
 			});
 		});
 

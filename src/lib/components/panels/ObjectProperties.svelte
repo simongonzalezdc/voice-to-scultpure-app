@@ -2,7 +2,8 @@
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore, setConstraintMode } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
-	import type { ConstraintMode, BaseShape } from '$lib/types';
+	import type { BaseShape } from '$lib/types';
+	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
 	import { Cylinder, Circle, Box, FileText, Info } from 'lucide-svelte';
 
@@ -23,8 +24,8 @@
 	$effect(() => {
 		if (currentSculpture) {
 			height = currentSculpture.physical.height;
-			materialType = currentSculpture.surface.materialType ?? 'ceramic';
-			baseColor = currentSculpture.surface.baseColor ?? DEFAULT_MATERIAL_CERAMIC;
+			materialType = 'ceramic'; // Default - material type is now in uiStore
+			baseColor = uiStore.activeGlaze.color || DEFAULT_MATERIAL_CERAMIC;
 			baseShape = currentSculpture.baseShape || 'lathe';
 		}
 	});
@@ -39,24 +40,15 @@
 	}
 
 	function updateMaterial() {
-		if (!currentSculpture) return;
-		setCurrentSculpture({
-			...currentSculpture,
-			surface: {
-				...currentSculpture.surface,
-				materialType,
-				baseColor: materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC
-			}
-		});
-		baseColor = materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC;
+		// Material type is now handled via uiStore, not sculpture
+		const newColor = materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC;
+		uiStore.activeGlaze.color = newColor;
+		baseColor = newColor;
 	}
 
 	function updateColor() {
-		if (!currentSculpture) return;
-		setCurrentSculpture({
-			...currentSculpture,
-			surface: { ...currentSculpture.surface, baseColor }
-		});
+		// Base color is now handled via uiStore.activeGlaze.color, not sculpture
+		uiStore.activeGlaze.color = baseColor;
 	}
 
 	function updateBaseShape(newShape: BaseShape) {
