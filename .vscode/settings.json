@@ -1,3 +1,22 @@
 {
-	"markdown.validate.enabled": true
+	"markdown.validate.enabled": true,
+	"files.exclude": {
+		"**/.svelte-kit": true,
+		"**/node_modules": true,
+		"**/build": true,
+		"**/test-results": true,
+		"**/playwright-report": true
+	},
+	"files.watcherExclude": {
+		"**/.svelte-kit/**": true,
+		"**/node_modules/**": true,
+		"**/build/**": true
+	},
+	"search.exclude": {
+		"**/.svelte-kit": true,
+		"**/node_modules": true,
+		"**/build": true,
+		"**/test-results": true,
+		"**/playwright-report": true
+	}
 }
