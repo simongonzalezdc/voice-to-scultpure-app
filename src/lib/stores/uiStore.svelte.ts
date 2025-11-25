@@ -24,6 +24,8 @@ export const uiStore = $state<{
 	sculptMode: 'additive' | 'subtractive';
 	// toolMode deprecated in favor of workspace + local state
 	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius
+	// Recording Mode (Option B: Song Mode)
+	recordingMode: 'standard' | 'song' | 'coil'; // 'standard' = 10-30s, 'song' = 1-5min, 'coil' = spiral pottery
 	forceParams: {
 		damping: number; // 0-1
 		hardness: number; // 0-1
@@ -79,6 +81,7 @@ export const uiStore = $state<{
 	orientation: 'vertical',
 	sculptMode: 'additive',
 	controlMode: 'standard',
+	recordingMode: 'standard', // Default: standard mode (10-30s recordings)
 	forceParams: {
 		damping: 0.5,
 		hardness: 0.5,
@@ -228,6 +231,12 @@ export function setSculptMode(mode: 'additive' | 'subtractive'): void {
 
 export function setControlMode(mode: 'standard' | 'melodic'): void {
 	uiStore.controlMode = mode;
+}
+
+// Option B: Song Mode + Option C: Coil Mode
+export function setRecordingMode(mode: 'standard' | 'song' | 'coil'): void {
+	uiStore.recordingMode = mode;
+	console.log(`🎵 [UI] Recording mode set to: ${mode}`);
 }
 
 export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint' | 'force'): void {

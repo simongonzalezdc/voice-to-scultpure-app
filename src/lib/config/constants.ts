@@ -36,6 +36,11 @@ export const GEOMETRY_MIN_SEGMENTS = 6; // Low poly (hexagonal/blocky)
 export const GEOMETRY_MAX_SEGMENTS = 64; // High poly (smooth)
 export const GEOMETRY_MAX_POINTS = 200; // Maximum points in lathe curve (high res)
 
+// Recording Mode Resolution (Option B: Song Mode)
+export const STANDARD_MODE_RESOLUTION = 128; // Standard mode: 10-30 second recordings
+export const SONG_MODE_RESOLUTION = 512; // Song mode: 1-5 minute recordings (4x detail)
+export const COIL_MODE_RESOLUTION = 256; // Coil mode: Each coil layer (Option C)
+
 // Timbre Range (Spectral Centroid)
 export const TIMBRE_MIN_HZ = 1000; // Typical spectral centroid for silence/breathing
 export const TIMBRE_MAX_HZ = 5000; // Typical spectral centroid for harsh sounds (Shhh, Ka!)

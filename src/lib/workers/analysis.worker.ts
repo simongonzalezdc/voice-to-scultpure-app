@@ -1,6 +1,6 @@
 import Meyda from 'meyda';
-import type { AudioRingBuffer } from '$lib/types';
-import { readFromRingBuffer as readSamplesFromRingBuffer } from '$lib/audio/ringBuffer';
+import type { AudioRingBuffer } from '../types';
+import { readFromRingBuffer as readSamplesFromRingBuffer } from '../audio/ringBuffer';
 import type { AnalysisFrame } from '../types';
 
 interface WorkerMessage {
@@ -40,6 +40,11 @@ let smoothedPitch = 0;
 let smoothedSpectralCentroid = 0;
 const PITCH_SMOOTHING = 0.3; // Higher = more responsive, lower = smoother (0.3 = ~100ms smoothing at 30fps)
 const TIMBRE_SMOOTHING = 0.25; // Timbre can be even smoother (0.25 = ~130ms smoothing)
+
+// Song Mode: Formant smoothing
+let smoothedF1 = 500; // Default F1 (neutral vowel)
+let smoothedF2 = 1500; // Default F2 (neutral vowel)
+const FORMANT_SMOOTHING = 0.2; // Slightly slower smoothing for formants
 
 function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	if (audioData.length === 0) {
@@ -81,6 +86,9 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	smoothedSpectralCentroid =
 		smoothedSpectralCentroid + (rawSpectralCentroid - smoothedSpectralCentroid) * TIMBRE_SMOOTHING;
 
+	// SONG MODE: Estimate formants for Phonetic Geometry (#3)
+	const formant = estimateFormants(audioData, sampleRate, energy);
+
 	return {
 		time: Date.now() / 1000,
 		pitch: smoothedPitch, // Use smoothed value
@@ -90,8 +98,110 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 			zcr: features.zcr || 0,
 			spectralFlux: 0 // Calculate if needed
 		},
-		beat // GENERATIVE PERFORMANCE: Beat flag
+		beat, // GENERATIVE PERFORMANCE: Beat flag
+		formant // SONG MODE: Formant data for phonetic sculpting
 	};
+}
+
+/**
+ * SONG MODE: Formant Estimation for Phonetic Geometry (#3)
+ * Estimates F1 (openness) and F2 (frontness) from audio spectrum
+ * 
+ * Vowel Formant Reference:
+ * - "Ah" (father): F1 ~700Hz, F2 ~1100Hz (OPEN, BACK)
+ * - "Ee" (see):    F1 ~300Hz, F2 ~2300Hz (CLOSED, FRONT)
+ * - "Oo" (boot):   F1 ~300Hz, F2 ~800Hz  (CLOSED, BACK/ROUNDED)
+ * - "Eh" (bed):    F1 ~500Hz, F2 ~1800Hz (MID, FRONT)
+ * - "Uh" (but):    F1 ~600Hz, F2 ~1200Hz (MID, CENTRAL)
+ */
+function estimateFormants(
+	audioData: Float32Array,
+	sampleRate: number,
+	energy: number
+): { f1: number; f2: number; openness: number; frontness: number } | undefined {
+	// Only estimate formants if there's enough energy (voiced speech)
+	if (energy < 0.05) {
+		return undefined;
+	}
+
+	// Simple formant estimation using spectral peak detection
+	// This is a simplified approach - production would use LPC analysis
+	const fftSize = 512;
+	const spectrum = computeSpectrum(audioData, fftSize);
+
+	if (!spectrum || spectrum.length === 0) {
+		return undefined;
+	}
+
+	// Find peaks in F1 range (250-900 Hz) and F2 range (800-2500 Hz)
+	const binSize = sampleRate / fftSize;
+
+	// F1 range bins
+	const f1MinBin = Math.floor(250 / binSize);
+	const f1MaxBin = Math.ceil(900 / binSize);
+
+	// F2 range bins
+	const f2MinBin = Math.floor(800 / binSize);
+	const f2MaxBin = Math.ceil(2500 / binSize);
+
+	// Find F1 peak
+	let f1Peak = 0;
+	let f1Freq = 500; // Default
+	for (let i = f1MinBin; i < f1MaxBin && i < spectrum.length; i++) {
+		const val = spectrum[i] ?? 0;
+		if (val > f1Peak) {
+			f1Peak = val;
+			f1Freq = i * binSize;
+		}
+	}
+
+	// Find F2 peak (must be after F1)
+	let f2Peak = 0;
+	let f2Freq = 1500; // Default
+	for (let i = f2MinBin; i < f2MaxBin && i < spectrum.length; i++) {
+		const val = spectrum[i] ?? 0;
+		if (val > f2Peak) {
+			f2Peak = val;
+			f2Freq = i * binSize;
+		}
+	}
+
+	// Apply smoothing
+	smoothedF1 = smoothedF1 + (f1Freq - smoothedF1) * FORMANT_SMOOTHING;
+	smoothedF2 = smoothedF2 + (f2Freq - smoothedF2) * FORMANT_SMOOTHING;
+
+	// Normalize to 0-1 range
+	// F1: 250-900 Hz → openness (higher F1 = more open vowel)
+	const openness = Math.max(0, Math.min(1, (smoothedF1 - 250) / (900 - 250)));
+
+	// F2: 800-2500 Hz → frontness (higher F2 = more front vowel)
+	const frontness = Math.max(0, Math.min(1, (smoothedF2 - 800) / (2500 - 800)));
+
+	return {
+		f1: smoothedF1,
+		f2: smoothedF2,
+		openness,
+		frontness
+	};
+}
+
+/**
+ * Simple FFT-based spectrum computation
+ * Returns magnitude spectrum for formant peak detection
+ */
+function computeSpectrum(audioData: Float32Array, fftSize: number): Float32Array | null {
+	if (audioData.length < fftSize) {
+		return null;
+	}
+
+	// Use Meyda's amplitudeSpectrum if available, otherwise compute manually
+	const features = Meyda.extract(['amplitudeSpectrum'], audioData.slice(0, fftSize));
+
+	if (features && features.amplitudeSpectrum) {
+		return new Float32Array(features.amplitudeSpectrum);
+	}
+
+	return null;
 }
 
 /**

@@ -41,6 +41,14 @@
 		return ringBuffer !== null && workerClient !== null;
 	}
 
+	// Format duration as MM:SS
+	function formatDuration(ms: number): string {
+		const totalSeconds = Math.floor(ms / 1000);
+		const minutes = Math.floor(totalSeconds / 60);
+		const seconds = totalSeconds % 60;
+		return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+	}
+
 	async function handleRecordClick() {
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		const isForceMode = uiStore.workspace === 'force';
@@ -429,10 +437,24 @@
 	</div>
 	{#if recordingStore.state === 'recording'}
 		<div
-			class="px-1.5 py-0.5 text-[10px] bg-[#ff4444] text-white rounded font-medium"
+			class="px-1.5 py-0.5 text-[10px] bg-[#ff4444] text-white rounded font-medium flex items-center gap-1"
 			role="status"
 		>
+			<span class="animate-pulse">●</span>
 			REC
+			{#if recordingStore.startTime}
+				<span class="ml-1 font-mono">{formatDuration(Date.now() - recordingStore.startTime)}</span>
+			{/if}
+		</div>
+		<!-- Recording Mode Indicator -->
+		<div class="px-1.5 py-0.5 text-[10px] bg-[#333] text-[#aaa] rounded">
+			{#if uiStore.recordingMode === 'song'}
+				🎵 Song
+			{:else if uiStore.recordingMode === 'coil'}
+				🏺 Coil
+			{:else}
+				📍 Std
+			{/if}
 		</div>
 	{/if}
 </div>

@@ -12,7 +12,12 @@ import { quantizePitch } from '$lib/audio/audioTheory';
 import { getAudioContext } from '$lib/audio/audioContext';
 import { playResonance } from '$lib/audio/sonification';
 import { getRadiusMetrics } from '$lib/engine/metrics';
-import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
+import {
+	DEFAULT_HEIGHT_MM,
+	STANDARD_MODE_RESOLUTION,
+	SONG_MODE_RESOLUTION,
+	COIL_MODE_RESOLUTION
+} from '$lib/config/constants';
 import type { SculptureLayer } from '$lib/types';
 
 // ============================================================================
@@ -21,6 +26,22 @@ import type { SculptureLayer } from '$lib/types';
 // ============================================================================
 
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'complete';
+
+/**
+ * Get the resolution based on the current recording mode
+ * Option B: Song Mode uses higher resolution for longer recordings
+ * Option C: Coil Mode uses medium resolution per coil layer
+ */
+function getResolutionForMode(): number {
+	switch (uiStore.recordingMode) {
+		case 'song':
+			return SONG_MODE_RESOLUTION; // 512 points for 1-5 minute songs
+		case 'coil':
+			return COIL_MODE_RESOLUTION; // 256 points per coil layer
+		default:
+			return STANDARD_MODE_RESOLUTION; // 128 points for 10-30 sec
+	}
+}
 
 export const recordingStore = $state<{
 	state: RecordingState;
@@ -213,7 +234,8 @@ export async function stopRecording(): Promise<void> {
 				);
 
 				// Convert to layer data (just radius values)
-				const resolution = 128;
+				// Option B: Use recording mode resolution
+				const resolution = getResolutionForMode();
 				const layerData = new Float32Array(resolution);
 				const curveLen = radiusCurve?.length ?? 1;
 				for (let i = 0; i < resolution; i++) {
@@ -225,16 +247,57 @@ export async function stopRecording(): Promise<void> {
 				}
 
 				// Create new layer
+				// Option C: Coil mode creates stacked ring layers
+				const isCoilMode = uiStore.recordingMode === 'coil';
+				const layerIndex = sculptureStore.currentSculpture.layers.length;
+				const isFirstLayer = layerIndex === 0;
+
+				// For coil mode: Create mask that only affects a height band
+				let layerMask = new Float32Array(resolution).fill(1.0);
+				let layerName = `Recording ${layerIndex + 1}`;
+
+				if (isCoilMode && !isFirstLayer) {
+					// Each coil occupies a band of height
+					// Calculate band based on number of existing layers
+					const coilCount = Math.max(1, layerIndex); // How many coils so far
+					const bandHeight = 1.0 / (coilCount + 1); // Each coil gets equal height
+					const bandStart = layerIndex * bandHeight;
+					const bandEnd = (layerIndex + 1) * bandHeight;
+
+					// Create mask: 1.0 inside the band, 0.0 outside, with soft falloff
+					for (let i = 0; i < resolution; i++) {
+						const normalizedY = i / (resolution - 1);
+						if (normalizedY >= bandStart && normalizedY <= bandEnd) {
+							// Inside the band - full effect
+							layerMask[i] = 1.0;
+						} else if (normalizedY >= bandStart - 0.05 && normalizedY < bandStart) {
+							// Soft falloff below band
+							layerMask[i] = (normalizedY - (bandStart - 0.05)) / 0.05;
+						} else if (normalizedY > bandEnd && normalizedY <= bandEnd + 0.05) {
+							// Soft falloff above band
+							layerMask[i] = 1.0 - (normalizedY - bandEnd) / 0.05;
+						} else {
+							// Outside the band
+							layerMask[i] = 0.0;
+						}
+					}
+
+					layerName = `Coil ${layerIndex + 1}`;
+					console.log(
+						`🏺 [COIL MODE] Creating coil layer ${layerIndex + 1} (height band: ${(bandStart * 100).toFixed(0)}%-${(bandEnd * 100).toFixed(0)}%)`
+					);
+				}
+
 				const newLayer: SculptureLayer = {
 					id: crypto.randomUUID(),
-					name: `Recording ${sculptureStore.currentSculpture.layers.length + 1}`,
-					type: sculptureStore.currentSculpture.layers.length === 0 ? 'base' : 'distortion',
+					name: layerName,
+					type: isFirstLayer ? 'base' : 'distortion',
 					visible: true,
 					locked: false,
-					blendMode: sculptureStore.currentSculpture.layers.length === 0 ? 'overwrite' : 'add',
+					blendMode: isFirstLayer ? 'overwrite' : isCoilMode ? 'add' : 'add',
 					opacity: 1.0,
 					data: layerData,
-					mask: new Float32Array(resolution).fill(1.0),
+					mask: layerMask,
 					sourceFrameCount: capturedFrames.length
 				};
 

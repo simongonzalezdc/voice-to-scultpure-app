@@ -33,11 +33,6 @@ let undoStack = $state<SculptureDefinition[]>([]);
 let redoStack = $state<SculptureDefinition[]>([]);
 let isPerformingUndoRedo = $state(false);
 
-// Derived states for UI
-export const canUndo = $derived(undoStack.length > 0);
-export const canRedo = $derived(redoStack.length > 0);
-export const historyLength = $derived(undoStack.length);
-
 /**
  * Push current state to history (call before making changes)
  */

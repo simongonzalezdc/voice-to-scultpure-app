@@ -370,32 +370,8 @@
 			</div>
 		</div>
 
-		<!-- Height Slider -->
-		<div>
-			<label
-				for="height-slider"
-				class="text-sm text-secondary block mb-1 flex items-center gap-2"
-				title="Adjusts the physical height of the sculpture (10mm to 1000mm = 1 meter)"
-			>
-				Height: {height.toFixed(0)}mm
-				<span class="text-subtle opacity-50"><Info size={12} /></span>
-			</label>
-			<input
-				id="height-slider"
-				type="range"
-				min="10"
-				max="1000"
-				step="5"
-				bind:value={height}
-				class="w-full"
-				onpointerdown={handlePointerDown}
-				onpointerup={handlePointerUp}
-			/>
-			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span>1cm</span>
-				<span>1 meter</span>
-			</div>
-		</div>
+		<!-- NOTE: Height slider moved to Export/Fabrication panel (Option A) -->
+		<!-- Physical dimensions are set at export time, not during creative sculpting -->
 
 		<!-- Twist Slider - DIRECTIVE 1: With Voice Link -->
 		<div

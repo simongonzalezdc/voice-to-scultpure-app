@@ -9,7 +9,7 @@
 		setBlueprint
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { undo, redo, canUndo, canRedo } from '$lib/stores/historyStore.svelte';
+	import { undo, redo, historyStore } from '$lib/stores/historyStore.svelte';
 	import { Eye, RotateCcw, Undo2, Redo2, Home } from 'lucide-svelte';
 
 	let showMenu = $state(false);
@@ -211,7 +211,7 @@
 		<button
 			class="w-10 h-10 text-white flex items-center justify-center hover:bg-[#2a2a2a] transition-colors border-b border-[#4a4a4a] disabled:opacity-30 disabled:cursor-not-allowed tooltip"
 			onclick={undo}
-			disabled={!canUndo}
+			disabled={!historyStore.canUndo}
 			title="Undo (Ctrl+Z)"
 			data-tooltip="Undo"
 		>
@@ -220,7 +220,7 @@
 		<button
 			class="w-10 h-10 text-white flex items-center justify-center hover:bg-[#2a2a2a] transition-colors disabled:opacity-30 disabled:cursor-not-allowed tooltip"
 			onclick={redo}
-			disabled={!canRedo}
+			disabled={!historyStore.canRedo}
 			title="Redo (Ctrl+Shift+Z)"
 			data-tooltip="Redo"
 		>

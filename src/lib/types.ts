@@ -25,7 +25,7 @@ export interface SculpturePhysical {
 
 export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze' | 'distortion';
 export type BlendMode = 'add' | 'subtract' | 'multiply' | 'overwrite';
-export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane'; // Legacy shape types
+export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane' | 'coil'; // Shape types (coil = pottery coil building)
 
 export interface SculptureLayer {
 	id: string;
@@ -149,6 +149,13 @@ export interface AnalysisFrame {
 		spectralFlux: number;
 	};
 	beat?: boolean; // Beat detection flag (Generative Performance)
+	// Song Mode: Formant data for Phonetic Geometry (#3)
+	formant?: {
+		f1: number; // First formant (vowel openness) - 300-800 Hz
+		f2: number; // Second formant (vowel frontness) - 800-2500 Hz
+		openness: number; // Normalized 0-1 (closed → open)
+		frontness: number; // Normalized 0-1 (back → front)
+	};
 }
 
 export interface ProjectMetadata {

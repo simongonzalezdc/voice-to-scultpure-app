@@ -10,12 +10,13 @@
 		setSculptMode,
 		setControlMode,
 		setQuantizeEnabled,
-		setSymmetryCount
+		setSymmetryCount,
+		setRecordingMode
 	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
-	import { Info, Link, Mic, Sparkles, BarChart, Music } from 'lucide-svelte';
+	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers } from 'lucide-svelte';
 
 	// Local state for sliders (deformation only - no duplicates!)
 	let twist = $state(0);
@@ -23,6 +24,7 @@
 	let smoothness = $state(0.5); // Renamed from "roughness"
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 	let controlMode = $state(uiStore.controlMode);
+	let recordingMode = $state(uiStore.recordingMode); // Option B+C: Song/Coil Mode
 	let quantize = $derived(uiStore.modifiers.quantize);
 	let symmetryCount = $state(uiStore.modifiers.symmetryCount);
 
@@ -55,6 +57,7 @@
 		}
 
 		controlMode = uiStore.controlMode;
+		recordingMode = uiStore.recordingMode;
 		symmetryCount = uiStore.modifiers.symmetryCount;
 	});
 
@@ -166,6 +169,87 @@
 					<span class="flex items-center justify-center gap-2"><Music size={16} /> Virtuoso</span>
 				</button>
 			</div>
+		</div>
+
+		<!-- Recording Duration Mode (Option B+C) -->
+		<div class="rounded border border-subtle p-3">
+			<p class="text-sm text-secondary mb-2 flex items-center gap-2">
+				<Clock size={14} />
+				Recording Duration
+			</p>
+			<div class="flex flex-col gap-2">
+				<button
+					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
+					'standard'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						recordingMode = 'standard';
+						setRecordingMode('standard');
+					}}
+					title="Standard Mode: 10-30 second recordings"
+				>
+					<span class="flex items-center gap-2">
+						<Disc3 size={14} />
+						<span class="flex-1">Standard</span>
+						<span class="text-xs opacity-70">10-30s</span>
+					</span>
+				</button>
+				<button
+					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
+					'song'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						recordingMode = 'song';
+						setRecordingMode('song');
+					}}
+					title="Song Mode: 1-5 minute recordings with 4x detail"
+				>
+					<span class="flex items-center gap-2">
+						<Music size={14} />
+						<span class="flex-1">Song Mode</span>
+						<span class="text-xs opacity-70">1-5 min</span>
+					</span>
+				</button>
+				<button
+					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
+					'coil'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						recordingMode = 'coil';
+						setRecordingMode('coil');
+					}}
+					title="Coil Mode: Build up layers like coil handbuilding in pottery"
+				>
+					<span class="flex items-center gap-2">
+						<Layers size={14} />
+						<span class="flex-1">Coil Build</span>
+						<span class="text-xs opacity-70">∞ layers</span>
+					</span>
+				</button>
+			</div>
+			<p class="text-xs text-secondary mt-2">
+				{#if recordingMode === 'standard'}
+					Quick captures with 128-point resolution. Best for 10-30 second vocal phrases.
+				{:else if recordingMode === 'song'}
+					Full songs with 512-point resolution (4× detail). Sing for 1-5 minutes without losing detail.
+				{:else}
+					<strong class="text-brand-primary">Coil Handbuilding:</strong> Like traditional pottery coiling or FDM 3D printing. Each recording adds a new coil ring that stacks on top of the previous one. Build up your sculpture layer by layer, phrase by phrase.
+				{/if}
+			</p>
+			{#if recordingMode === 'coil'}
+				<div class="mt-2 p-2 bg-surface-panel-alt rounded text-xs">
+					<p class="text-secondary mb-1">🏺 <strong>Pottery Metaphor:</strong></p>
+					<ul class="text-secondary list-disc list-inside space-y-0.5">
+						<li>Each recording = one clay coil</li>
+						<li>Coils stack from bottom to top</li>
+						<li>Voice shapes the coil's thickness</li>
+						<li>Like FDM 3D printing layer lines</li>
+					</ul>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Math Modifiers -->

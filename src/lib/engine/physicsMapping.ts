@@ -493,7 +493,8 @@ export function createSculptureFromFrames(
 	mode: 'additive' | 'subtractive' = 'additive',
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone parameter
 	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
-	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape type
+	baseShape: BaseShape = 'lathe', // GENERATIVE PERFORMANCE: Shape type
+	resolution: number = 128 // Option B: Song Mode uses higher resolution
 ): SculptureDefinition {
 	const radiusCurve = generateLathe(
 		frames,
@@ -506,9 +507,8 @@ export function createSculptureFromFrames(
 	);
 	// Surface parameters are now handled via uiStore, not sculpture
 
-	// Resample geometry to compositor resolution (128 points)
+	// Resample geometry to compositor resolution
 	// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
-	const resolution = 128;
 	const layerData = new Float32Array(resolution);
 
 	// Resample: map radiusCurve points to resolution points

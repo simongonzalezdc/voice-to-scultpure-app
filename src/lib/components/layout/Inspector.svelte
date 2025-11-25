@@ -5,9 +5,13 @@
 	import ForceControls from '$lib/components/controls/ForceControls.svelte';
 	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
 	import ExportTools from '$lib/components/panels/ExportTools.svelte';
+	import SongModePanel from '$lib/components/panels/SongModePanel.svelte';
+	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
+	import { Music, ChevronDown, ChevronRight } from 'lucide-svelte';
 
 	// NEW ARCHITECTURE:
 	// - ObjectProperties: Always visible (single source of truth)
+	// - Song Mode: Collapsible panel (auto-expands when recording mode is 'song')
 	// - Context panel: Changes based on workspace
 
 	// Workspace icons and labels
@@ -19,6 +23,25 @@
 	} as const;
 
 	let currentConfig = $derived(workspaceConfig[uiStore.workspace] || workspaceConfig.sculpt);
+
+	// Song Mode state
+	let isSongModeExpanded = $state(false);
+	let isSongRecordingMode = $derived(uiStore.recordingMode === 'song');
+	let isSongModeEnabled = $derived(songModeStore.enabled);
+
+	// Auto-expand Song Mode panel when recording mode is 'song'
+	$effect(() => {
+		if (isSongRecordingMode && !isSongModeExpanded) {
+			isSongModeExpanded = true;
+			if (!isSongModeEnabled) {
+				enableSongMode();
+			}
+		}
+	});
+
+	function toggleSongModePanel() {
+		isSongModeExpanded = !isSongModeExpanded;
+	}
 </script>
 
 <!-- FIXED: Entire sidebar scrolls as one unit -->
@@ -28,6 +51,51 @@
 	<div class="border-b border-subtle">
 		<ObjectProperties />
 	</div>
+
+	<!-- Song Mode Collapsible Panel -->
+	{#if uiStore.workspace === 'sculpt' || uiStore.workspace === 'glaze'}
+		<div class="border-b border-subtle">
+			<!-- Song Mode Header (Clickable) -->
+			<button
+				class="w-full p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+				onclick={toggleSongModePanel}
+			>
+				<div class="flex items-center gap-2">
+					<Music
+						size={16}
+						class={isSongModeEnabled ? 'text-brand-primary' : 'text-secondary'}
+					/>
+					<span
+						class="text-sm font-medium {isSongModeEnabled ? 'text-brand-primary' : 'text-secondary'}"
+					>
+						Song Mode
+					</span>
+					{#if isSongModeEnabled}
+						<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/20 text-brand-primary">
+							ON
+						</span>
+					{/if}
+					{#if isSongRecordingMode}
+						<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-green-500/20 text-green-400">
+							🎵 ACTIVE
+						</span>
+					{/if}
+				</div>
+				{#if isSongModeExpanded}
+					<ChevronDown size={16} class="text-secondary" />
+				{:else}
+					<ChevronRight size={16} class="text-secondary" />
+				{/if}
+			</button>
+
+			<!-- Song Mode Content (Collapsible) -->
+			{#if isSongModeExpanded}
+				<div class="song-mode-content border-t border-subtle/50">
+					<SongModePanel />
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Context-Aware Panel Header -->
 	<div
@@ -73,6 +141,24 @@
 
 	.border-subtle {
 		border-color: var(--border-subtle);
+	}
+
+	/* Song Mode collapsible panel */
+	.song-mode-content {
+		max-height: 400px;
+		overflow-y: auto;
+		animation: slide-down 0.2s ease-out;
+	}
+
+	@keyframes slide-down {
+		from {
+			opacity: 0;
+			max-height: 0;
+		}
+		to {
+			opacity: 1;
+			max-height: 400px;
+		}
 	}
 
 	/* Smooth workspace transitions */

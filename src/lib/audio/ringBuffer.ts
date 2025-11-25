@@ -1,4 +1,4 @@
-import type { AudioRingBuffer } from '$lib/types';
+import type { AudioRingBuffer } from '../types';
 
 const WRITE_PTR_INDEX = 0;
 const READ_PTR_INDEX = 1;
