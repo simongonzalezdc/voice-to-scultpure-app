@@ -26,18 +26,27 @@ export const uiStore = $state<{
 	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius
 	// Recording Mode (Option B: Song Mode)
 	recordingMode: 'standard' | 'song' | 'coil'; // 'standard' = 10-30s, 'song' = 1-5min, 'coil' = spiral pottery
+	// Base Shape for sculpture geometry
+	baseShape: 'lathe' | 'ribbon'; // 'lathe' = pottery wheel, 'ribbon' = waveform
 	forceParams: {
 		damping: number; // 0-1
 		hardness: number; // 0-1
 		radius: number; // 0-1 (Focus)
 		strength: number; // 0-1 (Power)
+		toolType: 'brush' | 'lance-carve' | 'lance-engrave'; // Sonic Lance feature
 	};
 	activeGlaze: {
 		color: string; // Hex color
 		roughness: number; // 0-1
 		transmission: number; // 0-1 (glass-like transparency)
-		materialType: 'ceramic' | 'plastic'; // Material type
+		materialType: 'ceramic' | 'plastic' | 'energy'; // Material type (energy = Dazzler)
 		baseColor: string; // Base material color
+		// Dazzler Effect (Emissive Controls)
+		emissiveEnabled: boolean; // Master toggle for glow
+		emissiveBase: number; // 0-1, always-on glow intensity
+		emissiveReactivity: number; // 0-1, how much voice energy adds to glow
+		emissiveColor: string; // Glow color (defaults to `color` if not set)
+		emissiveIntensity: number; // Current emissive intensity (computed)
 	};
 	view: {
 		lightingAngle: number;
@@ -82,18 +91,26 @@ export const uiStore = $state<{
 	sculptMode: 'additive',
 	controlMode: 'standard',
 	recordingMode: 'standard', // Default: standard mode (10-30s recordings)
+	baseShape: 'lathe', // Default: lathe (pottery wheel)
 	forceParams: {
 		damping: 0.5,
 		hardness: 0.5,
 		radius: 0.5,
-		strength: 0.5
+		strength: 0.5,
+		toolType: 'brush' // Default: soft brush mode
 	},
 	activeGlaze: {
 		color: '#FFFFFF',
 		roughness: 0.5,
 		transmission: 0.3,
 		materialType: 'ceramic',
-		baseColor: '#E0C9A6'
+		baseColor: '#E0C9A6',
+		// Dazzler Effect defaults
+		emissiveEnabled: false,
+		emissiveBase: 0,
+		emissiveReactivity: 0,
+		emissiveColor: '#FFFFFF',
+		emissiveIntensity: 0
 	},
 	view: {
 		lightingAngle: 0,
@@ -193,8 +210,46 @@ export function setOrientation(orientation: 'vertical' | 'horizontal'): void {
 	uiStore.orientation = orientation;
 }
 
-export function setLightingAngle(angle: number): void {
-	uiStore.view.lightingAngle = angle;
+// Transition state for smooth cinematic changes
+interface TransitionState {
+	active: boolean;
+	progress: number; // 0 to 1
+	startTime: number;
+	duration: number; // ms
+	from: { lightingAngle: number; environment: string };
+	to: { lightingAngle: number; environment: string };
+}
+
+let cinematicTransition = $state<TransitionState>({
+	active: false,
+	progress: 1,
+	startTime: 0,
+	duration: 1500, // 1.5s smooth transition
+	from: { lightingAngle: 0, environment: 'studio' },
+	to: { lightingAngle: 0, environment: 'studio' }
+});
+
+export function getCinematicTransition(): TransitionState {
+	return cinematicTransition;
+}
+
+export function setLightingAngle(angle: number, smooth: boolean = false): void {
+	if (smooth && cinematicTransition.active) {
+		// Already transitioning - update target
+		cinematicTransition.to.lightingAngle = angle;
+	} else if (smooth) {
+		// Start new transition
+		cinematicTransition = {
+			active: true,
+			progress: 0,
+			startTime: Date.now(),
+			duration: 1500,
+			from: { lightingAngle: uiStore.view.lightingAngle, environment: uiStore.view.environment },
+			to: { lightingAngle: angle, environment: uiStore.view.environment }
+		};
+	} else {
+		uiStore.view.lightingAngle = angle;
+	}
 }
 
 export function setZoom(zoom: number): void {
@@ -205,8 +260,44 @@ export function setViewMode(mode: 'standard' | 'xray' | 'wireframe' | 'heatmap')
 	uiStore.view.mode = mode;
 }
 
-export function setEnvironment(env: 'studio' | 'neon' | 'darkroom'): void {
+export function setEnvironment(env: 'studio' | 'neon' | 'darkroom', smooth: boolean = false): void {
+	if (smooth) {
+		// Smooth environment transition
+		cinematicTransition = {
+			active: true,
+			progress: 0,
+			startTime: Date.now(),
+			duration: 1500,
+			from: { lightingAngle: uiStore.view.lightingAngle, environment: uiStore.view.environment },
+			to: { lightingAngle: uiStore.view.lightingAngle, environment: env }
+		};
+	}
 	uiStore.view.environment = env;
+}
+
+/**
+ * Update cinematic transition progress (call from animation loop)
+ */
+export function updateCinematicTransition(): void {
+	if (!cinematicTransition.active) return;
+
+	const elapsed = Date.now() - cinematicTransition.startTime;
+	const progress = Math.min(1, elapsed / cinematicTransition.duration);
+
+	// Ease-out cubic
+	const eased = 1 - Math.pow(1 - progress, 3);
+	cinematicTransition.progress = eased;
+
+	// Interpolate lighting angle
+	const fromAngle = cinematicTransition.from.lightingAngle;
+	const toAngle = cinematicTransition.to.lightingAngle;
+	uiStore.view.lightingAngle = fromAngle + (toAngle - fromAngle) * eased;
+
+	// Complete transition
+	if (progress >= 1) {
+		cinematicTransition.active = false;
+		uiStore.view.lightingAngle = cinematicTransition.to.lightingAngle;
+	}
 }
 
 export function setBlueprint(id: string | null): void {
@@ -237,6 +328,12 @@ export function setControlMode(mode: 'standard' | 'melodic'): void {
 export function setRecordingMode(mode: 'standard' | 'song' | 'coil'): void {
 	uiStore.recordingMode = mode;
 	console.log(`🎵 [UI] Recording mode set to: ${mode}`);
+}
+
+// Base Shape (lathe = pottery wheel, ribbon = waveform)
+export function setBaseShape(shape: 'lathe' | 'ribbon'): void {
+	uiStore.baseShape = shape;
+	console.log(`📐 [UI] Base shape set to: ${shape}`);
 }
 
 export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint' | 'force'): void {
@@ -275,6 +372,77 @@ export function setSculptZone(min: number, max: number): void {
 
 export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
 	uiStore.constraintMode = mode;
+}
+
+// ============================================================================
+// SONIC LANCE: Tool Type Controls
+// ============================================================================
+
+export type ForceToolType = 'brush' | 'lance-carve' | 'lance-engrave';
+
+export function setForceToolType(toolType: ForceToolType): void {
+	uiStore.forceParams.toolType = toolType;
+
+	// Auto-adjust parameters for Lance modes
+	if (toolType.startsWith('lance')) {
+		// Lance: Fine point, hard edges
+		uiStore.forceParams.hardness = 1.0;
+		uiStore.forceParams.radius = 0.1; // Small, precise
+	}
+
+	console.log(`🗡️ [UI] Force tool type set to: ${toolType}`);
+}
+
+// ============================================================================
+// DAZZLER EFFECT: Emissive Controls
+// ============================================================================
+
+export function setEmissiveEnabled(enabled: boolean): void {
+	uiStore.activeGlaze.emissiveEnabled = enabled;
+
+	// When enabling energy mode, set default reactivity
+	if (enabled && uiStore.activeGlaze.emissiveReactivity === 0) {
+		uiStore.activeGlaze.emissiveReactivity = 0.8;
+	}
+
+	// Auto-switch to energy material type
+	if (enabled) {
+		uiStore.activeGlaze.materialType = 'energy';
+	}
+
+	console.log(`💡 [UI] Emissive ${enabled ? 'enabled' : 'disabled'}`);
+}
+
+export function setEmissiveBase(base: number): void {
+	uiStore.activeGlaze.emissiveBase = Math.max(0, Math.min(1, base));
+}
+
+export function setEmissiveReactivity(reactivity: number): void {
+	uiStore.activeGlaze.emissiveReactivity = Math.max(0, Math.min(1, reactivity));
+}
+
+export function setEmissiveColor(color: string): void {
+	uiStore.activeGlaze.emissiveColor = color;
+}
+
+export function setEmissiveIntensity(intensity: number): void {
+	uiStore.activeGlaze.emissiveIntensity = Math.max(0, intensity);
+}
+
+export function setMaterialType(materialType: 'ceramic' | 'plastic' | 'energy'): void {
+	uiStore.activeGlaze.materialType = materialType;
+
+	// Auto-enable emissive for energy material
+	if (materialType === 'energy' && !uiStore.activeGlaze.emissiveEnabled) {
+		uiStore.activeGlaze.emissiveEnabled = true;
+		uiStore.activeGlaze.emissiveReactivity = 1.0;
+		uiStore.activeGlaze.emissiveBase = 0;
+	}
+
+	// Disable emissive when switching away from energy
+	if (materialType !== 'energy') {
+		uiStore.activeGlaze.emissiveEnabled = false;
+	}
 }
 
 // GENERATIVE PERFORMANCE: Wizard controls

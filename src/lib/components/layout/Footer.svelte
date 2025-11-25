@@ -63,7 +63,7 @@
 				{#if tunerState.nearest}
 					{tunerState.deviation.toFixed(1)} Hz
 				{:else}
-					Listen...
+					Speak or sing...
 				{/if}
 			</div>
 		</div>

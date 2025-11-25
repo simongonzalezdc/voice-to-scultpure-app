@@ -18,8 +18,6 @@
 		Mesh,
 		BufferAttribute,
 		BufferGeometry,
-		IcosahedronGeometry,
-		BoxGeometry,
 		PlaneGeometry,
 		CylinderGeometry,
 		Color
@@ -67,17 +65,24 @@
 		createFallbackGeometry,
 		deriveProfileWithTransforms
 	} from '$lib/engine/geometryFactory';
-	import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
-	import {
+import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
+import { RibbonGeometryManager } from '$lib/engine/RibbonGeometryManager';
+import { songModeStore } from '$lib/stores/songModeStore.svelte';
+import { setRibbonPoints, setRibbonRecording } from '$lib/stores/ribbonStore.svelte';
+import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
+import {
 		deriveMaterialColor,
 		deriveGhostMaterialColor,
 		createBaseMaterialProps,
+		createEnergyMaterialProps,
 		updateMaterialForViewMode,
 		updateMaterialForGlazeMode,
 		calculateSmoothedEmission,
 		deriveEmissiveIntensity,
 		createGhostMaterialProps,
-		type MaterialProps
+		lerpEmissiveIntensity,
+		type MaterialProps,
+		type EnergyMaterialConfig
 	} from '$lib/engine/materialFactory';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
@@ -95,6 +100,13 @@
 	let dynamicGeoManager: DynamicGeometryManager | null = null;
 	let useDynamicGeometry = $state(true); // Enable by default for recording
 
+	// RIBBON GEOMETRY: For Song Mode waveform sculptures
+	let ribbonGeoManager: RibbonGeometryManager | null = null;
+	let ribbonGeometry = $state<BufferGeometry | null>(null);
+
+	// Check if we're in ribbon mode
+	let isRibbonMode = $derived(uiStore.baseShape === 'ribbon');
+
 	// Initialize dynamic geometry manager on mount
 	$effect(() => {
 		if (!dynamicGeoManager && useDynamicGeometry) {
@@ -111,6 +123,27 @@
 			if (dynamicGeoManager) {
 				dynamicGeoManager.dispose();
 				dynamicGeoManager = null;
+			}
+		};
+	});
+
+	// Initialize ribbon geometry manager when needed
+	$effect(() => {
+		if (isRibbonMode && !ribbonGeoManager) {
+			ribbonGeoManager = new RibbonGeometryManager({
+				maxSegments: 3000, // 5 min @ 10fps
+				crossSectionPoints: 8,
+				dynamic: true
+			});
+			ribbonGeometry = ribbonGeoManager.getGeometry();
+			console.log('〰️ [SCULPTURE] Ribbon geometry manager initialized');
+		}
+
+		return () => {
+			if (ribbonGeoManager) {
+				ribbonGeoManager.dispose();
+				ribbonGeoManager = null;
+				ribbonGeometry = null;
 			}
 		};
 	});
@@ -394,6 +427,73 @@
 		}
 	});
 
+	// RIBBON MODE: Capture frames in real-time when recording
+	let lastRibbonFrameTime = 0;
+	const RIBBON_FRAME_INTERVAL = 100; // 10fps sampling
+
+	useTask(() => {
+		if (!isRibbonMode || !ribbonGeoManager) return;
+
+		const isRecording = recordingStore.state === 'recording';
+		if (!isRecording) return;
+
+		// Rate limit to 10fps
+		const now = Date.now();
+		if (now - lastRibbonFrameTime < RIBBON_FRAME_INTERVAL) return;
+		lastRibbonFrameTime = now;
+
+		// Get current analysis frame
+		const frame = analysisStore.latestFrame;
+		if (!frame) return;
+
+		// Get sentiment color from Song Mode (if available)
+		const sentimentColor = songModeStore.currentSentiment
+			? (() => {
+					const { valence, energy } = songModeStore.currentSentiment;
+					// Map sentiment to RGB
+					const h = ((valence + 1) / 2) * 0.78; // Blue to gold hue
+					const s = 0.5 + ((energy + 1) / 2) * 0.5;
+					const l = 0.4 + ((valence + 1) / 2) * 0.2;
+					// Simple HSL to RGB
+					const c = (1 - Math.abs(2 * l - 1)) * s;
+					const x = c * (1 - Math.abs(((h * 6) % 2) - 1));
+					const m = l - c / 2;
+					let r = 0, g = 0, b = 0;
+					const hue = h * 6;
+					if (hue < 1) { r = c; g = x; }
+					else if (hue < 2) { r = x; g = c; }
+					else if (hue < 3) { g = c; b = x; }
+					else if (hue < 4) { g = x; b = c; }
+					else if (hue < 5) { r = x; b = c; }
+					else { r = c; b = x; }
+					return { r: r + m, g: g + m, b: b + m };
+			  })()
+			: undefined;
+
+		// Add frame to ribbon
+		ribbonGeoManager.addFrame(frame, sentimentColor);
+
+		// Update reference to trigger reactivity
+		ribbonGeometry = ribbonGeoManager.getGeometry();
+
+		// Update ribbon store for export (every 10 frames to reduce overhead)
+		if (ribbonGeoManager.getSegmentCount() % 10 === 0) {
+			setRibbonPoints(ribbonGeoManager.getRibbonPoints());
+		}
+	});
+
+	// Track ribbon recording state
+	$effect(() => {
+		const isRecording = recordingStore.state === 'recording';
+		if (isRibbonMode) {
+			setRibbonRecording(isRecording);
+			// Save final ribbon points when recording stops
+			if (!isRecording && ribbonGeoManager) {
+				setRibbonPoints(ribbonGeoManager.getRibbonPoints());
+			}
+		}
+	});
+
 	// Initial geometry creation (reactive, but pure - no side effects)
 	let currentGeometry = $derived.by(() => {
 		if (liveGeometry) return liveGeometry;
@@ -508,18 +608,61 @@
 	});
 
 	// Voice-reactive emission (bioluminescence) with smoothing
+	// Supports both standard recording glow AND Dazzler Effect (Energy material)
+	// SYNERGY: Dazzler + Beat Detection = Pulse on beat
 	let smoothedEmission = $state(0);
-	useTask(() => {
+	let smoothedDazzlerIntensity = $state(0);
+	let beatFlashIntensity = $state(0); // Beat-triggered flash
+
+	useTask((delta) => {
+		// Update cinematic transitions (Song Mode atmosphere changes)
+		updateCinematicTransition();
+
 		const isRecording = recordingStore.state === 'recording';
+		const isEnergyMaterial = uiStore.activeGlaze.materialType === 'energy';
+		const { emissiveEnabled, emissiveBase, emissiveReactivity, emissiveColor } = uiStore.activeGlaze;
+
+		// SYNERGY: Beat detection flash (decays over time)
+		const isBeat = analysisStore.latestFrame?.beat ?? false;
+		if (isBeat) {
+			beatFlashIntensity = 0.8; // Flash intensity on beat
+		} else {
+			// Decay the flash (fast decay ~100ms)
+			beatFlashIntensity = Math.max(0, beatFlashIntensity - delta * 8);
+		}
+
+		// DAZZLER EFFECT: Energy material with voice-reactive glow
+		if (isEnergyMaterial && emissiveEnabled) {
+			// Calculate target intensity from base + voice reactivity
+			const voiceContribution = analysisStore.micLevel * emissiveReactivity;
+			const baseTargetIntensity = Math.min(2.0, emissiveBase + voiceContribution * 1.5);
+
+			// SYNERGY: Add beat flash to dazzler
+			const targetIntensity = Math.min(3.0, baseTargetIntensity + beatFlashIntensity);
+
+			// Smooth the intensity to prevent flickering
+			smoothedDazzlerIntensity = lerpEmissiveIntensity(smoothedDazzlerIntensity, targetIntensity, 0.15);
+
+			// Apply energy material properties
+			materialProps.color = '#111111'; // Dark base
+			materialProps.roughness = 0.8; // Matte
+			materialProps.emissive = emissiveColor;
+			materialProps.emissiveIntensity = smoothedDazzlerIntensity;
+			return;
+		}
+
+		// STANDARD: Recording glow (bioluminescence)
 		if (isRecording) {
 			const targetGlow =
 				Math.max(
 					0,
 					(analysisStore.micLevel - VOICE_REACTION_GLOW_BASE) * VOICE_REACTION_GLOW_MULTIPLIER
 				) * VOICE_REACTION_GLOW_MULTIPLIER;
+			// SYNERGY: Add beat flash to standard glow too
+			const targetWithBeat = targetGlow + beatFlashIntensity * 0.5;
 			smoothedEmission = calculateSmoothedEmission(
 				smoothedEmission,
-				targetGlow,
+				targetWithBeat,
 				EMISSION_SMOOTHING_FACTOR
 			);
 			materialProps.emissiveIntensity = smoothedEmission;
@@ -530,7 +673,8 @@
 	});
 
 	// Force Mode: Update interaction point AND apply deformation based on voice
-	// Pitch = WHERE (height), Volume = HOW MUCH (intensity)
+	// BRUSH: Pitch = WHERE (height), Volume = HOW MUCH (intensity)
+	// LANCE: Volume = TRIGGER, Pitch = DEPTH, Always precise point
 	// Additive mode = push outward (expand), Subtractive mode = push inward (compress)
 	useTask((delta) => {
 		if (uiStore.workspace !== 'force' || !sculpture || !meshRef) {
@@ -572,8 +716,23 @@
 		const targetY = minY + normalizedPitch * (maxY - minY);
 
 		// Get force parameters from UI
-		const { damping, hardness, radius: focusRadius, strength } = uiStore.forceParams;
-		const isAdditive = uiStore.sculptMode === 'additive';
+		const { damping, hardness: uiHardness, radius: uiFocusRadius, strength, toolType } = uiStore.forceParams;
+		const isLanceMode = toolType.startsWith('lance');
+
+		// SONIC LANCE: Override parameters for precision mode
+		let hardness = uiHardness;
+		let focusRadius = uiFocusRadius;
+		let isAdditive = uiStore.sculptMode === 'additive';
+
+		if (isLanceMode) {
+			// Lance: Always precise, hard edges
+			hardness = 1.0;
+			focusRadius = 0.05; // Very small focus
+
+			// Lance-carve: Always subtractive (drilling)
+			// Lance-engrave: Always additive (embossing)
+			isAdditive = toolType === 'lance-engrave';
+		}
 
 		// Calculate force intensity from mic level
 		// Higher volume = stronger force
@@ -657,8 +816,27 @@
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
-		<!-- Main Sculpture -->
-		{#if currentGeometry}
+		<!-- RIBBON MODE: 3D waveform sculpture -->
+		{#if isRibbonMode && ribbonGeometry}
+			<T.Mesh
+				bind:ref={meshRef}
+				geometry={ribbonGeometry}
+				castShadow
+				receiveShadow
+				frustumCulled={false}
+				position.y={-0.5}
+			>
+				<T.MeshPhysicalMaterial
+					{...materialProps}
+					transparent={uiStore.view.mode === 'xray'}
+					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
+					wireframe={uiStore.view.mode === 'wireframe'}
+					vertexColors={true}
+					side={2}
+				/>
+			</T.Mesh>
+		<!-- LATHE MODE: Pottery wheel sculpture (default) -->
+		{:else if currentGeometry}
 			<T.Mesh
 				bind:ref={meshRef}
 				geometry={currentGeometry}
@@ -677,7 +855,7 @@
 		{/if}
 
 		<!-- Ghost Mesh -->
-		{#if sculptureStore.ghostSculpture}
+		{#if sculptureStore.ghostSculpture && !isRibbonMode}
 			<T.Mesh
 				bind:ref={ghostMeshRef}
 				frustumCulled={false}
@@ -693,6 +871,40 @@
 					metalness={0}
 				/>
 			</T.Mesh>
+		{/if}
+
+		<!-- COIL MODE: Visual band indicators -->
+		{#if uiStore.recordingMode === 'coil' && sculpture?.layers}
+			{@const layerCount = sculpture.layers.filter(l => l.type === 'distortion').length}
+			{@const nextBandStart = layerCount / (layerCount + 1)}
+			{@const nextBandEnd = (layerCount + 1) / (layerCount + 2)}
+			{@const bandCenter = (nextBandStart + nextBandEnd) / 2}
+			
+			<!-- Show existing coil layers as colored bands -->
+			{#each sculpture.layers.filter(l => l.type === 'distortion') as layer, i}
+				{@const bandY = (i + 0.5) / (layerCount + 1)}
+				{@const hue = (i / Math.max(1, layerCount)) * 0.7}
+				<T.Mesh position.y={bandY - 0.5} rotation.x={Math.PI / 2}>
+					<T.TorusGeometry args={[0.52, 0.01, 8, 32]} />
+					<T.MeshBasicMaterial 
+						color={`hsl(${hue * 360}, 70%, 50%)`}
+						transparent={true}
+						opacity={0.6}
+					/>
+				</T.Mesh>
+			{/each}
+			
+			<!-- Show next coil position (preview) -->
+			{#if recordingStore.state !== 'recording'}
+				<T.Mesh position.y={bandCenter - 0.5} rotation.x={Math.PI / 2}>
+					<T.TorusGeometry args={[0.55, 0.015, 8, 32]} />
+					<T.MeshBasicMaterial 
+						color="#00ff88"
+						transparent={true}
+						opacity={0.4 + Math.sin(Date.now() * 0.003) * 0.2}
+					/>
+				</T.Mesh>
+			{/if}
 		{/if}
 	</T.Group>
 {/if}

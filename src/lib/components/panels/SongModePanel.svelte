@@ -20,7 +20,8 @@
 	let status = $derived(songModeStore.status);
 
 	// Computed color from sentiment
-	let sentimentColor = $derived(() => {
+	// Using $derived.by() for complex computed values (Svelte 5)
+	let sentimentColor = $derived.by(() => {
 		if (!currentSentiment) return '#888888';
 		const hsl = sentimentToColor(currentSentiment);
 		return hslToHex(hsl.h, hsl.s, hsl.l);
@@ -107,7 +108,7 @@
 						<div class="mt-2 flex items-center gap-2">
 							<div
 								class="w-4 h-4 rounded-full border border-white/20"
-								style="background-color: {sentimentColor()}"
+								style="background-color: {sentimentColor}"
 							></div>
 							<span class="text-xs text-secondary">
 								{currentSentiment.valence > 0 ? '😊' : '😢'}

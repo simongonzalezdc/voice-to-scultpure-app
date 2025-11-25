@@ -206,18 +206,23 @@ export async function stopRecording(): Promise<void> {
 				const zone =
 					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
 
+				// Get resolution based on recording mode (Song Mode uses 512 for 4x detail)
+				const resolution = getResolutionForMode();
+
 				const sculpture = createSculptureFromFrames(
 					capturedFrames,
 					appSettings.userProfile,
 					undefined,
 					mode,
 					zone,
-					uiStore.constraintMode
+					uiStore.constraintMode,
+					'lathe', // baseShape
+					resolution // Pass recording mode resolution
 				);
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
-				console.log(`🗿 [RECORDING] Initial sculpture created with ${pointCount} points`);
+				console.log(`🗿 [RECORDING] Initial sculpture created with ${pointCount} points (resolution: ${resolution})`);
 			} else {
 				// Subsequent recordings - add as new layer
 				const mode = sculptureStore.currentSculpture.physical.sculptMode ?? 'additive';

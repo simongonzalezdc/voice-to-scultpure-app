@@ -3,7 +3,11 @@
 
 	const shortcuts = [
 		{ key: 'Space', description: 'Start/Stop Recording' },
-		{ key: 'F', description: 'Switch to Export Workspace' },
+		{ key: '1-4', description: 'Switch Workspace (Sculpt/Force/Glaze/Export)' },
+		{ key: 'R', description: 'Toggle Ribbon/Lathe Geometry' },
+		{ key: 'S', description: 'Cycle Recording Mode (Standard/Song/Coil)' },
+		{ key: 'Ctrl/⌘ + Z', description: 'Undo' },
+		{ key: 'Ctrl/⌘ + Shift + Z', description: 'Redo' },
 		{ key: 'Esc', description: 'Close Panels / Cancel' },
 		{ key: 'Shift + ?', description: 'Show this help' }
 	];

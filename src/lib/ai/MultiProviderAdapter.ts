@@ -1,6 +1,6 @@
 /**
  * Multi-Provider AI Adapter
- * Handles API calls to OpenAI, Anthropic, Google, Groq, and OpenRouter
+ * Handles API calls to OpenAI, Anthropic, Google, Groq, OpenRouter, Ollama, Together.ai, and DeepSeek
  *
  * Each provider has slightly different API formats - this adapter normalizes them.
  */
@@ -38,7 +38,8 @@ export async function callProvider(
 		throw new AISculptorErrorImpl(`Unknown provider: ${provider}`, 'INIT_FAILED');
 	}
 
-	if (!apiKey) {
+	// Ollama doesn't need an API key (local)
+	if (!apiKey && provider !== 'ollama') {
 		throw new AISculptorErrorImpl(`API key required for ${config.name}`, 'INIT_FAILED');
 	}
 
@@ -73,9 +74,20 @@ export async function callProvider(
 					maxTokens
 				));
 				break;
+			case 'ollama':
+				({ response, content } = await callOllama(
+					config,
+					model,
+					fullMessages,
+					temperature,
+					maxTokens
+				));
+				break;
 			case 'openai':
 			case 'groq':
 			case 'openrouter':
+			case 'together':
+			case 'deepseek':
 			default:
 				({ response, content } = await callOpenAICompatible(
 					config,
@@ -241,6 +253,43 @@ async function callGoogle(
 }
 
 /**
+ * Ollama API (Local LLMs)
+ * Uses different endpoint structure than OpenAI-compatible
+ */
+async function callOllama(
+	config: (typeof PROVIDER_CONFIGS)[CloudProvider],
+	model: string,
+	messages: Message[],
+	temperature: number,
+	maxTokens: number
+): Promise<{ response: Response; content: string }> {
+	const response = await fetch(`${config.baseUrl}/chat`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			model,
+			messages: messages.map((m) => ({
+				role: m.role,
+				content: m.content
+			})),
+			stream: false,
+			options: {
+				temperature,
+				num_predict: maxTokens
+			},
+			format: 'json' // Request JSON output
+		})
+	});
+
+	const data = await response.json();
+	const content = data.message?.content || '';
+
+	return { response, content };
+}
+
+/**
  * Parse AI response into structured SculptorResponse
  */
 function parseResponse(content: string): SculptorResponse {
@@ -322,6 +371,9 @@ function validateResponse(response: unknown): asserts response is SculptorRespon
  */
 export async function testConnection(provider: CloudProvider, apiKey: string): Promise<boolean> {
 	try {
+		// Ollama doesn't need an API key
+		const effectiveKey = provider === 'ollama' ? '' : apiKey;
+
 		const response = await callProvider(
 			[
 				{
@@ -329,10 +381,46 @@ export async function testConnection(provider: CloudProvider, apiKey: string): P
 					content: 'Respond with: {"explanation":"test","actions":[],"suggestions":[]}'
 				}
 			],
-			{ provider, apiKey, model: PROVIDER_CONFIGS[provider].models[0]?.id || '', maxTokens: 50 }
+			{
+				provider,
+				apiKey: effectiveKey,
+				model: PROVIDER_CONFIGS[provider].models[0]?.id || '',
+				maxTokens: 50
+			}
 		);
 		return response.actions !== undefined;
 	} catch {
 		return false;
+	}
+}
+
+/**
+ * Check if Ollama is available (running locally)
+ */
+export async function checkOllamaAvailable(): Promise<boolean> {
+	try {
+		const response = await fetch('http://localhost:11434/api/tags', {
+			method: 'GET'
+		});
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Get available Ollama models (dynamically detected)
+ */
+export async function getOllamaModels(): Promise<string[]> {
+	try {
+		const response = await fetch('http://localhost:11434/api/tags', {
+			method: 'GET'
+		});
+		if (!response.ok) return [];
+
+		const data = await response.json();
+		return data.models?.map((m: { name: string }) => m.name) || [];
+	} catch {
+		return [];
 	}
 }

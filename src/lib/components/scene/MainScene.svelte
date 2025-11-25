@@ -5,6 +5,7 @@
 	import AnalysisVisualizer from './AnalysisVisualizer.svelte';
 	import ForceVisualizer from './ForceVisualizer.svelte';
 	import ForceParticles from './ForceParticles.svelte';
+	import VoiceProjector from './VoiceProjector.svelte';
 	import OrbitControls from './OrbitControls.svelte';
 	import GhostMachines from './GhostMachines.svelte';
 	import BlueprintOverlay from './BlueprintOverlay.svelte';
@@ -12,6 +13,7 @@
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { songModeStore } from '$lib/stores/songModeStore.svelte';
 
 	// Post-processing enabled based on quality setting
 	let enablePostProcessing = $derived(appSettings.graphicsQuality !== 'low');
@@ -122,6 +124,11 @@
 	<ForceParticles />
 {:else}
 	<AnalysisVisualizer />
+{/if}
+
+<!-- Voice Projector: POV soundwave visualization (Song Mode) -->
+{#if songModeStore.enabled || uiStore.workspace === 'force'}
+	<VoiceProjector />
 {/if}
 
 <!-- Post-Processing Effects (Bloom, Vignette) -->

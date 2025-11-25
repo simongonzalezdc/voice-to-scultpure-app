@@ -76,6 +76,17 @@ export function deriveGhostMaterialColor(hasGhost: boolean): string {
 }
 
 /**
+ * Configuration for Energy material (Dazzler Effect)
+ */
+export interface EnergyMaterialConfig {
+	emissiveEnabled: boolean;
+	emissiveBase: number; // 0-1, always-on glow
+	emissiveReactivity: number; // 0-1, how much voice adds
+	emissiveColor: string; // Glow color
+	voiceEnergy: number; // Current voice energy (0-1)
+}
+
+/**
  * Creates a base material properties object
  *
  * @param baseColor - Starting color hex
@@ -100,6 +111,52 @@ export function createBaseMaterialProps(
 		vertexColors: false,
 		transmission: 0
 	};
+}
+
+/**
+ * Creates Energy material properties (Dazzler Effect)
+ * Dark base with voice-reactive emissive glow
+ *
+ * @param config - Energy material configuration
+ * @returns MaterialProps for energy/dazzler material
+ */
+export function createEnergyMaterialProps(config: EnergyMaterialConfig): MaterialProps {
+	// Calculate emissive intensity based on base + voice reactivity
+	const baseIntensity = config.emissiveBase;
+	const voiceContribution = config.voiceEnergy * config.emissiveReactivity;
+	const totalIntensity = config.emissiveEnabled
+		? Math.min(2.0, baseIntensity + voiceContribution * 1.5) // Cap at 2.0 for bloom
+		: 0;
+
+	return {
+		color: '#111111', // Dark charcoal base
+		roughness: 0.8, // Matte to prevent reflections interfering with glow
+		metalness: 0,
+		emissive: config.emissiveColor,
+		emissiveIntensity: totalIntensity,
+		transparent: false,
+		opacity: 1.0,
+		wireframe: false,
+		vertexColors: false,
+		transmission: 0
+	};
+}
+
+/**
+ * Interpolates emissive intensity for smooth transitions
+ * Prevents jarring changes when voice energy fluctuates
+ *
+ * @param current - Current emissive intensity
+ * @param target - Target emissive intensity
+ * @param smoothingFactor - Lower = smoother (0.1 default)
+ * @returns Smoothed intensity value
+ */
+export function lerpEmissiveIntensity(
+	current: number,
+	target: number,
+	smoothingFactor: number = 0.1
+): number {
+	return current + (target - current) * smoothingFactor;
 }
 
 /**

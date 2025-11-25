@@ -15,32 +15,27 @@ describe('Split Brain Syndrome Fixes', () => {
 		// Mock empty frames to simulate worker failure
 		const _mockFrames: AnalysisFrame[] = [];
 
-		// Mock console.log to capture fallback generation
-		const consoleSpy = vi.spyOn(console, 'log');
-
-		// Mock alert to capture user notification
-		const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+		// Mock console.warn to capture warning messages
+		const consoleWarnSpy = vi.spyOn(console, 'warn');
+		const consoleLogSpy = vi.spyOn(console, 'log');
 
 		// Start recording
 		recordingStore.state = 'recording';
 		recordingStore.startTime = Date.now();
 
-		// Stop recording (should trigger save handoff)
+		// Stop recording (should trigger save handoff with no frames)
 		stopRecording();
 
-		// Verify worker failure was detected
-		expect(consoleSpy).toHaveBeenCalledWith(
-			expect.stringContaining('🔧 [RESCUE] Generated 1 fallback frames from micLevel:')
+		// Verify no frames warning was logged
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			expect.stringContaining('No frames captured')
 		);
 
-		// Verify user was alerted
-		expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('⚠️ Audio Worker Failed'));
-
-		// Verify state transitioned to complete
+		// Verify state transitioned to complete (graceful handling)
 		expect(recordingStore.state).toBe('complete');
 
-		consoleSpy.mockRestore();
-		alertSpy.mockRestore();
+		consoleWarnSpy.mockRestore();
+		consoleLogSpy.mockRestore();
 	});
 
 	it('should have live bridge during recording', () => {

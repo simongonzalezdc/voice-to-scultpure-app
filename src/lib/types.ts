@@ -25,7 +25,7 @@ export interface SculpturePhysical {
 
 export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze' | 'distortion';
 export type BlendMode = 'add' | 'subtract' | 'multiply' | 'overwrite';
-export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane' | 'coil'; // Shape types (coil = pottery coil building)
+export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane' | 'coil' | 'ribbon'; // Shape types (coil = pottery coil building, ribbon = song waveform)
 
 export interface SculptureLayer {
 	id: string;
@@ -94,7 +94,7 @@ export interface UserProfile {
 	attackThreshold: number; // Dynamic threshold for detecting sharp attacks (chisel effect)
 }
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter';
+export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek';
 export type AIProviderType = CloudProvider | 'local';
 
 // Legacy alias for backward compatibility
@@ -114,6 +114,9 @@ export interface MultiProviderAPIKeys {
 	google?: string;
 	groq?: string;
 	openrouter?: string;
+	ollama?: string; // Not typically needed (local), but here for consistency
+	together?: string;
+	deepseek?: string;
 }
 
 export interface AppSettings {
@@ -131,6 +134,9 @@ export interface AppSettings {
 	};
 	speechToTextEnabled?: boolean;
 	preferWhisperAPI?: boolean; // Use OpenAI Whisper instead of browser STT
+	// Accessibility settings
+	reduceMotion?: boolean; // Disable wave animations, use static indicators
+	flashIntensity?: number; // 0-1, control Dazzler/beat flash brightness
 }
 
 export interface AudioRingBuffer {

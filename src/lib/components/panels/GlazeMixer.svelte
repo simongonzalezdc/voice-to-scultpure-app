@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { T, Canvas } from '@threlte/core';
 	import { onMount } from 'svelte';
-	import { setActiveGlaze } from '$lib/stores/uiStore.svelte';
+	import {
+		setActiveGlaze,
+		uiStore,
+		setMaterialType,
+		setEmissiveEnabled,
+		setEmissiveBase,
+		setEmissiveReactivity,
+		setEmissiveColor
+	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { getAudioContext, startVisualizerBypass } from '$lib/audio/audioContext';
 	import { Color } from 'three';
@@ -12,6 +20,23 @@
 		MIN_PITCH_HZ_THRESHOLD,
 		MIN_ENERGY_FOR_PITCH
 	} from '$lib/config/constants';
+	import { Sparkles, Sun, Palette, Brain, Mic, Hand } from 'lucide-svelte';
+	import { songModeStore } from '$lib/stores/songModeStore.svelte';
+
+	// SYNERGY: Glaze source indicator
+	// Shows where the current color is coming from: manual, voice, or AI sentiment
+	let glazeSource = $derived.by(() => {
+		// Check if AI sentiment is driving colors (Song Mode)
+		if (songModeStore.enabled && songModeStore.layers.narrative && songModeStore.currentSentiment) {
+			return 'ai-sentiment';
+		}
+		// Check if voice is actively being detected
+		if (analysisStore.micLevel > 0.1) {
+			return 'voice';
+		}
+		// Fallback: manual/saved
+		return 'manual';
+	});
 
 	// Live monitoring: Reactive color based on voice input (no recording needed)
 	let livePitch = $derived(analysisStore.latestFrame?.pitch || 0);
@@ -172,6 +197,21 @@
 		}
 	}
 
+	// Dazzler Effect: Emissive state (reactive from store)
+	let materialType = $derived(uiStore.activeGlaze.materialType);
+	let emissiveEnabled = $derived(uiStore.activeGlaze.emissiveEnabled);
+	let emissiveBase = $derived(uiStore.activeGlaze.emissiveBase);
+	let emissiveReactivity = $derived(uiStore.activeGlaze.emissiveReactivity);
+	let emissiveColor = $derived(uiStore.activeGlaze.emissiveColor);
+
+	// Compute live emissive intensity based on voice energy
+	let liveEmissiveIntensity = $derived.by(() => {
+		if (!emissiveEnabled) return 0;
+		const base = emissiveBase;
+		const voiceContribution = liveEnergy * emissiveReactivity;
+		return Math.min(2.0, base + voiceContribution * 1.5); // Cap at 2.0 for bloom
+	});
+
 	// Save feedback state
 	let saveFlash = $state(false);
 
@@ -196,16 +236,18 @@
 			>
 				<Canvas>
 					<T.PerspectiveCamera makeDefault position={[0, 0, 3]} fov={50} />
-					<T.AmbientLight intensity={0.5} />
-					<T.DirectionalLight position={[5, 5, 5]} intensity={1} />
+					<T.AmbientLight intensity={emissiveEnabled ? 0.2 : 0.5} />
+					<T.DirectionalLight position={[5, 5, 5]} intensity={emissiveEnabled ? 0.5 : 1} />
 					<T.Mesh>
 						<T.SphereGeometry args={[1, 32, 32]} />
 						<T.MeshPhysicalMaterial
-							color={previewColorHex}
-							{roughness}
+							color={materialType === 'energy' ? '#111111' : previewColorHex}
+							roughness={materialType === 'energy' ? 0.8 : roughness}
 							metalness={0.1}
 							clearcoat={1 - roughness}
 							clearcoatRoughness={roughness * 0.5}
+							emissive={emissiveEnabled ? emissiveColor : '#000000'}
+							emissiveIntensity={liveEmissiveIntensity}
 						/>
 					</T.Mesh>
 				</Canvas>
@@ -302,6 +344,29 @@
 			{/if}
 		</div>
 
+		<!-- SYNERGY: Glaze Source Indicator -->
+		<div class="bg-[#1a1a1a] border border-[#333] rounded p-2 mb-3 flex items-center justify-between">
+			<span class="text-xs text-[#888]">Color Source:</span>
+			<div class="flex items-center gap-2">
+				{#if glazeSource === 'ai-sentiment'}
+					<div class="flex items-center gap-1 text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded-full">
+						<Brain size={12} />
+						<span class="text-xs font-bold">AI Sentiment</span>
+					</div>
+				{:else if glazeSource === 'voice'}
+					<div class="flex items-center gap-1 text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full animate-pulse">
+						<Mic size={12} />
+						<span class="text-xs font-bold">Voice Live</span>
+					</div>
+				{:else}
+					<div class="flex items-center gap-1 text-[#888] bg-[#333] px-2 py-0.5 rounded-full">
+						<Hand size={12} />
+						<span class="text-xs">Manual</span>
+					</div>
+				{/if}
+			</div>
+		</div>
+
 		<!-- Current Values Display -->
 		<div class="space-y-2">
 			<div class="flex items-center justify-between">
@@ -318,6 +383,123 @@
 				<span class="text-sm text-secondary">Surface:</span>
 				<span class="text-sm text-secondary">{roughness.toFixed(2)}</span>
 			</div>
+		</div>
+
+		<!-- DAZZLER EFFECT: Material Type & Emissive Controls -->
+		<div class="border-t border-[#333] pt-4 mt-4">
+			<div class="flex items-center gap-2 mb-3">
+				<Sparkles size={16} class="text-yellow-400" />
+				<span class="text-sm font-bold text-secondary">DAZZLER EFFECT</span>
+			</div>
+
+			<!-- Material Type Toggle -->
+			<div class="space-y-2 mb-4">
+				<span class="text-xs text-[#888]">Material Type</span>
+				<div class="grid grid-cols-3 gap-1">
+					<button
+						class="p-2 rounded text-xs font-bold transition-colors {materialType === 'ceramic'
+							? 'bg-amber-600 text-white'
+							: 'bg-[#1a1a1a] text-[#888] hover:bg-[#2a2a2a]'}"
+						onclick={() => setMaterialType('ceramic')}
+					>
+						🏺 Ceramic
+					</button>
+					<button
+						class="p-2 rounded text-xs font-bold transition-colors {materialType === 'plastic'
+							? 'bg-blue-600 text-white'
+							: 'bg-[#1a1a1a] text-[#888] hover:bg-[#2a2a2a]'}"
+						onclick={() => setMaterialType('plastic')}
+					>
+						🔮 Plastic
+					</button>
+					<button
+						class="p-2 rounded text-xs font-bold transition-colors relative {materialType === 'energy'
+							? 'bg-purple-600 text-white'
+							: 'bg-[#1a1a1a] text-[#888] hover:bg-[#2a2a2a]'}"
+						onclick={() => setMaterialType('energy')}
+					>
+						⚡ Energy
+						<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
+					</button>
+				</div>
+			</div>
+
+			{#if emissiveEnabled}
+				<!-- Emissive Controls (only shown when Energy mode active) -->
+				<div class="space-y-3 bg-[#1a1a1a] p-3 rounded border border-purple-500/30">
+					<!-- Glow Color -->
+					<div class="flex items-center justify-between">
+						<span class="text-xs text-[#888] flex items-center gap-1">
+							<Palette size={12} /> Glow Color
+						</span>
+						<div class="flex items-center gap-2">
+							<input
+								type="color"
+								value={emissiveColor}
+								oninput={(e) => setEmissiveColor(e.currentTarget.value)}
+								class="w-8 h-6 rounded cursor-pointer border border-[#333]"
+							/>
+							<span class="text-xs font-mono text-[#888]">{emissiveColor.toUpperCase()}</span>
+						</div>
+					</div>
+
+					<!-- Base Glow (Always-On) -->
+					<div class="space-y-1">
+						<div class="flex items-center justify-between">
+							<span class="text-xs text-[#888] flex items-center gap-1">
+								<Sun size={12} /> Base Glow
+							</span>
+							<span class="text-xs font-mono text-[#888]">{(emissiveBase * 100).toFixed(0)}%</span>
+						</div>
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={emissiveBase}
+							oninput={(e) => setEmissiveBase(parseFloat(e.currentTarget.value))}
+							class="w-full h-1 rounded accent-purple-500"
+						/>
+						<div class="flex justify-between text-[10px] text-[#666]">
+							<span>Off</span>
+							<span>Always On</span>
+						</div>
+					</div>
+
+					<!-- Voice Reactivity -->
+					<div class="space-y-1">
+						<div class="flex items-center justify-between">
+							<span class="text-xs text-[#888] flex items-center gap-1">
+								🎤 Voice Reactivity
+							</span>
+							<span class="text-xs font-mono text-[#888]">{(emissiveReactivity * 100).toFixed(0)}%</span>
+						</div>
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={emissiveReactivity}
+							oninput={(e) => setEmissiveReactivity(parseFloat(e.currentTarget.value))}
+							class="w-full h-1 rounded accent-purple-500"
+						/>
+						<div class="flex justify-between text-[10px] text-[#666]">
+							<span>Static</span>
+							<span>Full Dazzler</span>
+						</div>
+					</div>
+
+					<!-- Live Intensity Display -->
+					<div class="bg-black/50 p-2 rounded flex items-center justify-between">
+						<span class="text-xs text-purple-300">Live Glow Intensity:</span>
+						<span class="text-sm font-bold text-white">{(liveEmissiveIntensity * 100).toFixed(0)}%</span>
+					</div>
+				</div>
+			{:else}
+				<p class="text-xs text-[#666] italic">
+					Select "Energy" material to enable reactive glow effects.
+				</p>
+			{/if}
 		</div>
 
 		<!-- Save Button -->

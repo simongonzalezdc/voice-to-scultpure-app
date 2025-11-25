@@ -21,6 +21,12 @@
 	import { analysisStore as analysis } from '$lib/stores/analysisStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+	import { songModeStore } from '$lib/stores/songModeStore.svelte';
+	import {
+		startSongMode,
+		stopSongMode,
+		isSongModeRunning
+	} from '$lib/controllers/songModeController';
 	import { Circle, Palette, Hand } from 'lucide-svelte';
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
@@ -223,6 +229,12 @@
 				// Only start recording if not already running
 				if (recordingStore.state !== 'recording') {
 					startRecording();
+
+					// Start Song Mode if enabled (Song Mode Stack integration)
+					if (songModeStore.enabled && !isSongModeRunning()) {
+						startSongMode();
+						console.log('🎵 [TRANSPORT] Song Mode started with recording');
+					}
 				}
 				return; // Success, exit retry loop
 			} catch (error) {
@@ -271,6 +283,12 @@
 		// Log metrics before stopping
 		logMetrics();
 
+		// Stop Song Mode if running (Song Mode Stack integration)
+		if (isSongModeRunning()) {
+			stopSongMode();
+			console.log('🎵 [TRANSPORT] Song Mode stopped with recording');
+		}
+
 		// DIRECTIVE 2: Don't stop the worker - keep it running for continuous monitoring
 		// The analysis worker should stay active for GlazeMixer to receive pitch/timbre data
 		// workerClient?.stop(); // REMOVED - keep worker running
@@ -317,7 +335,7 @@
 				case 'processing':
 					return 'Processing...';
 				case 'complete':
-					return 'Reset';
+					return 'New Recording';
 				default:
 					return 'Record';
 			}

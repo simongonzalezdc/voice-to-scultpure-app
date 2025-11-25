@@ -65,6 +65,9 @@ function getDefaultSettings(): AppSettings {
 		},
 		speechToTextEnabled: false,
 		preferWhisperAPI: false,
+		// Accessibility defaults
+		reduceMotion: false,
+		flashIntensity: 1.0,
 		userProfile: {
 			id: 'default-profile',
 			calibrated: true, // Enable studio access out of the box
@@ -151,7 +154,23 @@ export function updateSettings(updates: Partial<AppSettings>): void {
 		appSettings.userProfile ?? getDefaultSettings().userProfile
 	);
 	appSettings.viewMode = updates.viewMode ?? appSettings.viewMode;
+	// Accessibility
+	if (updates.reduceMotion !== undefined) appSettings.reduceMotion = updates.reduceMotion;
+	if (updates.flashIntensity !== undefined) appSettings.flashIntensity = updates.flashIntensity;
 	saveSettings(appSettings);
+}
+
+// Convenience setters for accessibility
+export function setReduceMotion(enabled: boolean): void {
+	appSettings.reduceMotion = enabled;
+	saveSettings(appSettings);
+	console.log(`♿ [ACCESSIBILITY] Reduce motion: ${enabled}`);
+}
+
+export function setFlashIntensity(intensity: number): void {
+	appSettings.flashIntensity = Math.max(0, Math.min(1, intensity));
+	saveSettings(appSettings);
+	console.log(`♿ [ACCESSIBILITY] Flash intensity: ${intensity}`);
 }
 
 export function resetSettings(): void {

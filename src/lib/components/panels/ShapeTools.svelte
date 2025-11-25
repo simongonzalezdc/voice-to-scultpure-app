@@ -11,12 +11,14 @@
 		setControlMode,
 		setQuantizeEnabled,
 		setSymmetryCount,
-		setRecordingMode
+		setRecordingMode,
+		setBaseShape
 	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
-	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers } from 'lucide-svelte';
+	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
+	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers, Waves } from 'lucide-svelte';
 
 	// Local state for sliders (deformation only - no duplicates!)
 	let twist = $state(0);
@@ -25,6 +27,7 @@
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 	let controlMode = $state(uiStore.controlMode);
 	let recordingMode = $state(uiStore.recordingMode); // Option B+C: Song/Coil Mode
+	let baseShape = $state(uiStore.baseShape); // lathe | ribbon
 	let quantize = $derived(uiStore.modifiers.quantize);
 	let symmetryCount = $state(uiStore.modifiers.symmetryCount);
 
@@ -58,6 +61,7 @@
 
 		controlMode = uiStore.controlMode;
 		recordingMode = uiStore.recordingMode;
+		baseShape = uiStore.baseShape;
 		symmetryCount = uiStore.modifiers.symmetryCount;
 	});
 
@@ -171,6 +175,48 @@
 			</div>
 		</div>
 
+		<!-- Geometry Shape Selector -->
+		<div class="rounded border border-subtle p-3">
+			<p class="text-sm text-secondary mb-2 flex items-center gap-2">
+				<Disc3 size={14} />
+				Geometry Shape
+			</p>
+			<div class="flex gap-2">
+				<button
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {baseShape === 'lathe'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						baseShape = 'lathe';
+						setBaseShape('lathe');
+					}}
+					title="Lathe: Pottery wheel-style rotational symmetry"
+				>
+					<span class="flex items-center justify-center gap-2"><Disc3 size={16} /> Lathe</span>
+				</button>
+				<button
+					class="flex-1 py-2 px-3 text-sm rounded border transition-colors relative {baseShape === 'ribbon'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => {
+						baseShape = 'ribbon';
+						setBaseShape('ribbon');
+					}}
+					title="Ribbon: 3D waveform that flows through space (best for Song Mode)"
+				>
+					<span class="flex items-center justify-center gap-2"><Waves size={16} /> Ribbon</span>
+					<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
+				</button>
+			</div>
+			<p class="text-xs text-secondary mt-2">
+				{#if baseShape === 'lathe'}
+					🏺 <strong>Lathe:</strong> Your voice spins clay like a pottery wheel. Volume shapes the radius.
+				{:else}
+					〰️ <strong>Ribbon:</strong> Your voice paints a 3D waveform. Pitch steers left/right, volume controls width.
+				{/if}
+			</p>
+		</div>
+
 		<!-- Recording Duration Mode (Option B+C) -->
 		<div class="rounded border border-subtle p-3">
 			<p class="text-sm text-secondary mb-2 flex items-center gap-2">
@@ -186,6 +232,15 @@
 					onclick={() => {
 						recordingMode = 'standard';
 						setRecordingMode('standard');
+						// SYNERGY: Auto-disable Song Mode when switching away
+						if (songModeStore.enabled) {
+							disableSongMode();
+						}
+						// Switch back to Lathe (default)
+						if (baseShape === 'ribbon') {
+							baseShape = 'lathe';
+							setBaseShape('lathe');
+						}
 					}}
 					title="Standard Mode: 10-30 second recordings"
 				>
@@ -196,21 +251,31 @@
 					</span>
 				</button>
 				<button
-					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
+					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left relative {recordingMode ===
 					'song'
 						? 'bg-brand-primary border-brand-primary text-white'
 						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
 					onclick={() => {
 						recordingMode = 'song';
 						setRecordingMode('song');
+						// SYNERGY: Auto-enable Song Mode AI features
+						if (!songModeStore.enabled) {
+							enableSongMode();
+						}
+						// SYNERGY: Auto-switch to Ribbon geometry (best for songs)
+						if (baseShape !== 'ribbon') {
+							baseShape = 'ribbon';
+							setBaseShape('ribbon');
+						}
 					}}
-					title="Song Mode: 1-5 minute recordings with 4x detail"
+					title="Song Mode: 1-5 minute recordings with 4x detail + AI features"
 				>
 					<span class="flex items-center gap-2">
 						<Music size={14} />
 						<span class="flex-1">Song Mode</span>
 						<span class="text-xs opacity-70">1-5 min</span>
 					</span>
+					<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
 				</button>
 				<button
 					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
@@ -220,6 +285,15 @@
 					onclick={() => {
 						recordingMode = 'coil';
 						setRecordingMode('coil');
+						// SYNERGY: Coil mode works best with Lathe geometry
+						if (baseShape === 'ribbon') {
+							baseShape = 'lathe';
+							setBaseShape('lathe');
+						}
+						// Disable Song Mode for Coil (different workflow)
+						if (songModeStore.enabled) {
+							disableSongMode();
+						}
 					}}
 					title="Coil Mode: Build up layers like coil handbuilding in pottery"
 				>

@@ -5,10 +5,16 @@
  * - #2 Narrative Strata: Sentiment analysis (valence/energy) → colors
  * - #5 Atmospheric Resonance: Mood classification → environment (BETA)
  * - #1 Material Metaphor: Material extraction → PBR properties (BETA)
+ * 
+ * Uses the unified MultiProviderAdapter for all AI calls, supporting:
+ * - OpenAI, Anthropic, Google, Groq, OpenRouter (cloud)
+ * - Ollama (local network)
+ * - Together.ai, DeepSeek (budget-friendly)
  */
 
 import type { SentimentScore, MoodClassification, MaterialSuggestion } from '$lib/stores/songModeStore.svelte';
 import { appSettings } from '$lib/stores/appSettingsStore.svelte';
+import { PROVIDER_CONFIGS, type CloudProvider } from './providers';
 
 // ============================================================================
 // PROMPTS
@@ -43,7 +49,39 @@ Respond with JSON only:
 No explanation, just JSON.`;
 
 // ============================================================================
-// API CALL HELPER
+// PROVIDER HELPERS
+// ============================================================================
+
+/**
+ * Get the default lightweight model for each provider (optimized for speed/cost)
+ */
+function getDefaultModelForProvider(provider: CloudProvider): string {
+	const defaults: Record<CloudProvider, string> = {
+		openai: 'gpt-4o-mini',
+		anthropic: 'claude-3-haiku-20240307',
+		google: 'gemini-1.5-flash',
+		groq: 'llama-3.1-8b-instant', // Free tier, fast
+		openrouter: 'meta-llama/llama-3.3-70b-instruct',
+		ollama: 'llama3.2:3b',
+		together: 'meta-llama/Llama-3.2-3B-Instruct-Turbo', // Free tier
+		deepseek: 'deepseek-chat'
+	};
+	return defaults[provider] || 'gpt-4o-mini';
+}
+
+/**
+ * Get the current active provider and API key
+ */
+function getActiveProvider(): { provider: CloudProvider; apiKey: string; model: string } {
+	const provider = (appSettings.cloudProvider || 'openai') as CloudProvider;
+	const apiKey = appSettings.apiKeys?.[provider] || appSettings.aiApiKey || '';
+	const model = appSettings.selectedModel || getDefaultModelForProvider(provider);
+
+	return { provider, apiKey, model };
+}
+
+// ============================================================================
+// API CALL HELPER (Multi-Provider)
 // ============================================================================
 
 interface AIResponse {
@@ -52,37 +90,119 @@ interface AIResponse {
 	error?: string;
 }
 
+/**
+ * Call AI using the configured provider (unified multi-provider support)
+ */
 async function callAI(prompt: string, lyrics: string): Promise<AIResponse> {
-	const apiKey = appSettings.aiApiKey;
+	const { provider, apiKey, model } = getActiveProvider();
+	const config = PROVIDER_CONFIGS[provider];
 
-	if (!apiKey) {
-		return { success: false, error: 'No API key configured' };
+	// Ollama doesn't need an API key
+	if (!apiKey && provider !== 'ollama') {
+		return { success: false, error: `No API key configured for ${config?.name || provider}` };
 	}
 
 	try {
-		const response = await fetch('https://api.openai.com/v1/chat/completions', {
-			method: 'POST',
-			headers: {
+		let response: Response;
+		let content: string;
+
+		// Route to appropriate API format
+		if (provider === 'ollama') {
+			// Ollama uses different endpoint
+			response = await fetch(`${config.baseUrl}/chat`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					model,
+					messages: [
+						{ role: 'system', content: prompt },
+						{ role: 'user', content: `Lyrics: "${lyrics}"` }
+					],
+					stream: false,
+					options: { temperature: 0.3, num_predict: 150 },
+					format: 'json'
+				})
+			});
+			const data = await response.json();
+			content = data.message?.content || '';
+		} else if (provider === 'anthropic') {
+			// Anthropic uses different format
+			response = await fetch(`${config.baseUrl}/messages`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': apiKey,
+					'anthropic-version': '2023-06-01'
+				},
+				body: JSON.stringify({
+					model,
+					system: prompt,
+					messages: [{ role: 'user', content: `Lyrics: "${lyrics}"` }],
+					temperature: 0.3,
+					max_tokens: 150
+				})
+			});
+			const data = await response.json();
+			content = data.content?.[0]?.text || '';
+		} else if (provider === 'google') {
+			// Google Gemini uses different format
+			response = await fetch(
+				`${config.baseUrl}/models/${model}:generateContent?key=${apiKey}`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						systemInstruction: { parts: [{ text: prompt }] },
+						contents: [{ role: 'user', parts: [{ text: `Lyrics: "${lyrics}"` }] }],
+						generationConfig: {
+							temperature: 0.3,
+							maxOutputTokens: 150,
+							responseMimeType: 'application/json'
+						}
+					})
+				}
+			);
+			const data = await response.json();
+			content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+		} else {
+			// OpenAI-compatible: OpenAI, Groq, OpenRouter, Together.ai, DeepSeek
+			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`
-			},
-			body: JSON.stringify({
-				model: 'gpt-4o-mini', // Faster and cheaper for simple analysis
-				messages: [
-					{ role: 'system', content: prompt },
-					{ role: 'user', content: `Lyrics: "${lyrics}"` }
-				],
-				max_tokens: 150,
-				temperature: 0.3 // Lower temperature for more consistent results
-			})
-		});
+				[config.authHeader]: `${config.authPrefix}${apiKey}`
+			};
+
+			// OpenRouter requires additional headers
+			if (provider === 'openrouter') {
+				headers['HTTP-Referer'] = typeof window !== 'undefined'
+					? window.location.origin
+					: 'https://voice-to-sculpture.app';
+				headers['X-Title'] = 'Voice-to-Sculpture Studio';
+			}
+
+			response = await fetch(`${config.baseUrl}/chat/completions`, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify({
+					model,
+					messages: [
+						{ role: 'system', content: prompt },
+						{ role: 'user', content: `Lyrics: "${lyrics}"` }
+					],
+					max_tokens: 150,
+					temperature: 0.3,
+					// Request JSON mode if supported
+					...(config.models.find(m => m.id === model)?.supportsJson
+						? { response_format: { type: 'json_object' } }
+						: {})
+				})
+			});
+			const data = await response.json();
+			content = data.choices?.[0]?.message?.content || '';
+		}
 
 		if (!response.ok) {
 			return { success: false, error: `API error: ${response.statusText}` };
 		}
-
-		const result = await response.json();
-		const content = result.choices?.[0]?.message?.content;
 
 		if (!content) {
 			return { success: false, error: 'Empty response from AI' };

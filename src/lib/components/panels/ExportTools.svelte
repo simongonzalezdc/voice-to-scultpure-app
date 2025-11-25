@@ -4,12 +4,17 @@
 	import { toastStore } from '$lib/stores/toastStore.svelte';
 	import { pushHistory } from '$lib/stores/historyStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
-	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
+	import { lathePointsToSTL, ribbonToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
 	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+	import { ribbonStore, getRibbonPointsForExport } from '$lib/stores/ribbonStore.svelte';
+	
+	// Check if we're in ribbon mode
+	let isRibbonMode = $derived(uiStore.baseShape === 'ribbon');
+	let hasRibbonData = $derived(ribbonStore.segmentCount > 0);
 
 	// Loading states
 	let isExporting = $state(false);
@@ -70,6 +75,12 @@
 	}
 
 	function handleExportSTL() {
+		// Check for ribbon mode first
+		if (isRibbonMode && hasRibbonData) {
+			handleExportRibbonSTL();
+			return;
+		}
+
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
 			toastStore.warning(
@@ -88,6 +99,29 @@
 			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('Export failed:', error);
+			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	function handleExportRibbonSTL() {
+		const ribbonPoints = getRibbonPointsForExport();
+		if (ribbonPoints.length < 2) {
+			toastStore.warning(
+				'Export Failed',
+				'Not enough ribbon data. Record at least a few seconds of audio in Ribbon mode.'
+			);
+			return;
+		}
+
+		try {
+			toastStore.info('Exporting Ribbon STL', `Processing ${ribbonPoints.length} segments with wall thickness...`);
+			const wallThickness = editingWallThickness > 0 ? editingWallThickness : 2; // Default 2mm
+			const stlContent = ribbonToSTL(ribbonPoints, wallThickness);
+			const filename = `ribbon-sculpture-${Date.now()}.stl`;
+			downloadSTL(stlContent, filename);
+			toastStore.success('Export Complete', `${filename} saved to Downloads (${ribbonPoints.length} segments)`);
+		} catch (error) {
+			console.error('Ribbon export failed:', error);
 			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
 		}
 	}
@@ -207,7 +241,11 @@
 						type="button"
 						onclick={handleExportSTL}
 					>
-						Export STL (3D Print, No Colors)
+						{#if isRibbonMode && hasRibbonData}
+							Export Ribbon STL ({ribbonStore.segmentCount} segments)
+						{:else}
+							Export STL (3D Print, No Colors)
+						{/if}
 					</button>
 
 					<!-- Blueprint Export (Ceramic) -->

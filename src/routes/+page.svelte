@@ -23,7 +23,9 @@
 		setOrientation,
 		setWorkspace,
 		openPerformanceWizard,
-		closePerformanceWizard
+		closePerformanceWizard,
+		setBaseShape,
+		setRecordingMode
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
@@ -36,7 +38,14 @@
 	import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
-	import { Sparkles, X } from 'lucide-svelte';
+	import { Sparkles, X, Menu, ChevronUp } from 'lucide-svelte';
+
+	// Mobile menu state
+	let mobileMenuOpen = $state(false);
+
+	function toggleMobileMenu() {
+		mobileMenuOpen = !mobileMenuOpen;
+	}
 	import { resetVoiceLinks } from '$lib/stores/voiceLinksStore.svelte';
 	import Wizard from '$lib/components/wizard/Wizard.svelte';
 	import { clearLayers } from '$lib/stores/sculptureStore.svelte';
@@ -159,6 +168,21 @@
 							break;
 						case '?':
 							togglePanel('shortcuts');
+							break;
+						case 'r':
+						case 'R':
+							// Toggle Ribbon/Lathe geometry
+							setBaseShape(uiStore.baseShape === 'ribbon' ? 'lathe' : 'ribbon');
+							showToast('info', `Geometry: ${uiStore.baseShape === 'ribbon' ? 'Ribbon' : 'Lathe'}`, 'Shape toggled');
+							break;
+						case 's':
+						case 'S':
+							// Cycle recording mode: standard → song → coil → standard
+							const modes: ('standard' | 'song' | 'coil')[] = ['standard', 'song', 'coil'];
+							const currentIdx = modes.indexOf(uiStore.recordingMode);
+							const nextMode = modes[(currentIdx + 1) % modes.length];
+							setRecordingMode(nextMode);
+							showToast('info', `Recording: ${nextMode}`, 'Mode changed');
 							break;
 					}
 				}
@@ -352,7 +376,16 @@
 
 				<!-- Inspector (Sidebar) - Hidden when Wizard is Active -->
 				{#if !uiStore.performanceWizardActive}
-					<aside class="app-inspector">
+					<aside class="app-inspector" class:mobile-open={mobileMenuOpen}>
+						<!-- Mobile drag handle (accessible) -->
+						<button
+							class="mobile-drag-handle"
+							onclick={toggleMobileMenu}
+							aria-label={mobileMenuOpen ? 'Close panel' : 'Open panel'}
+							aria-expanded={mobileMenuOpen}
+						>
+							<div class="drag-pill"></div>
+						</button>
 						<Inspector />
 					</aside>
 				{/if}
@@ -361,6 +394,18 @@
 				{#if !uiStore.performanceWizardActive}
 					<footer class="app-footer">
 						<Footer />
+						<!-- Mobile menu toggle -->
+						<button
+							class="mobile-menu-toggle"
+							onclick={toggleMobileMenu}
+							aria-label={mobileMenuOpen ? 'Close controls' : 'Open controls'}
+						>
+							{#if mobileMenuOpen}
+								<X size={20} />
+							{:else}
+								<Menu size={20} />
+							{/if}
+						</button>
 					</footer>
 				{/if}
 			</div>
@@ -415,6 +460,7 @@
 {/if}
 
 <style>
+	/* Desktop Layout (default) */
 	.app-shell {
 		display: grid;
 		grid-template-rows: 56px 1fr auto;
@@ -475,5 +521,183 @@
 		border-top: 1px solid var(--border-subtle);
 		gap: 12px;
 		flex-shrink: 0;
+	}
+
+	/* ==================== MOBILE RESPONSIVE ==================== */
+	/* Tablet: Hide inspector, expand canvas */
+	@media (max-width: 1024px) {
+		.app-shell {
+			grid-template-columns: 56px 1fr;
+		}
+
+		.app-inspector {
+			position: fixed;
+			right: 0;
+			top: 56px;
+			bottom: 0;
+			width: 300px;
+			z-index: 50;
+			transform: translateX(100%);
+			transition: transform 0.3s ease;
+		}
+
+		.app-inspector.mobile-open {
+			transform: translateX(0);
+		}
+
+		.app-canvas {
+			grid-column: 2;
+		}
+	}
+
+	/* Phone: Full-screen canvas, bottom sheet UI */
+	@media (max-width: 640px) {
+		.app-shell {
+			grid-template-columns: 1fr;
+			grid-template-rows: 48px 1fr auto;
+		}
+
+		.app-header {
+			padding: 0 12px;
+		}
+
+		.app-header h1 {
+			font-size: 0.75rem;
+		}
+
+		.app-toolbar {
+			display: none; /* Hide toolbar on mobile - use bottom sheet instead */
+		}
+
+		.app-canvas {
+			grid-column: 1;
+			grid-row: 2;
+		}
+
+		.app-inspector {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			top: auto;
+			width: 100%;
+			height: 60vh;
+			max-height: 60vh;
+			border-radius: 16px 16px 0 0;
+			border-left: none;
+			border-top: 1px solid var(--border-subtle);
+			transform: translateY(100%);
+			transition: transform 0.3s ease;
+			z-index: 60;
+		}
+
+		.app-inspector.mobile-open {
+			transform: translateY(0);
+		}
+
+		.app-footer {
+			padding: 12px 16px;
+			gap: 8px;
+		}
+
+		/* Touch-friendly hit targets */
+		:global(.app-footer button) {
+			min-height: 44px;
+			min-width: 44px;
+		}
+	}
+
+	/* Landscape phone: Compact header */
+	@media (max-width: 640px) and (orientation: landscape) {
+		.app-shell {
+			grid-template-rows: 40px 1fr auto;
+		}
+
+		.app-header {
+			padding: 0 8px;
+		}
+
+		.app-footer {
+			padding: 6px 12px;
+		}
+	}
+
+	/* Mobile menu toggle button */
+	.mobile-menu-toggle {
+		display: none;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		background: var(--brand-primary);
+		color: white;
+		border: none;
+		cursor: pointer;
+		justify-content: center;
+		align-items: center;
+		flex-shrink: 0;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+	}
+
+	/* Mobile drag handle for bottom sheet */
+	.mobile-drag-handle {
+		display: none;
+		width: 100%;
+		padding: 12px 0 8px;
+		justify-content: center;
+		align-items: center;
+		cursor: grab;
+		touch-action: none;
+		background: transparent;
+		border: none;
+	}
+
+	.mobile-drag-handle:active {
+		cursor: grabbing;
+	}
+
+	.mobile-drag-handle:focus-visible {
+		outline: 2px solid var(--brand-primary);
+		outline-offset: -2px;
+	}
+
+	.drag-pill {
+		width: 40px;
+		height: 4px;
+		background: var(--border-strong);
+		border-radius: 2px;
+		transition: background 0.2s ease;
+	}
+
+	.mobile-drag-handle:hover .drag-pill {
+		background: var(--text-muted);
+	}
+
+	@media (max-width: 1024px) {
+		.mobile-menu-toggle {
+			display: flex;
+		}
+
+		.mobile-drag-handle {
+			display: flex;
+		}
+	}
+
+	/* Backdrop for mobile inspector */
+	@media (max-width: 640px) {
+		.app-inspector::before {
+			content: '';
+			position: fixed;
+			inset: 0;
+			background: rgba(0,0,0,0.5);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+			z-index: -1;
+		}
+
+		.app-inspector.mobile-open::before {
+			opacity: 1;
+			pointer-events: auto;
+		}
 	}
 </style>

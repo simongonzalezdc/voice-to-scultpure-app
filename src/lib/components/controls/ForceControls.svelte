@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { uiStore, setSculptMode } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setSculptMode, setForceToolType, type ForceToolType } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { Activity, Zap, Crosshair, Feather, Target, Plus, Minus, Volume2 } from 'lucide-svelte';
+	import { Activity, Zap, Crosshair, Feather, Target, Plus, Minus, Volume2, Paintbrush, Sword, Pencil } from 'lucide-svelte';
 
 	// Parameters
 	// Radius (Focus)
@@ -12,6 +12,10 @@
 	let hardness = $state(uiStore.forceParams.hardness);
 	// Damping
 	let damping = $state(uiStore.forceParams.damping);
+
+	// Sonic Lance: Tool Type
+	let toolType = $derived(uiStore.forceParams.toolType);
+	let isLanceMode = $derived(toolType.startsWith('lance'));
 
 	$effect(() => {
 		uiStore.forceParams.radius = radius;
@@ -24,6 +28,16 @@
 	let micLevel = $derived(analysisStore.micLevel);
 	let pitch = $derived(analysisStore.latestFrame?.pitch || 0);
 	let isAdditive = $derived(uiStore.sculptMode === 'additive');
+
+	// Handle tool type change
+	function handleToolTypeChange(type: ForceToolType): void {
+		setForceToolType(type);
+		// Update local state to match locked values
+		if (type.startsWith('lance')) {
+			hardness = 1.0;
+			radius = 0.1;
+		}
+	}
 </script>
 
 <div class="surface-panel p-4 rounded-lg h-full flex flex-col gap-4">
@@ -35,6 +49,48 @@
 		</h2>
 	</div>
 
+	<!-- SONIC LANCE: Tool Type Toggle -->
+	<div class="space-y-2" role="group" aria-labelledby="tool-type-label">
+		<span id="tool-type-label" class="text-xs font-bold text-secondary">TOOL TYPE</span>
+		<div class="grid grid-cols-3 gap-1">
+			<button
+				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType === 'brush'
+					? 'bg-cyan-600 text-white'
+					: 'surface-panel-alt text-secondary hover:bg-cyan-600/20'}"
+				onclick={() => handleToolTypeChange('brush')}
+				title="Soft, wide brush for shaping"
+			>
+				<Paintbrush size={16} />
+				<span class="text-[10px] font-bold">BRUSH</span>
+			</button>
+			<button
+				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType === 'lance-carve'
+					? 'bg-orange-500 text-white'
+					: 'surface-panel-alt text-secondary hover:bg-orange-500/20'}"
+				onclick={() => handleToolTypeChange('lance-carve')}
+				title="Precision carving beam (subtractive)"
+			>
+				<Sword size={16} />
+				<span class="text-[10px] font-bold">CARVE</span>
+			</button>
+			<button
+				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType === 'lance-engrave'
+					? 'bg-purple-500 text-white'
+					: 'surface-panel-alt text-secondary hover:bg-purple-500/20'}"
+				onclick={() => handleToolTypeChange('lance-engrave')}
+				title="Precision embossing beam (additive)"
+			>
+				<Pencil size={16} />
+				<span class="text-[10px] font-bold">ENGRAVE</span>
+			</button>
+		</div>
+		{#if isLanceMode}
+			<div class="surface-panel-alt p-2 rounded text-[10px] text-cyan-300 border border-cyan-500/30">
+				🗡️ <strong>LANCE MODE:</strong> Precision tool active. Pitch controls cut depth, volume triggers.
+			</div>
+		{/if}
+	</div>
+
 	<!-- HOW IT WORKS - Clear Instructions -->
 	<div class="surface-panel-alt p-3 rounded text-xs space-y-2">
 		<div class="font-bold text-white flex items-center gap-2">
@@ -42,9 +98,15 @@
 			HOW TO USE
 		</div>
 		<ul class="text-secondary space-y-1 list-disc list-inside">
-			<li><strong>Pitch</strong> controls WHERE (low=bottom, high=top)</li>
-			<li><strong>Volume</strong> controls HOW MUCH force</li>
-			<li>Toggle <strong>Push/Pull</strong> below to expand or compress</li>
+			{#if isLanceMode}
+				<li><strong>Pitch</strong> controls CUT DEPTH (low=deep, high=shallow)</li>
+				<li><strong>Volume</strong> triggers the cut (threshold gate)</li>
+				<li>Lance mode uses precision beam with sharp edges</li>
+			{:else}
+				<li><strong>Pitch</strong> controls WHERE (low=bottom, high=top)</li>
+				<li><strong>Volume</strong> controls HOW MUCH force</li>
+				<li>Toggle <strong>Push/Pull</strong> below to expand or compress</li>
+			{/if}
 		</ul>
 	</div>
 
@@ -103,9 +165,12 @@
 	</div>
 
 	<!-- Focus / Radius -->
-	<div class="space-y-1">
+	<div class="space-y-1 {isLanceMode ? 'opacity-50' : ''}">
 		<label class="flex items-center justify-between text-xs font-bold text-secondary">
-			<span class="flex items-center gap-1"><Target size={14} /> BEAM RADIUS</span>
+			<span class="flex items-center gap-1">
+				<Target size={14} /> BEAM RADIUS
+				{#if isLanceMode}<span class="text-[10px] text-orange-400 ml-1">🔒 LOCKED</span>{/if}
+			</span>
 			<span class="font-mono">{(radius * 100).toFixed(0)}%</span>
 		</label>
 		<input
@@ -114,7 +179,8 @@
 			max="1"
 			step="0.01"
 			bind:value={radius}
-			class="w-full accent-brand-primary"
+			disabled={isLanceMode}
+			class="w-full accent-brand-primary {isLanceMode ? 'cursor-not-allowed' : ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Pinpoint</span>
@@ -143,9 +209,12 @@
 	</div>
 
 	<!-- Hardness / Falloff -->
-	<div class="space-y-1">
+	<div class="space-y-1 {isLanceMode ? 'opacity-50' : ''}">
 		<label class="flex items-center justify-between text-xs font-bold text-secondary">
-			<span class="flex items-center gap-1"><Feather size={14} /> HARDNESS</span>
+			<span class="flex items-center gap-1">
+				<Feather size={14} /> HARDNESS
+				{#if isLanceMode}<span class="text-[10px] text-orange-400 ml-1">🔒 MAX</span>{/if}
+			</span>
 			<span class="font-mono">{(hardness * 100).toFixed(0)}%</span>
 		</label>
 		<input
@@ -154,7 +223,8 @@
 			max="1"
 			step="0.01"
 			bind:value={hardness}
-			class="w-full accent-brand-primary"
+			disabled={isLanceMode}
+			class="w-full accent-brand-primary {isLanceMode ? 'cursor-not-allowed' : ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Soft</span>

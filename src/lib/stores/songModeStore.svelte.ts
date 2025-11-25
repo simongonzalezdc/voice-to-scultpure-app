@@ -124,6 +124,7 @@ export const songModeStore = $state<{
 	// Lyrics buffer (phrases collected over time)
 	lyricsBuffer: LyricPhrase[];
 	currentPhrase: string;
+	currentWord: string; // Current word for Voice Projector flash
 
 	// AI analysis results
 	currentSentiment: SentimentScore | null;
@@ -158,6 +159,7 @@ export const songModeStore = $state<{
 	currentFormant: null,
 	lyricsBuffer: [],
 	currentPhrase: '',
+	currentWord: '',
 
 	currentSentiment: null,
 	currentMood: null,
@@ -190,10 +192,15 @@ export function disableSongMode(): void {
 	songModeStore.enabled = false;
 	songModeStore.lyricsBuffer = [];
 	songModeStore.currentPhrase = '';
+	songModeStore.currentWord = '';
 	songModeStore.currentSentiment = null;
 	songModeStore.currentMood = null;
 	songModeStore.currentMaterial = null;
 	console.log('🎵 [SONG MODE] Disabled');
+}
+
+export function setCurrentWord(word: string): void {
+	songModeStore.currentWord = word;
 }
 
 export function toggleSongModeLayer(

@@ -4,7 +4,7 @@
  * Defines all supported AI providers and their models.
  */
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter';
+export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek';
 export type AIProviderType = CloudProvider | 'local';
 
 export interface ModelConfig {
@@ -206,6 +206,124 @@ export const PROVIDER_CONFIGS: Record<CloudProvider, ProviderConfig> = {
 				name: 'Llama 3.3 70B (via OR)',
 				contextWindow: 128000,
 				maxOutput: 32768,
+				supportsJson: true,
+				cost: 'low'
+			}
+		]
+	},
+
+	ollama: {
+		name: 'Ollama (Local)',
+		baseUrl: 'http://localhost:11434/api',
+		authHeader: '',
+		authPrefix: '',
+		keyFormat: '', // No key needed for local Ollama
+		models: [
+			{
+				id: 'llama3.2:3b',
+				name: 'Llama 3.2 3B',
+				contextWindow: 4096,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'free'
+			},
+			{
+				id: 'llama3.1:8b',
+				name: 'Llama 3.1 8B',
+				contextWindow: 8192,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'free'
+			},
+			{
+				id: 'mistral:7b',
+				name: 'Mistral 7B',
+				contextWindow: 8192,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'free'
+			},
+			{
+				id: 'phi3:mini',
+				name: 'Phi-3 Mini',
+				contextWindow: 4096,
+				maxOutput: 2048,
+				supportsJson: true,
+				cost: 'free'
+			},
+			{
+				id: 'qwen2.5:7b',
+				name: 'Qwen 2.5 7B',
+				contextWindow: 8192,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'free'
+			}
+		]
+	},
+
+	together: {
+		name: 'Together.ai',
+		baseUrl: 'https://api.together.xyz/v1',
+		authHeader: 'Authorization',
+		authPrefix: 'Bearer ',
+		keyFormat: '^[a-f0-9]{64}$',
+		models: [
+			{
+				id: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+				name: 'Llama 3.3 70B Turbo',
+				contextWindow: 131072,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+				name: 'Mixtral 8x7B',
+				contextWindow: 32768,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'Qwen/Qwen2.5-72B-Instruct-Turbo',
+				name: 'Qwen 2.5 72B',
+				contextWindow: 32768,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'meta-llama/Llama-3.2-3B-Instruct-Turbo',
+				name: 'Llama 3.2 3B (Fast)',
+				contextWindow: 4096,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'free'
+			}
+		]
+	},
+
+	deepseek: {
+		name: 'DeepSeek',
+		baseUrl: 'https://api.deepseek.com/v1',
+		authHeader: 'Authorization',
+		authPrefix: 'Bearer ',
+		keyFormat: '^sk-[a-zA-Z0-9]+$',
+		models: [
+			{
+				id: 'deepseek-chat',
+				name: 'DeepSeek Chat',
+				contextWindow: 64000,
+				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'deepseek-coder',
+				name: 'DeepSeek Coder',
+				contextWindow: 64000,
+				maxOutput: 4096,
 				supportsJson: true,
 				cost: 'low'
 			}
