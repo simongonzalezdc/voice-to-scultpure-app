@@ -41,7 +41,10 @@
 		color: #f7e7a5;
 		backdrop-filter: blur(8px);
 		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-		transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease,
+			transform 150ms ease;
 	}
 
 	.golden-guide.active {

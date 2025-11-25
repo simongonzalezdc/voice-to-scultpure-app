@@ -54,9 +54,12 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 	it('should add and compose multiple layers', () => {
 		// Create base layer
 		const baseData = new Float32Array([
-			0.5, 0.0, // Bottom
-			0.6, 0.5, // Middle
-			0.5, 1.0  // Top
+			0.5,
+			0.0, // Bottom
+			0.6,
+			0.5, // Middle
+			0.5,
+			1.0 // Top
 		]);
 		const baseLayer = createLayerFromFrames('base', 'Base', baseData);
 		addLayer(baseLayer);
@@ -65,11 +68,7 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 		expect(sculptureStore.activeLayerId).toBe(baseLayer.id);
 
 		// Add distortion layer
-		const distortionData = new Float32Array([
-			0.6, 0.0,
-			0.7, 0.5,
-			0.6, 1.0
-		]);
+		const distortionData = new Float32Array([0.6, 0.0, 0.7, 0.5, 0.6, 1.0]);
 		const distortionLayer = createLayerFromFrames('distortion', 'Distortion', distortionData);
 		addLayer(distortionLayer);
 
@@ -87,11 +86,7 @@ describe('GENERATIVE PERFORMANCE: Layer Stack System', () => {
 
 	it('should remove layers (UNDO functionality)', () => {
 		// Add two layers
-		const layer1 = createLayerFromFrames(
-			'base',
-			'Layer 1',
-			new Float32Array([0.5, 0.0, 0.5, 1.0])
-		);
+		const layer1 = createLayerFromFrames('base', 'Layer 1', new Float32Array([0.5, 0.0, 0.5, 1.0]));
 		const layer2 = createLayerFromFrames(
 			'distortion',
 			'Layer 2',
@@ -205,7 +200,15 @@ describe('GENERATIVE PERFORMANCE: Beat Detection', () => {
 		];
 
 		// Generate geometry with beat data
-		const lathePoints = generateLathe(frames, undefined, 'additive', undefined, 'digital', 'standard', 'lathe');
+		const lathePoints = generateLathe(
+			frames,
+			undefined,
+			'additive',
+			undefined,
+			'digital',
+			'standard',
+			'lathe'
+		);
 
 		expect(lathePoints.length).toBeGreaterThan(0);
 
@@ -283,7 +286,15 @@ describe('GENERATIVE PERFORMANCE: Rhythm Physics', () => {
 		];
 
 		// Generate lathe with beats
-		const lathePoints = generateLathe(frames, undefined, 'additive', undefined, 'digital', 'standard', 'lathe');
+		const lathePoints = generateLathe(
+			frames,
+			undefined,
+			'additive',
+			undefined,
+			'digital',
+			'standard',
+			'lathe'
+		);
 
 		expect(lathePoints.length).toBe(3);
 
@@ -307,7 +318,15 @@ describe('GENERATIVE PERFORMANCE: Rhythm Physics', () => {
 
 		// For lathe: Beat creates ribs (tested in geometry generation)
 		const frames = [beatFrame];
-		const lathePoints = generateLathe(frames, undefined, 'additive', undefined, 'digital', 'standard', 'lathe');
+		const lathePoints = generateLathe(
+			frames,
+			undefined,
+			'additive',
+			undefined,
+			'digital',
+			'standard',
+			'lathe'
+		);
 		expect(lathePoints.length).toBeGreaterThan(0);
 	});
 });
@@ -348,7 +367,15 @@ describe('GENERATIVE PERFORMANCE: Integration Test', () => {
 			beat: i % 5 === 0
 		}));
 
-		const rhythmPoints = generateLathe(rhythmFrames, undefined, 'additive', undefined, 'digital', 'standard', 'lathe');
+		const rhythmPoints = generateLathe(
+			rhythmFrames,
+			undefined,
+			'additive',
+			undefined,
+			'digital',
+			'standard',
+			'lathe'
+		);
 		const rhythmData = new Float32Array(rhythmPoints.length * 2);
 		for (let i = 0; i < rhythmPoints.length; i++) {
 			const point = rhythmPoints[i];
@@ -380,4 +407,3 @@ describe('GENERATIVE PERFORMANCE: Integration Test', () => {
 		console.log('✅ GENERATIVE PERFORMANCE: Full workflow test passed!');
 	});
 });
-

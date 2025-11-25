@@ -11,9 +11,9 @@ export function lathePointsToSTL(
 		constraintMode: options?.constraintMode ?? 'ceramic',
 		modifiers: options?.modifiers
 	};
-	
+
 	const points = generateFinalProfile(sculpture, exportOptions);
-	
+
 	if (points.length < 2) {
 		throw new Error('Not enough points for STL export');
 	}
@@ -25,7 +25,7 @@ export function lathePointsToSTL(
 	for (let i = 0; i < points.length - 1; i++) {
 		const currentPoint = points[i];
 		const nextPoint = points[i + 1];
-		
+
 		// Skip if either point is undefined
 		if (!currentPoint || !nextPoint) continue;
 

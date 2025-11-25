@@ -12,9 +12,9 @@ export function calculateStressColors(points: Vector2[]): Float32Array {
 		const prev = points[i - 1];
 		const curr = points[i];
 		const next = points[i + 1];
-		
+
 		if (!prev || !curr || !next) continue;
-		
+
 		const v1 = curr.clone().sub(prev).normalize();
 		const v2 = next.clone().sub(curr).normalize();
 		const dot = v1.dot(v2); // 1.0 = Straight, < 0.5 = Sharp Angle

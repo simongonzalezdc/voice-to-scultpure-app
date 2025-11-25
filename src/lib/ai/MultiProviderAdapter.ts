@@ -1,7 +1,7 @@
 /**
  * Multi-Provider AI Adapter
  * Handles API calls to OpenAI, Anthropic, Google, Groq, and OpenRouter
- * 
+ *
  * Each provider has slightly different API formats - this adapter normalizes them.
  */
 
@@ -43,9 +43,10 @@ export async function callProvider(
 	}
 
 	// Add system prompt to messages if not present
-	const fullMessages = messages[0]?.role === 'system' 
-		? messages 
-		: [{ role: 'system' as const, content: SYSTEM_PROMPT }, ...messages];
+	const fullMessages =
+		messages[0]?.role === 'system'
+			? messages
+			: [{ role: 'system' as const, content: SYSTEM_PROMPT }, ...messages];
 
 	try {
 		let response: Response;
@@ -53,22 +54,47 @@ export async function callProvider(
 
 		switch (provider) {
 			case 'anthropic':
-				({ response, content } = await callAnthropic(config, apiKey, model, fullMessages, temperature, maxTokens));
+				({ response, content } = await callAnthropic(
+					config,
+					apiKey,
+					model,
+					fullMessages,
+					temperature,
+					maxTokens
+				));
 				break;
 			case 'google':
-				({ response, content } = await callGoogle(config, apiKey, model, fullMessages, temperature, maxTokens));
+				({ response, content } = await callGoogle(
+					config,
+					apiKey,
+					model,
+					fullMessages,
+					temperature,
+					maxTokens
+				));
 				break;
 			case 'openai':
 			case 'groq':
 			case 'openrouter':
 			default:
-				({ response, content } = await callOpenAICompatible(config, apiKey, model, fullMessages, temperature, maxTokens, provider));
+				({ response, content } = await callOpenAICompatible(
+					config,
+					apiKey,
+					model,
+					fullMessages,
+					temperature,
+					maxTokens,
+					provider
+				));
 				break;
 		}
 
 		if (!response.ok) {
 			const errorText = await response.text().catch(() => 'Unknown error');
-			throw new AISculptorErrorImpl(`${config.name} API error: ${response.status} - ${errorText}`, 'API_ERROR');
+			throw new AISculptorErrorImpl(
+				`${config.name} API error: ${response.status} - ${errorText}`,
+				'API_ERROR'
+			);
 		}
 
 		// Parse the response
@@ -88,7 +114,7 @@ export async function callProvider(
  * OpenAI-compatible API (OpenAI, Groq, OpenRouter)
  */
 async function callOpenAICompatible(
-	config: typeof PROVIDER_CONFIGS[CloudProvider],
+	config: (typeof PROVIDER_CONFIGS)[CloudProvider],
 	apiKey: string,
 	model: string,
 	messages: Message[],
@@ -103,7 +129,8 @@ async function callOpenAICompatible(
 
 	// OpenRouter requires additional headers
 	if (provider === 'openrouter') {
-		headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://voice-to-sculpture.app';
+		headers['HTTP-Referer'] =
+			typeof window !== 'undefined' ? window.location.origin : 'https://voice-to-sculpture.app';
 		headers['X-Title'] = 'Voice-to-Sculpture Studio';
 	}
 
@@ -115,7 +142,7 @@ async function callOpenAICompatible(
 	};
 
 	// Request JSON mode if supported
-	const modelConfig = config.models.find(m => m.id === model);
+	const modelConfig = config.models.find((m) => m.id === model);
 	if (modelConfig?.supportsJson) {
 		body.response_format = { type: 'json_object' };
 	}
@@ -136,7 +163,7 @@ async function callOpenAICompatible(
  * Anthropic Claude API
  */
 async function callAnthropic(
-	config: typeof PROVIDER_CONFIGS[CloudProvider],
+	config: (typeof PROVIDER_CONFIGS)[CloudProvider],
 	apiKey: string,
 	model: string,
 	messages: Message[],
@@ -144,10 +171,10 @@ async function callAnthropic(
 	maxTokens: number
 ): Promise<{ response: Response; content: string }> {
 	// Anthropic uses a different format - system message is separate
-	const systemMessage = messages.find(m => m.role === 'system')?.content || SYSTEM_PROMPT;
+	const systemMessage = messages.find((m) => m.role === 'system')?.content || SYSTEM_PROMPT;
 	const chatMessages = messages
-		.filter(m => m.role !== 'system')
-		.map(m => ({ role: m.role, content: m.content }));
+		.filter((m) => m.role !== 'system')
+		.map((m) => ({ role: m.role, content: m.content }));
 
 	const response = await fetch(`${config.baseUrl}/messages`, {
 		method: 'POST',
@@ -175,7 +202,7 @@ async function callAnthropic(
  * Google Gemini API
  */
 async function callGoogle(
-	config: typeof PROVIDER_CONFIGS[CloudProvider],
+	config: (typeof PROVIDER_CONFIGS)[CloudProvider],
 	apiKey: string,
 	model: string,
 	messages: Message[],
@@ -183,32 +210,29 @@ async function callGoogle(
 	maxTokens: number
 ): Promise<{ response: Response; content: string }> {
 	// Google uses a different format
-	const systemInstruction = messages.find(m => m.role === 'system')?.content || SYSTEM_PROMPT;
+	const systemInstruction = messages.find((m) => m.role === 'system')?.content || SYSTEM_PROMPT;
 	const contents = messages
-		.filter(m => m.role !== 'system')
-		.map(m => ({
+		.filter((m) => m.role !== 'system')
+		.map((m) => ({
 			role: m.role === 'assistant' ? 'model' : 'user',
 			parts: [{ text: m.content }]
 		}));
 
-	const response = await fetch(
-		`${config.baseUrl}/models/${model}:generateContent?key=${apiKey}`,
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				systemInstruction: { parts: [{ text: systemInstruction }] },
-				contents,
-				generationConfig: {
-					temperature,
-					maxOutputTokens: maxTokens,
-					responseMimeType: 'application/json'
-				}
-			})
-		}
-	);
+	const response = await fetch(`${config.baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			systemInstruction: { parts: [{ text: systemInstruction }] },
+			contents,
+			generationConfig: {
+				temperature,
+				maxOutputTokens: maxTokens,
+				responseMimeType: 'application/json'
+			}
+		})
+	});
 
 	const data = await response.json();
 	const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -296,13 +320,15 @@ function validateResponse(response: unknown): asserts response is SculptorRespon
 /**
  * Test API connection
  */
-export async function testConnection(
-	provider: CloudProvider,
-	apiKey: string
-): Promise<boolean> {
+export async function testConnection(provider: CloudProvider, apiKey: string): Promise<boolean> {
 	try {
 		const response = await callProvider(
-			[{ role: 'user', content: 'Respond with: {"explanation":"test","actions":[],"suggestions":[]}' }],
+			[
+				{
+					role: 'user',
+					content: 'Respond with: {"explanation":"test","actions":[],"suggestions":[]}'
+				}
+			],
 			{ provider, apiKey, model: PROVIDER_CONFIGS[provider].models[0]?.id || '', maxTokens: 50 }
 		);
 		return response.actions !== undefined;
@@ -310,4 +336,3 @@ export async function testConnection(
 		return false;
 	}
 }
-

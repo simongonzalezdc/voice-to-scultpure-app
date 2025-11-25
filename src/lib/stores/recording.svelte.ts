@@ -58,7 +58,9 @@ export function getCapturedFrames() {
 
 export function getPlaybackFrames() {
 	if (!capturedFrames.length) return capturedFrames;
-	const sliceIndex = Math.floor(capturedFrames.length * Math.max(0, Math.min(1, recordingStore.historyPosition)));
+	const sliceIndex = Math.floor(
+		capturedFrames.length * Math.max(0, Math.min(1, recordingStore.historyPosition))
+	);
 	return capturedFrames.slice(0, sliceIndex);
 }
 
@@ -110,35 +112,41 @@ export async function stopRecording(): Promise<void> {
 	if (capturedFrames.length === 0) {
 		const micLevel = analysisStore.micLevel ?? 0;
 		const latestFrame = analysisStore.latestFrame;
-		
+
 		const fallback: import('$lib/types').AnalysisFrame = {
 			time: Date.now(),
 			pitch: latestFrame?.pitch ?? 0,
 			energy: micLevel,
 			timbre:
-				latestFrame?.timbre ?? ({
+				latestFrame?.timbre ??
+				({
 					spectralCentroid: 0,
 					zcr: 0,
 					spectralFlux: 0
 				} as any)
 		};
 		capturedFrames = [fallback];
-		
+
 		// Detailed diagnostic logging
 		console.warn('🔧 [RESCUE] No frames captured during recording. Diagnostics:');
-		console.warn(`   - Mic Level: ${micLevel.toFixed?.(3) ?? micLevel} (should be > 0.001 if audio is flowing)`);
-		console.warn(`   - Latest Frame: ${latestFrame ? 'EXISTS' : 'NULL'} (should exist if worker is running)`);
+		console.warn(
+			`   - Mic Level: ${micLevel.toFixed?.(3) ?? micLevel} (should be > 0.001 if audio is flowing)`
+		);
+		console.warn(
+			`   - Latest Frame: ${latestFrame ? 'EXISTS' : 'NULL'} (should exist if worker is running)`
+		);
 		console.warn(`   - Duration: ${duration}ms`);
 		console.warn('   Possible causes:');
 		console.warn('   1. Microphone is muted or volume too low');
 		console.warn('   2. Wrong microphone device selected');
 		console.warn('   3. Audio worklet failed to connect');
 		console.warn('   4. Analysis worker failed to start');
-		
+
 		// Show user-friendly alert with actionable info
-		const alertMsg = micLevel < 0.001
-			? '⚠️ No audio detected. Check:\n• Microphone not muted\n• Correct mic selected\n• Mic volume > 0'
-			: '⚠️ Audio detected but worker failed. Try refreshing the page.';
+		const alertMsg =
+			micLevel < 0.001
+				? '⚠️ No audio detected. Check:\n• Microphone not muted\n• Correct mic selected\n• Mic volume > 0'
+				: '⚠️ Audio detected but worker failed. Try refreshing the page.';
 		window.alert?.(alertMsg);
 	}
 
@@ -163,16 +171,14 @@ export async function stopRecording(): Promise<void> {
 		if (isGlazeMode) {
 			// GLAZE MODE: Colors are now captured above
 			if (!sculptureStore.currentSculpture) {
-				console.warn(
-					'⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.'
-				);
+				console.warn('⚠️ [RECORDING] Cannot paint: no sculpture exists. Create a sculpture first.');
 			} else {
 				console.log(`🎨 [RECORDING] Glaze recording stopped - colors captured and saved`);
 			}
 		} else {
 			// SCULPT MODE: Add a new layer from recorded frames
 			console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into new layer...`);
-			
+
 			if (!sculptureStore.currentSculpture) {
 				// First recording ever - create initial sculpture with base layer
 				const mode = uiStore.sculptMode ?? 'additive';
@@ -187,7 +193,7 @@ export async function stopRecording(): Promise<void> {
 					zone,
 					uiStore.constraintMode
 				);
-				
+
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
 				console.log(`🗿 [RECORDING] Initial sculpture created with ${pointCount} points`);
@@ -196,7 +202,7 @@ export async function stopRecording(): Promise<void> {
 				const mode = sculptureStore.currentSculpture.physical.sculptMode ?? 'additive';
 				const zone =
 					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
-				
+
 				// Generate geometry from frames
 				const radiusCurve = generateLathe(
 					capturedFrames,
@@ -205,7 +211,7 @@ export async function stopRecording(): Promise<void> {
 					zone,
 					uiStore.constraintMode
 				);
-				
+
 				// Convert to layer data (just radius values)
 				const resolution = 128;
 				const layerData = new Float32Array(resolution);
@@ -217,7 +223,7 @@ export async function stopRecording(): Promise<void> {
 					const point = radiusCurve?.[clampedIndex];
 					layerData[i] = point?.x ?? 0.5;
 				}
-				
+
 				// Create new layer
 				const newLayer: SculptureLayer = {
 					id: crypto.randomUUID(),
@@ -231,16 +237,16 @@ export async function stopRecording(): Promise<void> {
 					mask: new Float32Array(resolution).fill(1.0),
 					sourceFrameCount: capturedFrames.length
 				};
-				
+
 				// Add layer using the store function (already imported at top)
 				addLayer(newLayer);
-				
+
 				console.log(
 					`🎨 [RECORDING] Added layer "${newLayer.name}" (${mode} mode, ${capturedFrames.length} frames)`
 				);
 			}
 		}
-		
+
 		triggerResonanceFeedback();
 	} catch (err) {
 		console.error('❌ [RECORDING] Processing failed:', err);
@@ -263,14 +269,14 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 
 	capturedFrames.push(frame);
 	recordingStore.historyPosition = 1;
-	
+
 	// Mark geometry as dirty to trigger live preview update
 	// Update every 15 frames for smoother, less jittery updates (~2 updates per second at 30fps)
 	// This makes the sculpting feel more intentional and easier to control
 	if (capturedFrames.length % 15 === 0) {
 		sculptureStore.geometryDirty = true;
 	}
-	
+
 	// Log first frame and periodic updates
 	if (capturedFrames.length === 1) {
 		console.log('✅ [RECORDING] First frame added to capturedFrames');

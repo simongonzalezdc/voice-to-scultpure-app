@@ -11,7 +11,7 @@
 		const midi = 69 + 12 * Math.log2(pitch / 440);
 		const rounded = Math.round(midi);
 		const freq = 440 * Math.pow(2, (rounded - 69) / 12);
-		const note = NOTES[(rounded % 12 + 12) % 12];
+		const note = NOTES[((rounded % 12) + 12) % 12];
 		const octave = Math.floor(rounded / 12 - 1);
 		return { name: `${note}${octave}`, frequency: freq };
 	}
@@ -33,7 +33,7 @@
 
 <div class="footer">
 	<Transport />
-	
+
 	<div class="workspace-switcher-container">
 		<WorkspaceSwitcher />
 	</div>

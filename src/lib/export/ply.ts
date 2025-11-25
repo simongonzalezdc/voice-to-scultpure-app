@@ -19,9 +19,9 @@ export function exportSculptureToPLY(
 		constraintMode: options?.constraintMode ?? 'ceramic',
 		modifiers: options?.modifiers
 	};
-	
+
 	const finalProfile = generateFinalProfile(sculpture, exportOptions);
-	
+
 	if (finalProfile.length < 2) {
 		throw new Error('Not enough points for PLY export');
 	}
@@ -44,8 +44,22 @@ export function exportSculptureToPLY(
 
 	// Build vertex list with colors
 	const vertices: string[] = [];
-	// TODO: Extract vertex colors from layers if needed
-	const vertexColors: number[] = []; // Empty for now - colors are in layers
+
+	// Extract vertex colors from layers or legacy property
+	let vertexColors: number[] = [];
+
+	// Check glaze layers first
+	if (sculpture.layers && sculpture.layers.length > 0) {
+		const glazeLayer = sculpture.layers.find((l) => l.type === 'glaze' && l.visible);
+		if (glazeLayer && glazeLayer.data && glazeLayer.data.length > 0) {
+			vertexColors = Array.from(glazeLayer.data);
+		}
+	}
+
+	// Fallback to legacy property
+	if (vertexColors.length === 0 && sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+		vertexColors = sculpture.vertexColors;
+	}
 
 	// Resample colors if needed (similar to Sculpture.svelte logic)
 	const colorCount = vertexColors.length / 3;

@@ -13,7 +13,7 @@ export function radiusCurveToSvg(curve: LathePoint[], scale: number = 10): strin
 	for (let i = 0; i < curve.length; i++) {
 		const point = curve[i];
 		if (!point) continue;
-		
+
 		const x = (point.x ?? 0) * mmScale;
 		const y = (point.y ?? 0) * mmScale;
 		if (i === 0) {

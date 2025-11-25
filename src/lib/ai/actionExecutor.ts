@@ -1,12 +1,12 @@
 /**
  * Action Executor
  * Executes AI-generated actions on the sculpture
- * 
+ *
  * This is the bridge between AI responses and actual sculpture modifications.
  */
 
 import type { SculptorAction, ActionContext } from './sculptorActions';
-import { 
+import {
 	uiStore,
 	setWorkspace,
 	setSculptMode,
@@ -32,10 +32,7 @@ import {
 	setActiveLayer,
 	clearLayers
 } from '$lib/stores/sculptureStore.svelte';
-import {
-	startRecording,
-	stopRecording
-} from '$lib/stores/recording.svelte';
+import { startRecording, stopRecording } from '$lib/stores/recording.svelte';
 import type { SculptureDefinition, LayerType, BlendMode } from '$lib/types';
 
 export interface ExecutionResult {
@@ -76,7 +73,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			case 'setConstraintMode': {
 				const p = params as { constraintMode: 'digital' | 'ceramic' | '3d_print' };
 				setConstraintMode(p.constraintMode);
-				return { success: true, message: `Set constraint mode to ${p.constraintMode}`, actionType: type };
+				return {
+					success: true,
+					message: `Set constraint mode to ${p.constraintMode}`,
+					actionType: type
+				};
 			}
 
 			// ============================================
@@ -88,7 +89,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 				uiStore.deformation.compression = clamp(p.compression, -1, 1);
 				uiStore.deformation.taper = clamp(p.taper, -1, 1);
 				sculptureStore.geometryDirty = true;
-				return { success: true, message: `Set deformation: twist=${p.twist}°, compression=${p.compression}, taper=${p.taper}`, actionType: type };
+				return {
+					success: true,
+					message: `Set deformation: twist=${p.twist}°, compression=${p.compression}, taper=${p.taper}`,
+					actionType: type
+				};
 			}
 
 			case 'setTwist': {
@@ -118,7 +123,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			case 'setGlaze': {
 				const p = params as { color: string; roughness: number };
 				setActiveGlaze(p.color, clamp(p.roughness, 0, 1));
-				return { success: true, message: `Set glaze: ${p.color}, roughness=${p.roughness}`, actionType: type };
+				return {
+					success: true,
+					message: `Set glaze: ${p.color}, roughness=${p.roughness}`,
+					actionType: type
+				};
 			}
 
 			case 'setColor': {
@@ -171,13 +180,17 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			case 'setLayerBlendMode': {
 				const p = params as { layerId: string; blendMode: BlendMode };
 				if (sculptureStore.currentSculpture) {
-					const layer = sculptureStore.currentSculpture.layers.find(l => l.id === p.layerId);
+					const layer = sculptureStore.currentSculpture.layers.find((l) => l.id === p.layerId);
 					if (layer) {
 						layer.blendMode = p.blendMode;
 						sculptureStore.geometryDirty = true;
 					}
 				}
-				return { success: true, message: `Set layer blend mode to ${p.blendMode}`, actionType: type };
+				return {
+					success: true,
+					message: `Set layer blend mode to ${p.blendMode}`,
+					actionType: type
+				};
 			}
 
 			case 'toggleLayerVisibility': {
@@ -227,7 +240,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			case 'toggleGhost': {
 				const p = params as { showGhost: boolean };
 				uiStore.showGhost = p.showGhost;
-				return { success: true, message: `${p.showGhost ? 'Showing' : 'Hiding'} ghost overlay`, actionType: type };
+				return {
+					success: true,
+					message: `${p.showGhost ? 'Showing' : 'Hiding'} ghost overlay`,
+					actionType: type
+				};
 			}
 
 			// ============================================
@@ -236,19 +253,31 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			case 'setQuantize': {
 				const p = params as { quantize: boolean };
 				setQuantizeEnabled(p.quantize);
-				return { success: true, message: `Quantize ${p.quantize ? 'enabled' : 'disabled'}`, actionType: type };
+				return {
+					success: true,
+					message: `Quantize ${p.quantize ? 'enabled' : 'disabled'}`,
+					actionType: type
+				};
 			}
 
 			case 'setSymmetry': {
 				const p = params as { symmetryCount: number };
 				setSymmetryCount(clamp(Math.floor(p.symmetryCount), 0, 12));
-				return { success: true, message: `Set symmetry to ${p.symmetryCount} lobes`, actionType: type };
+				return {
+					success: true,
+					message: `Set symmetry to ${p.symmetryCount} lobes`,
+					actionType: type
+				};
 			}
 
 			case 'setSculptZone': {
 				const p = params as { zoneMin: number; zoneMax: number };
 				setSculptZone(clamp(p.zoneMin, 0, 1), clamp(p.zoneMax, 0, 1));
-				return { success: true, message: `Set sculpt zone: ${p.zoneMin} to ${p.zoneMax}`, actionType: type };
+				return {
+					success: true,
+					message: `Set sculpt zone: ${p.zoneMin} to ${p.zoneMax}`,
+					actionType: type
+				};
 			}
 
 			// ============================================
@@ -280,7 +309,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 				if (sculptureStore.currentSculpture) {
 					sculptureStore.currentSculpture.physical.wallThickness = clamp(p.wallThickness, 1, 50);
 				}
-				return { success: true, message: `Set wall thickness to ${p.wallThickness}mm`, actionType: type };
+				return {
+					success: true,
+					message: `Set wall thickness to ${p.wallThickness}mm`,
+					actionType: type
+				};
 			}
 
 			// ============================================
@@ -291,18 +324,22 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 				if (sculptureStore.currentSculpture && p.points.length >= 2) {
 					// Validate and sanitize points
 					const validPoints = p.points
-						.filter(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))
-						.map(pt => ({
+						.filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y))
+						.map((pt) => ({
 							x: clamp(pt.x, 0.01, 2),
 							y: clamp(pt.y, 0, 2)
 						}));
-					
+
 					if (validPoints.length >= 2) {
 						sculptureStore.currentSculpture.radiusCurve = validPoints;
 						sculptureStore.geometryDirty = true;
 					}
 				}
-				return { success: true, message: `Set radius curve with ${p.points.length} points`, actionType: type };
+				return {
+					success: true,
+					message: `Set radius curve with ${p.points.length} points`,
+					actionType: type
+				};
 			}
 
 			case 'modifyRadiusAtHeight': {
@@ -316,7 +353,11 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 						sculptureStore.geometryDirty = true;
 					}
 				}
-				return { success: true, message: `Modified radius at ${p.heightPercent * 100}% height`, actionType: type };
+				return {
+					success: true,
+					message: `Modified radius at ${p.heightPercent * 100}% height`,
+					actionType: type
+				};
 			}
 
 			// ============================================
@@ -353,7 +394,7 @@ export function executeAction(action: SculptorAction): ExecutionResult {
  * Execute multiple actions in sequence
  */
 export function executeActions(actions: SculptorAction[]): ExecutionResult[] {
-	return actions.map(action => executeAction(action));
+	return actions.map((action) => executeAction(action));
 }
 
 /**
@@ -384,4 +425,3 @@ export function buildContext(): ActionContext {
 function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
 }
-

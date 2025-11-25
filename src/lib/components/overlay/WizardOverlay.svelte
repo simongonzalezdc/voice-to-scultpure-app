@@ -35,14 +35,16 @@
 		{
 			title: 'Step 1: The Body',
 			description: 'Define the base shape with a steady note',
-			instruction: 'Sing a long, steady note (like "Ahhhhh") to create the foundation of your sculpture.',
+			instruction:
+				'Sing a long, steady note (like "Ahhhhh") to create the foundation of your sculpture.',
 			layerType: 'base',
 			icon: '🏺'
 		},
 		{
 			title: 'Step 2: The Pulse',
 			description: 'Add rhythmic variations',
-			instruction: 'Make percussive sounds (like "Ka-Ka-Ka" or beat-box) to create ribs and pulses.',
+			instruction:
+				'Make percussive sounds (like "Ka-Ka-Ka" or beat-box) to create ribs and pulses.',
 			layerType: 'distortion',
 			icon: '🥁'
 		},
@@ -56,7 +58,8 @@
 		{
 			title: 'Step 4: The Glaze',
 			description: 'Paint with your voice',
-			instruction: 'Sing a melody to add color. Higher notes = different colors. Louder = brighter.',
+			instruction:
+				'Sing a melody to add color. Higher notes = different colors. Louder = brighter.',
 			layerType: 'glaze',
 			icon: '🎨'
 		}
@@ -79,7 +82,7 @@
 		}
 
 		stopRecording(); // Call actual recording system
-		
+
 		// Get frames from recording store
 		recordedFrames = getCapturedFrames();
 		console.log(`⏹️ [WIZARD] Stopped recording, ${recordedFrames.length} frames captured`);
@@ -112,7 +115,9 @@
 
 		addLayer(layer);
 
-		console.log(`✨ [WIZARD] Created ${stepData.layerType} layer with ${lathePoints.length} points`);
+		console.log(
+			`✨ [WIZARD] Created ${stepData.layerType} layer with ${lathePoints.length} points`
+		);
 	}
 
 	function nextStep() {
@@ -483,4 +488,3 @@
 		padding: 1.2rem 2.5rem;
 	}
 </style>
-

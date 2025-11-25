@@ -88,7 +88,10 @@ export function computeCalibration(frames: AnalysisFrame[]): CalibrationResult {
 		const stdDev = Math.sqrt(variance);
 		attackThreshold = meanDelta + CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER * stdDev;
 		// Clamp to reasonable range
-		attackThreshold = Math.max(CALIBRATION_ATTACK_THRESHOLD_MIN, Math.min(CALIBRATION_ATTACK_THRESHOLD_MAX, attackThreshold));
+		attackThreshold = Math.max(
+			CALIBRATION_ATTACK_THRESHOLD_MIN,
+			Math.min(CALIBRATION_ATTACK_THRESHOLD_MAX, attackThreshold)
+		);
 	}
 
 	// Timbre Floor: Minimum spectral centroid (noise/silence baseline)

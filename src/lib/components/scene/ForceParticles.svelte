@@ -54,7 +54,7 @@
 				if (spawned >= spawnCount) break;
 				const particle = particles[i];
 				if (!particle) continue;
-				
+
 				if (!particle.active) {
 					particle.active = true;
 					particle.life = 1.0;

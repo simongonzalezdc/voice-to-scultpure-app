@@ -108,7 +108,7 @@
 
 			<!-- Progress Bar (auto-dismiss indicator) -->
 			{#if toast.duration > 0}
-				<div class="toast-progress" style="--duration: {toast.duration}ms" />
+				<div class="toast-progress" style="--duration: {toast.duration}ms"></div>
 			{/if}
 		</div>
 	{/each}

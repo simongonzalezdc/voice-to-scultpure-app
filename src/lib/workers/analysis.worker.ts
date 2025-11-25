@@ -78,7 +78,8 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 
 	// Smooth spectral centroid (timbre)
 	const rawSpectralCentroid = features.spectralCentroid || 0;
-	smoothedSpectralCentroid = smoothedSpectralCentroid + (rawSpectralCentroid - smoothedSpectralCentroid) * TIMBRE_SMOOTHING;
+	smoothedSpectralCentroid =
+		smoothedSpectralCentroid + (rawSpectralCentroid - smoothedSpectralCentroid) * TIMBRE_SMOOTHING;
 
 	return {
 		time: Date.now() / 1000,
@@ -333,7 +334,9 @@ function processLoop(): void {
 		const writePtr = Atomics.load(intView, 0);
 		const readPtr = Atomics.load(intView, 1);
 		const available = writePtr - readPtr;
-		console.log(`🔍 [ANALYSIS WORKER] Ring buffer check: writePtr=${writePtr}, readPtr=${readPtr}, available=${available}, read=${read}`);
+		console.log(
+			`🔍 [ANALYSIS WORKER] Ring buffer check: writePtr=${writePtr}, readPtr=${readPtr}, available=${available}, read=${read}`
+		);
 	}
 
 	if (read > 0) {
@@ -369,7 +372,9 @@ function processLoop(): void {
 		// Log if no audio data is being read (but only occasionally to avoid spam)
 		if (framesSent === 0 && Date.now() - lastAnalysisTime > 1000) {
 			// Only warn once per second if no frames have been sent
-			console.warn('⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet - check worklet connection');
+			console.warn(
+				'⚠️ [ANALYSIS WORKER] No audio data in ring buffer yet - check worklet connection'
+			);
 		}
 	}
 
@@ -387,7 +392,9 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 				return;
 			}
 			if (running) {
-				console.warn('⚠️ [ANALYSIS WORKER] Already running - ignoring duplicate start call to prevent concurrent loops');
+				console.warn(
+					'⚠️ [ANALYSIS WORKER] Already running - ignoring duplicate start call to prevent concurrent loops'
+				);
 				return; // Guard against duplicate processLoop chains
 			}
 			// Reset smoothing state for new recording

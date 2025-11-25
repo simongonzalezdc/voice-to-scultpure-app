@@ -1,15 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-	generateLathe,
-	applyDeformation
-} from '$lib/engine/physicsMapping';
-import {
-	pitchToTwist,
-	timbreToRoughness
-} from '$lib/stores/voiceLinksStore.svelte';
-import {
-	computeCalibration
-} from '$lib/audio/calibration';
+import { generateLathe, applyDeformation } from '$lib/engine/physicsMapping';
+import { pitchToTwist, timbreToRoughness } from '$lib/stores/voiceLinksStore.svelte';
+import { computeCalibration } from '$lib/audio/calibration';
 import type { AnalysisFrame, LathePoint } from '$lib/types';
 
 describe('Edge Cases and Error Handling', () => {
@@ -54,7 +46,7 @@ describe('Edge Cases and Error Handling', () => {
 			// Should handle infinite values gracefully
 			const curve = generateLathe(framesWithInfinity, undefined, 'additive');
 			expect(curve).toBeDefined();
-			
+
 			// Values should be clamped to reasonable ranges
 			curve.forEach((point: LathePoint | undefined) => {
 				expect(point).toBeDefined();
@@ -70,7 +62,7 @@ describe('Edge Cases and Error Handling', () => {
 		it('should handle empty frames array', () => {
 			// Test with empty input
 			const curve = generateLathe([], undefined, 'additive');
-			
+
 			// Should return default curve
 			expect(curve).toBeDefined();
 			expect(curve.length).toBeGreaterThan(0);
@@ -197,7 +189,7 @@ describe('Edge Cases and Error Handling', () => {
 					// If x is not NaN, it should be finite
 					expect(Number.isFinite(point.x)).toBe(true);
 				}
-				
+
 				if (Number.isNaN(point.y)) {
 					// If y is NaN, that's acceptable given the extreme inputs
 					expect(true).toBe(true);
@@ -223,11 +215,11 @@ describe('Edge Cases and Error Handling', () => {
 			};
 
 			const deformed = applyDeformation(simpleCurve, zeroDeformation);
-			
+
 			// Should return essentially the same curve
 			expect(deformed).toBeDefined();
 			expect(deformed.length).toBe(simpleCurve.length);
-			
+
 			// Points should be very close to original
 			deformed.forEach((point, i) => {
 				const original = simpleCurve[i];
@@ -255,7 +247,7 @@ describe('Edge Cases and Error Handling', () => {
 
 			const curve = generateLathe(tinyFrames, undefined, 'additive');
 			expect(curve).toBeDefined();
-			
+
 			// Should handle tiny values without underflow
 			curve.forEach((point: LathePoint | undefined) => {
 				expect(point).toBeDefined();
@@ -279,7 +271,7 @@ describe('Edge Cases and Error Handling', () => {
 
 			const curve = generateLathe(hugeFrames, undefined, 'additive');
 			expect(curve).toBeDefined();
-			
+
 			// Should clamp to reasonable ranges
 			curve.forEach((point: LathePoint) => {
 				expect(Number.isFinite(point.x)).toBe(true);
@@ -296,16 +288,16 @@ describe('Edge Cases and Error Handling', () => {
 			// Create a large number of frames
 			const largeFrameCount = 10000;
 			const largeFrames: AnalysisFrame[] = [];
-			
+
 			for (let i = 0; i < largeFrameCount; i++) {
 				largeFrames.push({
 					time: i * 0.033, // ~30fps
 					pitch: 220 + Math.sin(i * 0.1) * 100,
 					energy: 0.5 + Math.sin(i * 0.05) * 0.3,
-					timbre: { 
-						spectralCentroid: 2000 + Math.random() * 1000, 
-						zcr: 0.1 + Math.random() * 0.1, 
-						spectralFlux: 0.05 + Math.random() * 0.05 
+					timbre: {
+						spectralCentroid: 2000 + Math.random() * 1000,
+						zcr: 0.1 + Math.random() * 0.1,
+						spectralFlux: 0.05 + Math.random() * 0.05
 					}
 				});
 			}
@@ -314,11 +306,11 @@ describe('Edge Cases and Error Handling', () => {
 			const startTime = performance.now();
 			const curve = generateLathe(largeFrames, undefined, 'additive');
 			const endTime = performance.now();
-			
+
 			expect(curve).toBeDefined();
 			expect(curve.length).toBeGreaterThan(0);
 			expect(curve.length).toBeLessThanOrEqual(200); // Should be limited by max points
-			
+
 			// Should complete in reasonable time (less than 1 second)
 			expect(endTime - startTime).toBeLessThan(1000);
 		});

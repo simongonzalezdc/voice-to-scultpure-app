@@ -9,13 +9,13 @@
 
 	// Reactive state from current sculpture
 	const currentSculpture = $derived(sculptureStore.currentSculpture);
-	
+
 	// Local editing state
 	let height = $state(150);
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
 	let baseColor = $state(DEFAULT_MATERIAL_CERAMIC);
 	let baseShape = $state<BaseShape>('lathe');
-	
+
 	// Reactive constraint mode from uiStore
 	const constraintMode = $derived(uiStore.constraintMode);
 	const autoFixGeometry = $derived(uiStore.autoFixGeometry ?? true);
@@ -41,7 +41,8 @@
 
 	function updateMaterial() {
 		// Material type is now handled via uiStore, not sculpture
-		const newColor = materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC;
+		const newColor =
+			materialType === 'ceramic' ? DEFAULT_MATERIAL_CERAMIC : DEFAULT_MATERIAL_PLASTIC;
 		uiStore.activeGlaze.color = newColor;
 		baseColor = newColor;
 	}
@@ -53,7 +54,7 @@
 
 	function updateBaseShape(newShape: BaseShape) {
 		if (!currentSculpture) return;
-		
+
 		const currentShape = currentSculpture.baseShape || 'lathe';
 		if (newShape === currentShape) return;
 
@@ -92,8 +93,10 @@
 	<!-- Content -->
 	<div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
 		<!-- Base Shape -->
-		<div>
-			<label class="text-sm font-semibold text-secondary block mb-2">Base Shape</label>
+		<div role="group" aria-labelledby="base-shape-label">
+			<span id="base-shape-label" class="text-sm font-semibold text-secondary block mb-2"
+				>Base Shape</span
+			>
 			<div class="grid grid-cols-2 gap-2">
 				<button
 					type="button"
@@ -321,4 +324,3 @@
 		background: #555;
 	}
 </style>
-

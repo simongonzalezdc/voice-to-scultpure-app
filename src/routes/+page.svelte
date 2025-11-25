@@ -41,6 +41,8 @@
 	import Wizard from '$lib/components/wizard/Wizard.svelte';
 	import { clearLayers } from '$lib/stores/sculptureStore.svelte';
 	import GoldenGuide from '$lib/components/overlay/GoldenGuide.svelte';
+	import { undo, redo, pushHistory } from '$lib/stores/historyStore.svelte';
+	import { showToast } from '$lib/stores/toastStore.svelte';
 
 	// Gatekeeper: Check if user has calibrated
 	let isCalibrated = $derived(appSettings.userProfile?.calibrated === true);
@@ -61,7 +63,7 @@
 		const profile = generateLathe(defaultFrames, undefined, 'additive', undefined, 'ceramic');
 		const resolution = 128;
 		const layerData = new Float32Array(resolution);
-		
+
 		const profileLen = profile?.length ?? 1;
 		for (let i = 0; i < resolution; i++) {
 			const normalizedY = i / (resolution - 1);
@@ -110,29 +112,86 @@
 			}
 			// Auto-create default sculpture on mount
 			createDefaultSculpture();
+
+			// Global keyboard shortcuts
+			const handleKeydown = (e: KeyboardEvent) => {
+				// Ignore if typing in input/textarea
+				if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+					return;
+				}
+
+				const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+				const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+				// Undo: Cmd/Ctrl + Z
+				if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+					e.preventDefault();
+					if (undo()) {
+						showToast('Undo', 'info');
+					}
+				}
+				// Redo: Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y
+				else if (cmdOrCtrl && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+					e.preventDefault();
+					if (redo()) {
+						showToast('Redo', 'info');
+					}
+				}
+				// Save: Cmd/Ctrl + S (prevent default, show toast)
+				else if (cmdOrCtrl && e.key === 's') {
+					e.preventDefault();
+					showToast('Auto-saved', 'success');
+				}
+				// Workspace shortcuts: 1-4
+				else if (!cmdOrCtrl && !e.shiftKey && !e.altKey) {
+					switch (e.key) {
+						case '1':
+							setWorkspace('sculpt');
+							break;
+						case '2':
+							setWorkspace('force');
+							break;
+						case '3':
+							setWorkspace('glaze');
+							break;
+						case '4':
+							setWorkspace('export');
+							break;
+						case '?':
+							togglePanel('shortcuts');
+							break;
+					}
+				}
+			};
+
+			window.addEventListener('keydown', handleKeydown);
+			return () => window.removeEventListener('keydown', handleKeydown);
 		}
 	});
 
 	// LIVE PREVIEW: Reactive regeneration
 	// REFACTORED: Use $derived to compute regeneration key instead of $effect for state synchronization
 	// According to Svelte docs: "Avoid using $effect to synchronise state. Use $derived instead."
-	
+
 	// Compute regeneration key using $derived (pure computation, no side effects)
 	const regenerationKey = $derived.by(() => {
 		// Skip if recording or no sculpture
 		if (recordingStore.state === 'recording' || recordingStore.state === 'processing') return null;
 		if (!sculptureStore.currentSculpture || !hasCapturedFrames()) return null;
-		
+
 		// Skip if using Layer System (no legacy regeneration needed)
-		if (sculptureStore.currentSculpture.layers && sculptureStore.currentSculpture.layers.length > 0) {
+		if (
+			sculptureStore.currentSculpture.layers &&
+			sculptureStore.currentSculpture.layers.length > 0
+		) {
 			return null;
 		}
-		
+
 		// Return regeneration key (stringified state)
 		const currentConstraintMode = uiStore.constraintMode;
 		const currentSculptMode = uiStore.sculptMode;
 		const currentZone = uiStore.sculptZone;
-		
+
 		return JSON.stringify({
 			mode: currentConstraintMode,
 			sculptMode: currentSculptMode,
@@ -140,44 +199,47 @@
 			history: recordingStore.historyPosition
 		});
 	});
-	
+
 	// Track previous key to detect changes
 	let previousRegenerationKey = $state<string | null>(null);
-	
+
 	// Use $effect only for the side effect (regenerating sculpture), not for state synchronization
 	$effect(() => {
 		const key = regenerationKey;
-		
+
 		// Skip if no key (recording, no sculpture, or using layers)
 		if (key === null) {
 			previousRegenerationKey = null;
 			return;
 		}
-		
+
 		// Skip if key hasn't changed (no regeneration needed)
 		if (key === previousRegenerationKey) {
 			return;
 		}
-		
+
 		// Initialize previous key on first run
 		if (previousRegenerationKey === null) {
 			previousRegenerationKey = key;
 			return;
 		}
-		
+
 		// Key changed - regenerate sculpture (this is a valid side effect)
 		previousRegenerationKey = key;
-		
+
 		// Parse key to get state values
 		const state = JSON.parse(key);
 		const frames = getPlaybackFrames();
 		const currentSculpture = sculptureStore.currentSculpture;
 		if (!currentSculpture) return;
-		
-		const zone = state.zone !== '0-1' ? {
-			min: parseFloat(state.zone.split('-')[0]),
-			max: parseFloat(state.zone.split('-')[1])
-		} : undefined;
+
+		const zone =
+			state.zone !== '0-1'
+				? {
+						min: parseFloat(state.zone.split('-')[0]),
+						max: parseFloat(state.zone.split('-')[1])
+					}
+				: undefined;
 
 		const regenerated = createSculptureFromFrames(
 			frames,
@@ -209,7 +271,8 @@
 	// Keyboard Shortcuts
 	let showKeyboardShortcuts = $state(false);
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+			return;
 		if (event.key === '?' && event.shiftKey) {
 			event.preventDefault();
 			showKeyboardShortcuts = true;
@@ -227,7 +290,6 @@
 			}
 		}
 	}
-
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -332,7 +394,7 @@
 		{#if uiStore.performanceWizardActive}
 			<div class="fixed inset-x-0 bottom-0 z-[100] h-[280px] shadow-2xl border-t border-white/10">
 				<div class="absolute top-0 right-0 p-4 z-[110]">
-					<button 
+					<button
 						class="p-2 bg-black/50 hover:bg-red-500/50 rounded-full text-white transition-colors"
 						onclick={closePerformanceWizard}
 						title="Exit Performance Mode"
@@ -362,7 +424,7 @@
 		background: var(--bg-body);
 		overflow: hidden;
 	}
-	
+
 	.app-header {
 		grid-column: 1 / -1;
 		grid-row: 1;
@@ -374,7 +436,7 @@
 		border-bottom: 1px solid var(--border-subtle);
 		min-height: 0;
 	}
-	
+
 	.app-toolbar {
 		grid-column: 1;
 		grid-row: 2;
@@ -385,7 +447,7 @@
 		overflow-y: auto;
 		min-height: 0;
 	}
-	
+
 	.app-canvas {
 		grid-column: 2;
 		grid-row: 2;
@@ -393,7 +455,7 @@
 		min-height: 0;
 		overflow: hidden;
 	}
-	
+
 	.app-inspector {
 		grid-column: 3;
 		grid-row: 2;
@@ -402,7 +464,7 @@
 		overflow-y: auto;
 		min-height: 0;
 	}
-	
+
 	.app-footer {
 		grid-column: 1 / -1;
 		grid-row: 3;

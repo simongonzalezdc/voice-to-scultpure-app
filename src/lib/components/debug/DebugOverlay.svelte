@@ -46,7 +46,7 @@
 	function statusColor(healthy: boolean) {
 		return healthy ? 'text-emerald-400' : 'text-red-500 animate-pulse';
 	}
-	
+
 	// Hide when Performance Mode is active to avoid blocking wizard instructions
 	let isVisible = $derived(!uiStore.performanceWizardActive);
 </script>
@@ -55,69 +55,69 @@
 	<div
 		class="fixed bottom-16 left-20 z-[200] bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-xs font-mono text-white/80 shadow-2xl select-none pointer-events-none"
 	>
-	<div class="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
-		<Activity size={14} />
-		<span class="font-bold">SYSTEM HEALTH</span>
+		<div class="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
+			<Activity size={14} />
+			<span class="font-bold">SYSTEM HEALTH</span>
+		</div>
+
+		<div class="space-y-1.5">
+			<!-- Audio -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<Mic size={12} />
+					<span>AUDIO INPUT</span>
+				</div>
+				<span class={statusColor(audioHealth)}>{audioHealth ? 'LIVE' : 'SILENT'}</span>
+			</div>
+
+			<!-- Worker -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<Cpu size={12} />
+					<span>WORKER BRAIN</span>
+				</div>
+				<span class={statusColor(workerHealth)}>{workerHealth ? 'ACTIVE' : 'FROZEN'}</span>
+			</div>
+
+			<!-- Renderer -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<Box size={12} />
+					<span>RENDERER</span>
+				</div>
+				<span class={statusColor(rendererHealth)}>{rendererHealth ? 'READY' : 'MISSING'}</span>
+			</div>
+
+			<!-- Geometry -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<AlertTriangle size={12} />
+					<span>GEOMETRY</span>
+				</div>
+				<span class={statusColor(geometryHealth)}>{geometryHealth ? 'VALID' : 'CORRUPT'}</span>
+			</div>
+
+			<!-- Glaze -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<Palette size={12} />
+					<span>GLAZE</span>
+				</div>
+				<span class={glazeStatus === 'painted' ? 'text-blue-400' : 'text-white/30'}>
+					{glazeStatus === 'painted' ? 'PAINTED' : 'EMPTY'}
+				</span>
+			</div>
+
+			<!-- Storage -->
+			<div class="flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2">
+					<Save size={12} />
+					<span>STORAGE</span>
+				</div>
+				<span class={storageHealth ? 'text-emerald-400' : 'text-yellow-400'}>
+					{storageHealth ? 'SAVED' : 'UNSAVED'}
+				</span>
+			</div>
+		</div>
 	</div>
-
-	<div class="space-y-1.5">
-		<!-- Audio -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<Mic size={12} />
-				<span>AUDIO INPUT</span>
-			</div>
-			<span class={statusColor(audioHealth)}>{audioHealth ? 'LIVE' : 'SILENT'}</span>
-		</div>
-
-		<!-- Worker -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<Cpu size={12} />
-				<span>WORKER BRAIN</span>
-			</div>
-			<span class={statusColor(workerHealth)}>{workerHealth ? 'ACTIVE' : 'FROZEN'}</span>
-		</div>
-
-		<!-- Renderer -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<Box size={12} />
-				<span>RENDERER</span>
-			</div>
-			<span class={statusColor(rendererHealth)}>{rendererHealth ? 'READY' : 'MISSING'}</span>
-		</div>
-
-		<!-- Geometry -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<AlertTriangle size={12} />
-				<span>GEOMETRY</span>
-			</div>
-			<span class={statusColor(geometryHealth)}>{geometryHealth ? 'VALID' : 'CORRUPT'}</span>
-		</div>
-
-		<!-- Glaze -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<Palette size={12} />
-				<span>GLAZE</span>
-			</div>
-			<span class={glazeStatus === 'painted' ? 'text-blue-400' : 'text-white/30'}>
-				{glazeStatus === 'painted' ? 'PAINTED' : 'EMPTY'}
-			</span>
-		</div>
-
-		<!-- Storage -->
-		<div class="flex items-center justify-between gap-4">
-			<div class="flex items-center gap-2">
-				<Save size={12} />
-				<span>STORAGE</span>
-			</div>
-			<span class={storageHealth ? 'text-emerald-400' : 'text-yellow-400'}>
-				{storageHealth ? 'SAVED' : 'UNSAVED'}
-			</span>
-		</div>
-	</div>
-</div>
 {/if}

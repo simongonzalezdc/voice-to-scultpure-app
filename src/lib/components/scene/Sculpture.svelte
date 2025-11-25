@@ -29,9 +29,7 @@
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze, applyModifiers } from '$lib/engine/physicsMapping';
-	import {
-		applyGlazeColors
-	} from '$lib/engine/geometryFactory';
+	import { applyGlazeColors } from '$lib/engine/geometryFactory';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
@@ -69,6 +67,7 @@
 		createFallbackGeometry,
 		deriveProfileWithTransforms
 	} from '$lib/engine/geometryFactory';
+	import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
 	import {
 		deriveMaterialColor,
 		deriveGhostMaterialColor,
@@ -91,6 +90,31 @@
 	let colorBuffer: Float32Array | null = null;
 	let heatmapBuffer: Float32Array | null = null;
 
+	// OPTIMIZATION: Dynamic geometry manager for real-time updates
+	// Uses DynamicDrawUsage for GPU-optimized buffer updates
+	let dynamicGeoManager: DynamicGeometryManager | null = null;
+	let useDynamicGeometry = $state(true); // Enable by default for recording
+
+	// Initialize dynamic geometry manager on mount
+	$effect(() => {
+		if (!dynamicGeoManager && useDynamicGeometry) {
+			dynamicGeoManager = new DynamicGeometryManager({
+				radialSegments: GEOMETRY_LATHE_SEGMENTS,
+				profileResolution: GEOMETRY_RESOLUTION_COMPOSITOR,
+				dynamic: true
+			});
+			dynamicGeoManager.generateIndices(); // Enable indexed rendering
+			console.log('🚀 [SCULPTURE] Dynamic geometry manager initialized');
+		}
+
+		return () => {
+			if (dynamicGeoManager) {
+				dynamicGeoManager.dispose();
+				dynamicGeoManager = null;
+			}
+		};
+	});
+
 	// Set mesh reference in store for color capture
 	$effect(() => {
 		setMeshReference(meshRef || null);
@@ -107,7 +131,9 @@
 		if (!sculpture) return CLAY_COLOR_DEFAULT;
 
 		const isGlazeMode = uiStore.workspace === 'glaze';
-		const hasColors = false; // TODO: Check glaze layer (non-empty glaze vertices)
+		// Check if sculpture has glaze layer with vertex colors
+		const glazeLayer = sculpture.layers?.find((l: { type: string; visible: boolean }) => l.type === 'glaze' && l.visible);
+		const hasColors = glazeLayer ? glazeLayer.data.length > 0 : false;
 
 		return deriveMaterialColor(isGlazeMode, hasColors, isPlastic);
 	});
@@ -133,7 +159,10 @@
 	});
 
 	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
-	const orientationSpring = spring(0, { stiffness: ORIENTATION_SPRING_STIFFNESS, damping: ORIENTATION_SPRING_DAMPING });
+	const orientationSpring = spring(0, {
+		stiffness: ORIENTATION_SPRING_STIFFNESS,
+		damping: ORIENTATION_SPRING_DAMPING
+	});
 
 	$effect(() => {
 		const targetRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0;
@@ -171,10 +200,10 @@
 		const needsUpdate = isRecording || sculptureStore.geometryDirty;
 
 		if (!needsUpdate) return;
-		
+
 		try {
 			let profile: LathePoint[];
-			
+
 			// GLAZE MODE: Don't change geometry, only update colors
 			// The shape stays the same, only vertex colors change
 			if (isGlazeMode && isRecording) {
@@ -191,20 +220,21 @@
 			// SCULPT/FORCE MODE: Live recording preview with geometry changes
 			else if (isRecording) {
 				const frames = getCapturedFrames();
-				if (frames && frames.length > 5) { // Need at least a few frames
+				if (frames && frames.length > 5) {
+					// Need at least a few frames
 					// Pass maxPoints = 0 to use EVERY frame without compression
 					// This makes the sculpture grow vertically as you sing longer
 					const radiusCurve = generateLathe(
-						frames, 
-						appSettings.userProfile, 
-						uiStore.sculptMode || 'additive', 
-						undefined, 
+						frames,
+						appSettings.userProfile,
+						uiStore.sculptMode || 'additive',
+						undefined,
 						uiStore.constraintMode,
 						'standard',
 						'lathe',
 						0 // <-- UNLIMITED RESOLUTION: No downsampling during live recording
 					);
-					
+
 					// Convert to layer data (exactly as stopRecording does)
 					const tempLayerData = new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR);
 					for (let i = 0; i < GEOMETRY_RESOLUTION_COMPOSITOR; i++) {
@@ -215,7 +245,7 @@
 						const point = radiusCurve?.[clampedIndex];
 						tempLayerData[i] = point?.x ?? 0.5; // Default radius if point is undefined
 					}
-					
+
 					// If we have existing layers, composite with them
 					if (sculpture?.layers && sculpture.layers.length > 0) {
 						// Create temp layer and composite
@@ -261,35 +291,63 @@
 					}
 					return;
 				}
-				
+
 				// Check for resolution mismatches
 				for (const layer of sculpture.layers) {
 					if (layer.visible && layer.data.length !== GEOMETRY_RESOLUTION_COMPOSITOR) {
 						trackError('compositorResolutionMismatch');
 					}
 				}
-				
+
 				// Compute profile from layers
 				profile = computeProfile(sculpture.layers);
 			}
-			
+
 			// GENERATE GEOMETRY from profile
 			if (!profile || profile.length === 0) {
 				return;
 			}
-			const { geometry, vectors } = createGeometryFromProfile(profile);
+
+			// OPTIMIZATION: Use DynamicGeometryManager during recording for better performance
+			// This avoids recreating geometry every frame - just updates vertex buffers
+			let geometry: BufferGeometry;
+			let vectors: Vector2[];
+
+			if (isRecording && dynamicGeoManager && useDynamicGeometry) {
+				// Use optimized dynamic geometry (updates buffers in-place)
+				const updated = dynamicGeoManager.updateFromProfile(profile);
+				if (updated) {
+					geometry = dynamicGeoManager.getGeometry();
+					vectors = profile.map((p) => new Vector2(p?.x ?? 0.5, p?.y ?? 0));
+				} else {
+					// No change - skip update
+					return;
+				}
+			} else {
+				// Standard geometry creation (for non-recording or fallback)
+				const result = createGeometryFromProfile(profile);
+				geometry = result.geometry;
+				vectors = result.vectors;
+			}
+
 			if (!geometry) {
 				return;
 			}
-			
-				// GENERATE VERTEX COLORS if in glaze mode and recording
+
+			// GENERATE VERTEX COLORS if in glaze mode and recording
 			if (isGlazeMode && isRecording) {
 				const frames = getCapturedFrames();
 				if (frames && frames.length > 0) {
 					const colors = generateGlaze(frames, uiStore.activeGlaze);
-					// Apply colors using factory function
-					colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
-					console.log(`🎨 [GLAZE] Applied ${colors.length / 3} vertex colors from ${frames.length} frames`);
+					// Apply colors using factory function or dynamic manager
+					if (dynamicGeoManager && useDynamicGeometry) {
+						dynamicGeoManager.updateColors(colors);
+					} else {
+						colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
+					}
+					console.log(
+						`🎨 [GLAZE] Applied ${colors.length / 3} vertex colors from ${frames.length} frames`
+					);
 				} else {
 					// No frames yet - apply base glaze color uniformly
 					const positionAttr = geometry.getAttribute('position');
@@ -302,25 +360,33 @@
 							uniformColors[i * 3 + 1] = baseColor.g;
 							uniformColors[i * 3 + 2] = baseColor.b;
 						}
-						colorBuffer = applyGlazeColors(geometry, uniformColors, colorBuffer) ?? colorBuffer;
+						if (dynamicGeoManager && useDynamicGeometry) {
+							dynamicGeoManager.updateColors(uniformColors);
+						} else {
+							colorBuffer = applyGlazeColors(geometry, uniformColors, colorBuffer) ?? colorBuffer;
+						}
 					}
 				}
 			}
-			
+
 			// Update state
 			lastProfileVectors = vectors;
 
-			// UPDATE MESH
-			try {
-				if (liveGeometry) liveGeometry.dispose();
-			} catch (err) {
-				console.warn('⚠️ [SCULPTURE] Geometry disposal failed:', err);
+			// UPDATE MESH - Only dispose if not using dynamic geometry
+			if (!isRecording || !dynamicGeoManager || !useDynamicGeometry) {
+				try {
+					if (liveGeometry && liveGeometry !== geometry) {
+						liveGeometry.dispose();
+					}
+				} catch (err) {
+					console.warn('⚠️ [SCULPTURE] Geometry disposal failed:', err);
+				}
 			}
 			liveGeometry = geometry;
-			
+
 			sculptureStore.geometryDirty = false; // Mark clean
 		} catch (err) {
-			console.error("❌ [COMPOSITOR] Failed to compute profile:", err);
+			console.error('❌ [COMPOSITOR] Failed to compute profile:', err);
 			trackError('geometryComputation');
 			if (err instanceof Error && err.message.includes('state_unsafe_mutation')) {
 				trackError('stateUnsafeMutation');
@@ -328,13 +394,11 @@
 		}
 	});
 
-
-
 	// Initial geometry creation (reactive, but pure - no side effects)
 	let currentGeometry = $derived.by(() => {
 		if (liveGeometry) return liveGeometry;
 		if (!sculpture) return null;
-		
+
 		// Fallback for initial load
 		if (sculpture.layers && sculpture.layers.length > 0) {
 			const profile = computeProfile(sculpture.layers);
@@ -344,8 +408,13 @@
 			const { geometry } = createGeometryFromProfile(sculpture.radiusCurve);
 			if (geometry) return geometry;
 		}
-		
-		return new CylinderGeometry(DEFAULT_CYLINDER_RADIUS, DEFAULT_CYLINDER_RADIUS, 1, DEFAULT_CYLINDER_SEGMENTS);
+
+		return new CylinderGeometry(
+			DEFAULT_CYLINDER_RADIUS,
+			DEFAULT_CYLINDER_RADIUS,
+			1,
+			DEFAULT_CYLINDER_SEGMENTS
+		);
 	});
 
 	// Compute vectors for derived geometry (needed for heatmap colors)
@@ -353,7 +422,7 @@
 	let derivedVectors = $derived.by((): Vector2[] => {
 		if (liveGeometry) return lastProfileVectors; // Use vectors from useTask
 		if (!sculpture) return [];
-		
+
 		// Compute vectors for derived geometry
 		if (sculpture.layers && sculpture.layers.length > 0) {
 			const profile = computeProfile(sculpture.layers);
@@ -369,7 +438,7 @@
 				return new Vector2(p.x ?? 0, p.y ?? 0);
 			});
 		}
-		
+
 		return [];
 	});
 
@@ -389,7 +458,9 @@
 			if (vectorsToUse.length > 0 && uiStore.view.mode === 'heatmap') {
 				const stressColors = calculateStressColors(vectorsToUse);
 				if (stressColors && stressColors.length > 0) {
-					heatmapBuffer = applyHeatmapColors(geometry, vectorsToUse, stressColors, heatmapBuffer) ?? heatmapBuffer;
+					heatmapBuffer =
+						applyHeatmapColors(geometry, vectorsToUse, stressColors, heatmapBuffer) ??
+						heatmapBuffer;
 				}
 			} else {
 				const colorAttr = geometry.getAttribute('color');
@@ -407,7 +478,11 @@
 	});
 
 	let materialProps = $state<MaterialProps>(
-		createBaseMaterialProps(DEFAULT_MATERIAL_CERAMIC, uiStore.activeGlaze.color, uiStore.activeGlaze.roughness ?? 0.5)
+		createBaseMaterialProps(
+			DEFAULT_MATERIAL_CERAMIC,
+			uiStore.activeGlaze.color,
+			uiStore.activeGlaze.roughness ?? 0.5
+		)
 	);
 
 	$effect(() => {
@@ -420,11 +495,13 @@
 		const viewUpdated = updateMaterialForViewMode(materialProps, uiStore.view.mode);
 
 		// Apply glaze mode transformations
+		// Check if current geometry has vertex colors
+		const hasVertexColors = liveGeometry?.hasAttribute('color') ?? false;
 		const glazeUpdated = updateMaterialForGlazeMode(
 			viewUpdated,
 			recordingStore.state === 'recording',
 			uiStore.workspace === 'glaze',
-			false // TODO: Check if geometry has vertex colors
+			hasVertexColors
 		);
 
 		Object.assign(materialProps, glazeUpdated);
@@ -435,8 +512,16 @@
 	useTask(() => {
 		const isRecording = recordingStore.state === 'recording';
 		if (isRecording) {
-			const targetGlow = Math.max(0, (analysisStore.micLevel - VOICE_REACTION_GLOW_BASE) * VOICE_REACTION_GLOW_MULTIPLIER) * VOICE_REACTION_GLOW_MULTIPLIER;
-			smoothedEmission = calculateSmoothedEmission(smoothedEmission, targetGlow, EMISSION_SMOOTHING_FACTOR);
+			const targetGlow =
+				Math.max(
+					0,
+					(analysisStore.micLevel - VOICE_REACTION_GLOW_BASE) * VOICE_REACTION_GLOW_MULTIPLIER
+				) * VOICE_REACTION_GLOW_MULTIPLIER;
+			smoothedEmission = calculateSmoothedEmission(
+				smoothedEmission,
+				targetGlow,
+				EMISSION_SMOOTHING_FACTOR
+			);
 			materialProps.emissiveIntensity = smoothedEmission;
 		} else {
 			materialProps.emissiveIntensity = deriveEmissiveIntensity(false, 0);
@@ -473,39 +558,45 @@
 		}
 
 		// Map pitch to height (WHERE on the sculpture)
-		const normalizedPitch = Math.max(0, Math.min(1, (pitch - FORCE_MODE_PITCH_MIN_HZ) / (FORCE_MODE_PITCH_MAX_HZ - FORCE_MODE_PITCH_MIN_HZ)));
-		
+		const normalizedPitch = Math.max(
+			0,
+			Math.min(
+				1,
+				(pitch - FORCE_MODE_PITCH_MIN_HZ) / (FORCE_MODE_PITCH_MAX_HZ - FORCE_MODE_PITCH_MIN_HZ)
+			)
+		);
+
 		// Map to actual geometry Y range (accounting for transforms)
 		const minY = (bbox.min.y ?? 0) * heightScale;
 		const maxY = (bbox.max.y ?? 1) * heightScale;
 		const targetY = minY + normalizedPitch * (maxY - minY);
-		
+
 		// Get force parameters from UI
 		const { damping, hardness, radius: focusRadius, strength } = uiStore.forceParams;
 		const isAdditive = uiStore.sculptMode === 'additive';
-		
+
 		// Calculate force intensity from mic level
 		// Higher volume = stronger force
 		const forceIntensity = micLevel * strength * 0.5; // Scale down for subtlety
 		const forceDirection = isAdditive ? 1 : -1; // Push out or push in
-		
+
 		// Get geometry positions for deformation
 		const positions = meshRef.geometry.getAttribute('position');
 		if (!positions) {
 			return;
 		}
-		
+
 		let closestRadius = FORCE_MODE_FALLBACK_RADIUS;
 		let minYDiff = Infinity;
 		let closestIndex = 0;
-		
+
 		// Find closest vertex and apply force to nearby vertices
 		for (let i = 0; i < positions.count; i++) {
 			const y = positions.getY(i);
 			if (y === undefined) continue;
 			const scaledY = y * heightScale;
 			const yDiff = Math.abs(scaledY - targetY);
-			
+
 			if (yDiff < minYDiff) {
 				minYDiff = yDiff;
 				const x = positions.getX(i) ?? 0;
@@ -513,54 +604,54 @@
 				closestRadius = Math.sqrt(x * x + z * z);
 				closestIndex = i;
 			}
-			
+
 			// Apply force to vertices within the focus radius
 			// The force falls off with distance from the target height
 			const influenceRadius = focusRadius * 0.5; // Normalized to geometry scale
 			const normalizedYDiff = yDiff / (maxY - minY);
-			
+
 			if (normalizedYDiff < influenceRadius) {
 				// Calculate falloff (smooth falloff at edges)
-				const falloff = 1 - (normalizedYDiff / influenceRadius);
+				const falloff = 1 - normalizedYDiff / influenceRadius;
 				const smoothFalloff = falloff * falloff * (3 - 2 * falloff); // Smoothstep
-				
+
 				// Apply hardness (harder = more localized effect)
 				const hardnessFactor = Math.pow(smoothFalloff, 1 + hardness * 3);
-				
+
 				// Calculate displacement
 				const displacement = forceIntensity * forceDirection * hardnessFactor * delta * 60; // Normalize to 60fps
-				
+
 				// Apply damping (reduces jitter)
 				const dampedDisplacement = displacement * (1 - damping * 0.8);
-				
+
 				// Get current position
 				const x = positions.getX(i) ?? 0;
 				const z = positions.getZ(i) ?? 0;
 				const currentRadius = Math.sqrt(x * x + z * z);
-				
-				if (currentRadius > 0.01) { // Avoid division by zero
+
+				if (currentRadius > 0.01) {
+					// Avoid division by zero
 					// Push radially outward/inward
 					const newRadius = Math.max(0.05, Math.min(2, currentRadius + dampedDisplacement));
 					const scale = newRadius / currentRadius;
-					
+
 					positions.setX(i, x * scale);
 					positions.setZ(i, z * scale);
 				}
 			}
 		}
-		
+
 		// Mark geometry as needing update
 		positions.needsUpdate = true;
 		meshRef.geometry.computeVertexNormals();
 		meshRef.geometry.computeBoundingBox();
-		
+
 		// Place reticle point on the front of the sculpture
 		const point = new Vector3(closestRadius, targetY, 0);
 		const normal = new Vector3(1, 0, 0); // Normal pointing outward
-		
+
 		setInteractionPoint(point, normal);
 	});
-
 </script>
 
 {#if sculpture}

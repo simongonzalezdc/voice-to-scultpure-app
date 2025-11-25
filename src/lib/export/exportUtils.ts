@@ -30,7 +30,7 @@ export interface ExportOptions {
  * 2. Apply deformations (twist, compression, taper)
  * 3. Apply fabrication constraints (if auto-fix is on)
  * 4. Apply modifiers (quantize, symmetry)
- * 
+ *
  * This ensures exports match what the user sees in the viewport.
  */
 export function generateFinalProfile(
@@ -39,7 +39,7 @@ export function generateFinalProfile(
 ): LathePoint[] {
 	// Step 1: Compose layers or use legacy radiusCurve
 	let profile: LathePoint[];
-	
+
 	if (sculpture?.layers && sculpture.layers.length > 0) {
 		// New layer-based system: compose all visible layers
 		profile = computeProfile(sculpture.layers);
@@ -72,4 +72,3 @@ export function generateFinalProfile(
 
 	return profile;
 }
-

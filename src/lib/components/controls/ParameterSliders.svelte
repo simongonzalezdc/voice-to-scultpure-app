@@ -107,7 +107,7 @@
 		if (!previewSculpture) return;
 		const radiusCurve = previewSculpture.radiusCurve || [];
 		if (radiusCurve.length === 0) return;
-		
+
 		const deformed = applyDeformation(radiusCurve, {
 			twist: twist,
 			compression: verticalStretch,
@@ -162,7 +162,7 @@
 
 		const radiusCurve = previewSculpture.radiusCurve || [];
 		if (radiusCurve.length === 0) return;
-		
+
 		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
 			compression: currentVerticalStretch,
@@ -346,7 +346,10 @@
 				</label>
 			</div>
 			<div>
-				<label for="symmetry-count" class="text-sm text-secondary block mb-1 flex items-center gap-2">
+				<label
+					for="symmetry-count"
+					class="text-sm text-secondary block mb-1 flex items-center gap-2"
+				>
 					Symmetry Lobes
 					<span class="text-subtle opacity-60"><Sparkles size={12} /></span>
 				</label>

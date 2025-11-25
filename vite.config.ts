@@ -27,5 +27,9 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		exclude: ['@threlte/core', 'three']
+	},
+	ssr: {
+		// Required for postprocessing library to work with SSR
+		noExternal: ['postprocessing']
 	}
 });

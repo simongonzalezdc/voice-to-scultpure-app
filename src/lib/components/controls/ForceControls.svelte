@@ -68,7 +68,7 @@
 		</div>
 		<!-- Volume bar -->
 		<div class="mt-2 h-2 bg-black/50 rounded overflow-hidden">
-			<div 
+			<div
 				class="h-full transition-all duration-75 {isAdditive ? 'bg-cyan-500' : 'bg-orange-500'}"
 				style="width: {Math.min(100, micLevel * 100)}%"
 			></div>
@@ -76,11 +76,13 @@
 	</div>
 
 	<!-- Push/Pull Toggle -->
-	<div class="space-y-2">
-		<label class="text-xs font-bold text-secondary">FORCE DIRECTION</label>
+	<div class="space-y-2" role="group" aria-labelledby="force-direction-label">
+		<span id="force-direction-label" class="text-xs font-bold text-secondary">FORCE DIRECTION</span>
 		<div class="grid grid-cols-2 gap-2">
 			<button
-				class="p-3 rounded flex flex-col items-center gap-1 transition-colors {isAdditive ? 'bg-cyan-600 text-white' : 'surface-panel-alt text-secondary hover:bg-cyan-600/20'}"
+				class="p-3 rounded flex flex-col items-center gap-1 transition-colors {isAdditive
+					? 'bg-cyan-600 text-white'
+					: 'surface-panel-alt text-secondary hover:bg-cyan-600/20'}"
 				onclick={() => setSculptMode('additive')}
 			>
 				<Plus size={20} />
@@ -88,7 +90,9 @@
 				<span class="text-[10px] opacity-70">Expand</span>
 			</button>
 			<button
-				class="p-3 rounded flex flex-col items-center gap-1 transition-colors {!isAdditive ? 'bg-orange-600 text-white' : 'surface-panel-alt text-secondary hover:bg-orange-600/20'}"
+				class="p-3 rounded flex flex-col items-center gap-1 transition-colors {!isAdditive
+					? 'bg-orange-600 text-white'
+					: 'surface-panel-alt text-secondary hover:bg-orange-600/20'}"
 				onclick={() => setSculptMode('subtractive')}
 			>
 				<Minus size={20} />
@@ -160,11 +164,15 @@
 
 	<!-- Damping -->
 	<div class="space-y-1">
-		<label class="flex items-center justify-between text-xs font-bold text-secondary">
+		<label
+			for="smoothing-slider"
+			class="flex items-center justify-between text-xs font-bold text-secondary"
+		>
 			<span class="flex items-center gap-1">SMOOTHING</span>
 			<span class="font-mono">{(damping * 100).toFixed(0)}%</span>
 		</label>
 		<input
+			id="smoothing-slider"
 			type="range"
 			min="0"
 			max="0.9"
@@ -187,4 +195,3 @@
 
 	/* Custom Range Slider Styling would go here or via Tailwind plugins */
 </style>
-

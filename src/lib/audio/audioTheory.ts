@@ -26,9 +26,8 @@ export function getHarmonicColor(hz: number): string {
 	// This ensures musical harmony = color harmony
 	const midiNum = 69 + 12 * Math.log2(hz / 440);
 	const noteIndex = Math.round(midiNum) % 12;
-	
+
 	// Simple HSL mapping: 0 (C) -> 0deg (Red), 12 -> 360deg
 	const hue = (noteIndex / 12) * 360;
 	return `hsl(${hue}, 70%, 60%)`;
 }
-

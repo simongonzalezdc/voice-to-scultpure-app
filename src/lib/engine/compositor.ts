@@ -3,7 +3,7 @@ import type { SculptureLayer, LathePoint } from '$lib/types';
 /**
  * Phase 3: The Compositor (The Engine)
  * Merges layers into a final mesh profile in real-time.
- * 
+ *
  * Pure function: No side effects, can be called from $derived blocks
  */
 export function computeProfile(layers: SculptureLayer[], resolution: number = 128): LathePoint[] {
@@ -17,7 +17,9 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 
 		// Check resolution match
 		if (layer.data.length !== resolution) {
-			console.warn(`⚠️ [COMPOSITOR] Layer ${layer.name} resolution mismatch (${layer.data.length} vs ${resolution})`);
+			console.warn(
+				`⚠️ [COMPOSITOR] Layer ${layer.name} resolution mismatch (${layer.data.length} vs ${resolution})`
+			);
 			// Note: Error tracking moved to caller to avoid state mutation in $derived
 			continue;
 		}
@@ -27,12 +29,13 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 			// Effect = Data * Mask * LayerOpacity
 			// Note: Data is often additive offset, or multiplier depending on interpretation.
 			// For this engine, we treat 'data' as the value to blend.
-			
+
 			// If mask is not fully initialized or wrong size, default to 1.0
-			const maskVal: number = (layer.mask && layer.mask.length === resolution && layer.mask[i] !== undefined) 
-				? (layer.mask[i] ?? 1.0)
-				: 1.0;
-			
+			const maskVal: number =
+				layer.mask && layer.mask.length === resolution && layer.mask[i] !== undefined
+					? (layer.mask[i] ?? 1.0)
+					: 1.0;
+
 			const dataVal = layer.data[i] ?? 0;
 			const effect = dataVal * maskVal * layer.opacity;
 
@@ -68,4 +71,3 @@ export function computeProfile(layers: SculptureLayer[], resolution: number = 12
 		y: i / (resolution - 1) // Normalized height 0 to 1
 	}));
 }
-

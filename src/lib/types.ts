@@ -38,10 +38,10 @@ export interface SculptureLayer {
 
 	// DATA BUFFERS (Float32Array for performance)
 	// 1. The Shape Data (Radius offsets for deformation, RGB for glaze)
-	data: Float32Array; 
+	data: Float32Array;
 	// 2. The Smart Mask (Records Volume/Intensity during singing)
 	mask: Float32Array;
-	
+
 	// Optional metadata
 	sourceFrameCount?: number; // Number of audio frames used to generate this layer
 }
@@ -50,18 +50,18 @@ export interface SculptureDefinition {
 	id: string;
 	name: string;
 	createdAt: number;
-	
+
 	// NEW LAYER SYSTEM
 	layers: SculptureLayer[]; // Ordered bottom-to-top
-	
+
 	physical: SculpturePhysical; // Physical dimensions and manufacturing settings
-	
+
 	// LEGACY PROPERTIES (Maintained for backward compatibility with old saved files)
 	// These are populated when loading old sculptures but not used in new code
 	radiusCurve?: LathePoint[]; // Deprecated: Use layers instead
 	baseShape?: BaseShape; // Deprecated: Use layers instead
 	vertexColors?: number[]; // Deprecated: Legacy vertex colors (now in glaze layers)
-	
+
 	// Metadata
 	audioBlobId?: string;
 	instructions?: string[];

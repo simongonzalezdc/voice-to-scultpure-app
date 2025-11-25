@@ -1,4 +1,11 @@
-import type { AnalysisFrame, LathePoint, SculptureDefinition, SculptureLayer, UserProfile, BaseShape } from '$lib/types';
+import type {
+	AnalysisFrame,
+	LathePoint,
+	SculptureDefinition,
+	SculptureLayer,
+	UserProfile,
+	BaseShape
+} from '$lib/types';
 import { Color } from 'three';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
@@ -327,7 +334,7 @@ export function applyDeformation(
 		if (!point) {
 			return { x: 0.5, y: i / curve.length }; // Fallback point
 		}
-		
+
 		const normalizedHeight = i / curve.length;
 		const angle = deformation.twist * normalizedHeight * Math.PI * 2;
 
@@ -401,7 +408,13 @@ export function deriveSurfaceParameters(
  */
 export function generateGlaze(
 	frames: AnalysisFrame[],
-	activeGlaze: { color: string; roughness: number }
+	activeGlaze: {
+		color: string;
+		roughness: number;
+		transmission?: number;
+		materialType?: string;
+		baseColor?: string;
+	}
 ): Float32Array {
 	if (!frames.length) {
 		// Return default color (white) if no frames
@@ -482,14 +495,22 @@ export function createSculptureFromFrames(
 	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
 	baseShape: BaseShape = 'lathe' // GENERATIVE PERFORMANCE: Shape type
 ): SculptureDefinition {
-	const radiusCurve = generateLathe(frames, profile, mode, zone, constraintMode, 'standard', baseShape);
+	const radiusCurve = generateLathe(
+		frames,
+		profile,
+		mode,
+		zone,
+		constraintMode,
+		'standard',
+		baseShape
+	);
 	// Surface parameters are now handled via uiStore, not sculpture
 
 	// Resample geometry to compositor resolution (128 points)
 	// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
 	const resolution = 128;
 	const layerData = new Float32Array(resolution);
-	
+
 	// Resample: map radiusCurve points to resolution points
 	for (let i = 0; i < resolution; i++) {
 		const normalizedY = i / (resolution - 1); // 0 to 1

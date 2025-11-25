@@ -1,6 +1,6 @@
 /**
  * AI Provider Configurations
- * 
+ *
  * Defines all supported AI providers and their models.
  */
 
@@ -246,7 +246,9 @@ export const LOCAL_AI_CONFIG = {
 /**
  * Get all available models for a provider
  */
-export function getModelsForProvider(provider: AIProviderType): ModelConfig[] | typeof LOCAL_AI_CONFIG.models {
+export function getModelsForProvider(
+	provider: AIProviderType
+): ModelConfig[] | typeof LOCAL_AI_CONFIG.models {
 	if (provider === 'local') {
 		return LOCAL_AI_CONFIG.models;
 	}

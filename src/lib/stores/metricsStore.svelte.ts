@@ -35,7 +35,9 @@ export const metricsStore = $state<Metrics>({
 
 export function trackError(errorType: keyof Metrics['errors']): void {
 	metricsStore.errors[errorType]++;
-	console.warn(`📊 [METRICS] Error tracked: ${errorType} (total: ${metricsStore.errors[errorType]})`);
+	console.warn(
+		`📊 [METRICS] Error tracked: ${errorType} (total: ${metricsStore.errors[errorType]})`
+	);
 }
 
 export function trackGeometryComputationTime(duration: number): void {
@@ -44,22 +46,30 @@ export function trackGeometryComputationTime(duration: number): void {
 	if (metricsStore.performance.geometryComputationTimes.length > 100) {
 		metricsStore.performance.geometryComputationTimes.shift();
 	}
-	
-	const avg = metricsStore.performance.geometryComputationTimes.reduce((a, b) => a + b, 0) / metricsStore.performance.geometryComputationTimes.length;
-	console.log(`📊 [METRICS] Geometry computation: ${duration.toFixed(2)}ms (avg: ${avg.toFixed(2)}ms)`);
+
+	const avg =
+		metricsStore.performance.geometryComputationTimes.reduce((a, b) => a + b, 0) /
+		metricsStore.performance.geometryComputationTimes.length;
+	console.log(
+		`📊 [METRICS] Geometry computation: ${duration.toFixed(2)}ms (avg: ${avg.toFixed(2)}ms)`
+	);
 }
 
 export function trackReactiveUpdate(type: 'currentGeometry' | 'liveGeometry'): void {
 	metricsStore.performance.reactiveUpdateCounts[type]++;
-	console.log(`📊 [METRICS] Reactive update: ${type} (total: ${metricsStore.performance.reactiveUpdateCounts[type]})`);
+	console.log(
+		`📊 [METRICS] Reactive update: ${type} (total: ${metricsStore.performance.reactiveUpdateCounts[type]})`
+	);
 }
 
 export function getMetricsSummary(): string {
 	const { errors, performance } = metricsStore;
-	const avgTime = performance.geometryComputationTimes.length > 0
-		? performance.geometryComputationTimes.reduce((a, b) => a + b, 0) / performance.geometryComputationTimes.length
-		: 0;
-	
+	const avgTime =
+		performance.geometryComputationTimes.length > 0
+			? performance.geometryComputationTimes.reduce((a, b) => a + b, 0) /
+				performance.geometryComputationTimes.length
+			: 0;
+
 	return `
 📊 Metrics Summary:
   Errors:
@@ -88,4 +98,3 @@ export function resetMetrics(): void {
 	};
 	console.log('📊 [METRICS] Metrics reset');
 }
-

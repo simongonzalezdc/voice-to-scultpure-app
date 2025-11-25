@@ -15,14 +15,7 @@
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
-	import {
-		Info,
-		Link,
-		Mic,
-		Sparkles,
-		BarChart,
-		Music
-	} from 'lucide-svelte';
+	import { Info, Link, Mic, Sparkles, BarChart, Music } from 'lucide-svelte';
 
 	// Local state for sliders (deformation only - no duplicates!)
 	let twist = $state(0);
@@ -113,7 +106,7 @@
 
 		const radiusCurve = previewSculpture.radiusCurve || [];
 		if (radiusCurve.length === 0) return;
-		
+
 		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
 			compression: currentVerticalStretch,
@@ -156,7 +149,8 @@
 					}}
 					title="Standard Mode: Volume controls Radius"
 				>
-					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span>
+					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span
+					>
 				</button>
 				<button
 					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
@@ -193,7 +187,10 @@
 				</label>
 			</div>
 			<div>
-				<label for="symmetry-count" class="text-sm text-secondary block mb-1 flex items-center gap-2">
+				<label
+					for="symmetry-count"
+					class="text-sm text-secondary block mb-1 flex items-center gap-2"
+				>
 					Symmetry Lobes
 					<span class="text-subtle opacity-60"><Sparkles size={12} /></span>
 				</label>
@@ -420,4 +417,3 @@
 		background: #555;
 	}
 </style>
-

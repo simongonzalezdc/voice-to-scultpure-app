@@ -263,7 +263,9 @@ describe('Fabrication Constraints', () => {
 
 			const constrained = applyConstraints(curve, 'ceramic');
 			// Should enforce minimum or handle gracefully
-			const minRadius = Math.min(...constrained.map((p) => p?.x ?? 0).filter(x => Number.isFinite(x)));
+			const minRadius = Math.min(
+				...constrained.map((p) => p?.x ?? 0).filter((x) => Number.isFinite(x))
+			);
 			expect(minRadius).toBeGreaterThanOrEqual(0);
 		});
 	});

@@ -8,9 +8,13 @@
 	import OrbitControls from './OrbitControls.svelte';
 	import GhostMachines from './GhostMachines.svelte';
 	import BlueprintOverlay from './BlueprintOverlay.svelte';
+	import PostProcessing from './PostProcessing.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
+
+	// Post-processing enabled based on quality setting
+	let enablePostProcessing = $derived(appSettings.graphicsQuality !== 'low');
 
 	// PHASE 2.1: Wire ViewportControls to Scene
 	// Lighting controls - Derived from global UI store
@@ -118,4 +122,9 @@
 	<ForceParticles />
 {:else}
 	<AnalysisVisualizer />
+{/if}
+
+<!-- Post-Processing Effects (Bloom, Vignette) -->
+{#if enablePostProcessing}
+	<PostProcessing />
 {/if}

@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { sculptureStore, updateSculptureColors, setMeshReference } from '../stores/sculptureStore.svelte';
+import {
+	sculptureStore,
+	updateSculptureColors,
+	setMeshReference
+} from '../stores/sculptureStore.svelte';
 import { uiStore } from '../stores/uiStore.svelte';
 import { Mesh, BufferAttribute, BufferGeometry } from 'three';
 import type { SculptureDefinition } from '../types';
@@ -27,10 +31,10 @@ describe('Glaze Persistence - Core Functionality', () => {
 				orientation: 'vertical'
 			}
 		};
-		
+
 		// Set current sculpture
 		sculptureStore.currentSculpture = mockSculpture;
-		
+
 		// Create mock mesh with colors
 		const geometry = new BufferGeometry();
 		const vertexCount = 100;
@@ -41,7 +45,7 @@ describe('Glaze Persistence - Core Functionality', () => {
 			positions[i * 3 + 2] = Math.random() * 2 - 1; // z
 		}
 		geometry.setAttribute('position', new BufferAttribute(positions, 3));
-		
+
 		// Create color attribute with test colors
 		const colors = new Float32Array(vertexCount * 3);
 		for (let i = 0; i < vertexCount; i++) {
@@ -50,23 +54,24 @@ describe('Glaze Persistence - Core Functionality', () => {
 			colors[i * 3 + 2] = Math.random(); // b
 		}
 		geometry.setAttribute('color', new BufferAttribute(colors, 3));
-		
+
 		const mockMesh = new Mesh(geometry);
 		setMeshReference(mockMesh);
-		
+
 		// Extract colors from mesh
 		const colorAttribute = mockMesh.geometry.attributes.color;
 		if (!colorAttribute || !colorAttribute.array) {
 			throw new Error('Color attribute not found on mock mesh');
 		}
 		const expectedColors = Array.from(colorAttribute.array);
-		
+
 		// Update sculpture colors
 		updateSculptureColors(colorAttribute.array as Float32Array);
-		
-		// Colors are now stored in geometry attributes, not sculpture object
-		// TODO: Update test to check geometry.getAttribute('color')
+
+		// Verify colors are stored in sculpture definition (legacy vertexColors property)
 		expect(sculptureStore.currentSculpture).toBeDefined();
+		expect(sculptureStore.currentSculpture?.vertexColors).toBeDefined();
+		expect(sculptureStore.currentSculpture?.vertexColors?.length).toBe(expectedColors.length);
 	});
 
 	it('should handle empty color arrays gracefully', () => {
@@ -84,13 +89,13 @@ describe('Glaze Persistence - Core Functionality', () => {
 				orientation: 'vertical'
 			}
 		};
-		
+
 		// Set current sculpture
 		sculptureStore.currentSculpture = mockSculpture;
-		
+
 		// Update with empty colors
 		updateSculptureColors(new Float32Array(0));
-		
+
 		// Colors are now stored in geometry attributes, not sculpture object
 		expect(sculptureStore.currentSculpture).toBeDefined();
 	});
@@ -110,16 +115,16 @@ describe('Glaze Persistence - Core Functionality', () => {
 				orientation: 'vertical'
 			}
 		};
-		
+
 		// Set current sculpture
 		sculptureStore.currentSculpture = mockSculpture;
-		
+
 		// Switch to glaze mode
 		uiStore.workspace = 'glaze';
-		
+
 		// Verify workspace is in glaze mode
 		expect(uiStore.workspace).toBe('glaze');
-		
+
 		// Vertex colors now stored in geometry attributes
 		expect(sculptureStore.currentSculpture).toBeDefined();
 	});

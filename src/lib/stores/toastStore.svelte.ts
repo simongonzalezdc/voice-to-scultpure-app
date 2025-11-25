@@ -164,3 +164,12 @@ class ToastStore {
 
 // Create singleton instance
 export const toastStore = new ToastStore();
+
+/**
+ * Convenience function for quick toasts
+ * @param message - Toast message
+ * @param type - Toast type (default: 'info')
+ */
+export function showToast(message: string, type: ToastType = 'info'): void {
+	toastStore[type](type.charAt(0).toUpperCase() + type.slice(1), message);
+}

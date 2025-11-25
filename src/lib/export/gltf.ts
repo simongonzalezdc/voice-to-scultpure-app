@@ -22,7 +22,7 @@ export async function exportSculptureToGLB(
 			constraintMode: options?.constraintMode ?? 'ceramic',
 			modifiers: options?.modifiers
 		};
-		
+
 		const finalProfile = generateFinalProfile(sculpture, exportOptions);
 
 		// Determine segment count (match main sculpture logic)
@@ -34,9 +34,23 @@ export async function exportSculptureToGLB(
 		const vectors = finalProfile.map((p) => new Vector2(p.x, p.y));
 		const geometry = new LatheGeometry(vectors, segments);
 
-		// Apply vertex colors if available (legacy property - now in layers)
-		// TODO: Extract vertex colors from layers if needed
-		const vertexColors: number[] = []; // Empty for now - colors are in layers
+		// Apply vertex colors if available
+		// Check for colors in: 1) layers (glaze type), 2) legacy vertexColors property
+		let vertexColors: number[] = [];
+
+		// Extract from glaze layers
+		if (sculpture.layers && sculpture.layers.length > 0) {
+			const glazeLayer = sculpture.layers.find((l) => l.type === 'glaze' && l.visible);
+			if (glazeLayer && glazeLayer.data && glazeLayer.data.length > 0) {
+				// Glaze layer data is stored as RGB triplets
+				vertexColors = Array.from(glazeLayer.data);
+			}
+		}
+
+		// Fallback to legacy property
+		if (vertexColors.length === 0 && sculpture.vertexColors && sculpture.vertexColors.length > 0) {
+			vertexColors = sculpture.vertexColors;
+		}
 		if (vertexColors && vertexColors.length > 0) {
 			const positions = geometry.attributes.position;
 			if (!positions) {
@@ -83,9 +97,10 @@ export async function exportSculptureToGLB(
 		}
 
 		// Create material based on sculpture type
-		// Read from uiStore (legacy properties moved there)
-		const isPlastic = false; // TODO: Add materialType to uiStore if needed
-		const baseColor = uiStore.activeGlaze.color || (isPlastic ? '#3080ff' : '#E0C9A6');
+		// Read from uiStore (active glaze settings)
+		const hasVertexColors = geometry.hasAttribute('color');
+		const baseColor = uiStore.activeGlaze.baseColor || '#E0C9A6';
+		const isPlastic = uiStore.activeGlaze.materialType === 'plastic';
 
 		let material;
 		if (isPlastic) {
@@ -104,7 +119,8 @@ export async function exportSculptureToGLB(
 			const blendedColor = blendColors(baseColor, glazeColor, transmission);
 
 			// Check if vertex colors are available
-			const hasVertexColors = vertexColors && vertexColors.length > 0 && !!geometry.attributes.color;
+			const hasVertexColors =
+				vertexColors && vertexColors.length > 0 && !!geometry.attributes.color;
 
 			material = new MeshPhysicalMaterial({
 				color: hasVertexColors ? 'white' : blendedColor,

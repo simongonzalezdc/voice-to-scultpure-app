@@ -90,10 +90,10 @@
 
 		// Initial poll
 		pollAudioState();
-		
+
 		// Set up interval for continuous polling (10Hz)
 		const intervalId = setInterval(pollAudioState, 100);
-		
+
 		// Cleanup on component destroy
 		return () => clearInterval(intervalId);
 	});
@@ -140,7 +140,8 @@
 		}
 	};
 
-	const config = statusConfig[audioStatus];
+	// Use $derived to make config reactive
+	let config = $derived(statusConfig[audioStatus]);
 </script>
 
 <div

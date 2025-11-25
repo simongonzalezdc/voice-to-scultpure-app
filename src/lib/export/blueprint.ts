@@ -26,9 +26,11 @@ export function exportProfileSVG(
 	const isMetric = units === 'mm';
 
 	// Find max radius to determine SVG width
-	const maxRadius = Math.max(...deformedCurve.map((p) => p?.x ?? 0.5).filter(x => Number.isFinite(x)));
-	const minY = Math.min(...deformedCurve.map((p) => p?.y ?? 0).filter(y => Number.isFinite(y)));
-	const maxY = Math.max(...deformedCurve.map((p) => p?.y ?? 1).filter(y => Number.isFinite(y)));
+	const maxRadius = Math.max(
+		...deformedCurve.map((p) => p?.x ?? 0.5).filter((x) => Number.isFinite(x))
+	);
+	const minY = Math.min(...deformedCurve.map((p) => p?.y ?? 0).filter((y) => Number.isFinite(y)));
+	const maxY = Math.max(...deformedCurve.map((p) => p?.y ?? 1).filter((y) => Number.isFinite(y)));
 	const maxHeight = Math.max(0.001, maxY - minY); // Prevent division by zero
 
 	// Scale to physical dimensions
@@ -53,7 +55,7 @@ export function exportProfileSVG(
 	for (let i = 0; i < deformedCurve.length; i++) {
 		const point = deformedCurve[i];
 		if (!point) continue;
-		
+
 		const normalizedY = (point.y ?? 0) - minYValue;
 		const x = padding + physicalMaxRadius - (point.x ?? 0.5) * radiusScale * scaleFactor; // Center horizontally
 		const y = padding + normalizedY * heightScale * scaleFactor; // Top to bottom

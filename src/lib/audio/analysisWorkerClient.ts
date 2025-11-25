@@ -25,16 +25,16 @@ export function createAnalysisWorkerClient(
 
 	let frameCount = 0;
 	let configConfirmed = false;
-	
+
 	worker.onmessage = (e) => {
 		const { type, payload } = e.data;
-		
+
 		if (type === 'status' && payload === 'configured') {
 			configConfirmed = true;
 			configured = true;
 			console.log('✅ [WORKER] Configuration confirmed by worker');
 		}
-		
+
 		if (type === 'analysis-frame') {
 			frameCount++;
 			if (frameCount === 1) {
@@ -42,7 +42,7 @@ export function createAnalysisWorkerClient(
 			}
 			onFrame(payload as AnalysisFrame);
 		}
-		
+
 		if (type === 'error') {
 			console.error('❌ [WORKER] Worker error:', payload);
 		}
@@ -65,7 +65,7 @@ export function createAnalysisWorkerClient(
 			hopSize: 512 // REVERT: 2048 caused Meyda buffer size error. Improved pitch detection in autocorrelation instead.
 		}
 	});
-	
+
 	// Set a timeout to mark as configured even if we don't get confirmation
 	// (some browsers might not send status messages)
 	setTimeout(() => {

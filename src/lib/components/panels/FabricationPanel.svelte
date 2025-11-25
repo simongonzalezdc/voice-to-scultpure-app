@@ -14,7 +14,11 @@
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
-	import { getConstraintDescription, getConstraintIcon, type ConstraintMode } from '$lib/engine/constraints';
+	import {
+		getConstraintDescription,
+		getConstraintIcon,
+		type ConstraintMode
+	} from '$lib/engine/constraints';
 	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
 
@@ -143,7 +147,6 @@
 			alert(`PLY export failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
-
 
 	// Get Pottery Mode
 	let potteryMode = $derived(appSettings.viewMode?.potteryMode ?? false);

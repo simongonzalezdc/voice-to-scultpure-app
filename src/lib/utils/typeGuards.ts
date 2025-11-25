@@ -43,14 +43,9 @@ export function isBufferAttribute(
 /**
  * Check if mesh has geometry
  */
-export function isMeshWithGeometry(
-	mesh: unknown
-): mesh is Mesh & { geometry: BufferGeometry } {
+export function isMeshWithGeometry(mesh: unknown): mesh is Mesh & { geometry: BufferGeometry } {
 	return (
-		typeof mesh === 'object' &&
-		mesh !== null &&
-		'geometry' in mesh &&
-		mesh.geometry !== undefined
+		typeof mesh === 'object' && mesh !== null && 'geometry' in mesh && mesh.geometry !== undefined
 	);
 }
 
@@ -60,4 +55,3 @@ export function isMeshWithGeometry(
 export function isNonEmptyArray<T>(arr: T[] | undefined | null): arr is T[] {
 	return arr !== undefined && arr !== null && arr.length > 0;
 }
-

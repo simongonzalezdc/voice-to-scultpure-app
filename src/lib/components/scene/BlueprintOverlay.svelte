@@ -28,7 +28,7 @@
 	// Recreate geometry when blueprint changes
 	$effect(() => {
 		if (!activeBlueprint) return;
-		
+
 		// Clean up old geometry
 		if (lineGeometry) {
 			lineGeometry.dispose();
@@ -84,7 +84,13 @@
 {#if uiStore.view.showBlueprint && activeBlueprint && lineGeometry}
 	<T.Group>
 		<T.Line geometry={lineGeometry} bind:ref={lineRef} position={[0, 0, 0]}>
-			<T.LineDashedMaterial color="#56b3ff" dashSize={0.05} gapSize={0.03} transparent opacity={0.75} />
+			<T.LineDashedMaterial
+				color="#56b3ff"
+				dashSize={0.05}
+				gapSize={0.03}
+				transparent
+				opacity={0.75}
+			/>
 		</T.Line>
 	</T.Group>
 {/if}

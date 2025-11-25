@@ -1,4 +1,10 @@
-import type { SculptureDefinition, SculptureLayer, LayerType, LathePoint, BlendMode } from '$lib/types';
+import type {
+	SculptureDefinition,
+	SculptureLayer,
+	LayerType,
+	LathePoint,
+	BlendMode
+} from '$lib/types';
 import { Vector3, type Mesh } from 'three';
 import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
@@ -117,9 +123,9 @@ export function updateSculptureColors(colors: Float32Array): void {
 		return;
 	}
 
-	// Store colors in sculpture definition for persistence (legacy support)
-	// Convert Float32Array to regular array for serialization
-	// TODO: Migrate to glaze layer system
+	// Store colors in sculpture definition for persistence
+	// NOTE: Legacy vertexColors property maintained for backward compatibility
+	// New sculptures should use glaze layers instead (see addLayer with type='glaze')
 	const updated: SculptureDefinition = {
 		...sculptureStore.currentSculpture,
 		vertexColors: Array.from(colors)
@@ -144,7 +150,7 @@ export function addLayer(layerOrType: LayerType | SculptureLayer): void {
 		// Create new layer from type
 		const type = layerOrType;
 		const resolution = 128; // Standard resolution for data buffers
-		
+
 		newLayer = {
 			id: crypto.randomUUID(),
 			name: `${type} Layer ${sculpture.layers.length + 1}`,
@@ -168,20 +174,20 @@ export function addLayer(layerOrType: LayerType | SculptureLayer): void {
 	sculptureStore.activeLayerId = newLayer.id;
 	sculptureStore.geometryDirty = true;
 	(sculptureStore as any).layers = sculpture.layers;
-	
+
 	console.log(`✨ [LAYER] Added ${newLayer.type} layer: ${newLayer.name}`);
 }
 
 export function removeLayer(layerId: string): void {
 	if (!sculptureStore.currentSculpture) return;
 
-	const index = sculptureStore.currentSculpture.layers.findIndex(l => l.id === layerId);
+	const index = sculptureStore.currentSculpture.layers.findIndex((l) => l.id === layerId);
 	if (index > -1) {
 		const removed = sculptureStore.currentSculpture.layers.splice(index, 1)[0];
 		if (removed) {
 			console.log(`🗑️ [LAYER] Removed layer: ${removed.name}`);
 		}
-		
+
 		// Update active layer
 		if (sculptureStore.activeLayerId === layerId) {
 			const count = sculptureStore.currentSculpture?.layers.length ?? 0;
@@ -198,8 +204,8 @@ export function removeLayer(layerId: string): void {
 
 export function toggleLayerVisibility(layerId: string): void {
 	if (!sculptureStore.currentSculpture) return;
-	
-	const layer = sculptureStore.currentSculpture.layers.find(l => l.id === layerId);
+
+	const layer = sculptureStore.currentSculpture.layers.find((l) => l.id === layerId);
 	if (layer) {
 		layer.visible = !layer.visible;
 		sculptureStore.geometryDirty = true;
@@ -209,7 +215,7 @@ export function toggleLayerVisibility(layerId: string): void {
 export function setLayerOpacity(layerId: string, opacity: number): void {
 	if (!sculptureStore.currentSculpture) return;
 
-	const layer = sculptureStore.currentSculpture.layers.find(l => l.id === layerId);
+	const layer = sculptureStore.currentSculpture.layers.find((l) => l.id === layerId);
 	if (layer) {
 		layer.opacity = Math.max(0, Math.min(1, opacity));
 		sculptureStore.geometryDirty = true;
@@ -218,8 +224,8 @@ export function setLayerOpacity(layerId: string, opacity: number): void {
 
 export function setActiveLayer(layerId: string): void {
 	if (!sculptureStore.currentSculpture) return;
-	
-	const layer = sculptureStore.currentSculpture.layers.find(l => l.id === layerId);
+
+	const layer = sculptureStore.currentSculpture.layers.find((l) => l.id === layerId);
 	if (layer) {
 		sculptureStore.activeLayerId = layer.id;
 	}
@@ -251,7 +257,7 @@ export function createLayerFromFrames(
 	data: Float32Array
 ): SculptureLayer {
 	const resolution = data.length / 2; // Assuming data is [x, y, x, y, ...] pairs
-	
+
 	return {
 		id: crypto.randomUUID(),
 		name,
@@ -272,18 +278,24 @@ export function createLayerFromFrames(
  */
 export function composeGeometry(): LathePoint[] {
 	if (!sculptureStore.currentSculpture) {
-		return Array(128).fill(0).map((_, i) => ({ x: 0.5, y: i / 127 }));
+		return Array(128)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 127 }));
 	}
 
-	const layers = sculptureStore.currentSculpture.layers.filter(l => l.visible);
+	const layers = sculptureStore.currentSculpture.layers.filter((l) => l.visible);
 	if (layers.length === 0) {
-		return Array(128).fill(0).map((_, i) => ({ x: 0.5, y: i / 127 }));
+		return Array(128)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 127 }));
 	}
 
 	// Find the base layer (or use first layer as base)
-	const baseLayer = layers.find(l => l.type === 'base') || layers[0];
+	const baseLayer = layers.find((l) => l.type === 'base') || layers[0];
 	if (!baseLayer) {
-		return Array(128).fill(0).map((_, i) => ({ x: 0.5, y: i / 127 }));
+		return Array(128)
+			.fill(0)
+			.map((_, i) => ({ x: 0.5, y: i / 127 }));
 	}
 
 	// Extract points from base layer data (assuming data is [x, y, x, y, ...] pairs)
@@ -294,7 +306,7 @@ export function composeGeometry(): LathePoint[] {
 		const baseX = baseLayer.data[i * 2];
 		const baseY = baseLayer.data[i * 2 + 1];
 		if (baseX === undefined || baseY === undefined) continue;
-		
+
 		let x = baseX;
 		let y = baseY;
 

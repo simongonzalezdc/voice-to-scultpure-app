@@ -5,8 +5,8 @@
 	import { callProvider, testConnection } from '$lib/ai/MultiProviderAdapter';
 	import { executeActions, buildContext } from '$lib/ai/actionExecutor';
 	import { buildContextSummary, type SculptorResponse } from '$lib/ai/sculptorActions';
-	import { 
-		PROVIDER_CONFIGS, 
+	import {
+		PROVIDER_CONFIGS,
 		LOCAL_AI_CONFIG,
 		getModelsForProvider,
 		getProviderName,
@@ -14,10 +14,10 @@
 		type CloudProvider,
 		type AIProviderType
 	} from '$lib/ai/providers';
-	import { 
-		createBrowserSpeechToText, 
+	import {
+		createBrowserSpeechToText,
 		isSpeechRecognitionSupported,
-		type SpeechToTextService 
+		type SpeechToTextService
 	} from '$lib/ai/speechToText';
 	import { onMount } from 'svelte';
 	import type { MultiProviderAPIKeys } from '$lib/types';
@@ -28,31 +28,35 @@
 	let status = $state<'idle' | 'generating' | 'testing' | 'error'>('idle');
 	let errorMessage = $state<string | null>(null);
 	let showSettings = $state(false);
-	
+
 	// Speech-to-text state
 	let speechService = $state<SpeechToTextService | null>(null);
 	let isListening = $state(false);
 	let interimTranscript = $state('');
-	
+
 	// Provider selection
 	let selectedProvider = $state<AIProviderType>(appSettings.aiProvider || 'local');
 	let selectedCloudProvider = $state<CloudProvider>(appSettings.cloudProvider || 'openai');
 	let selectedModel = $state<string>(appSettings.selectedModel || '');
-	
+
 	// API keys (one per provider)
 	let apiKeys = $state<MultiProviderAPIKeys>(appSettings.apiKeys || {});
-	
+
 	// Connection status per provider
-	let connectionStatus = $state<Record<string, 'untested' | 'testing' | 'connected' | 'failed'>>({});
+	let connectionStatus = $state<Record<string, 'untested' | 'testing' | 'connected' | 'failed'>>(
+		{}
+	);
 
 	// Derived values
 	let currentApiKey = $derived(apiKeys[selectedCloudProvider] || '');
-	let availableModels = $derived(getModelsForProvider(selectedProvider === 'local' ? 'local' : selectedCloudProvider));
+	let availableModels = $derived(
+		getModelsForProvider(selectedProvider === 'local' ? 'local' : selectedCloudProvider)
+	);
 	let speechSupported = $derived(isSpeechRecognitionSupported());
 	let canSend = $derived(
 		!!inputText.trim() &&
-		status !== 'generating' &&
-		(selectedProvider === 'local' || !!currentApiKey)
+			status !== 'generating' &&
+			(selectedProvider === 'local' || !!currentApiKey)
 	);
 
 	// Initialize on mount
@@ -61,7 +65,7 @@
 		if (appSettings.speechToTextEnabled) {
 			initSpeechToText();
 		}
-		
+
 		// Set default model if none selected
 		if (!selectedModel && availableModels.length > 0) {
 			const firstModel = availableModels[0];
@@ -74,7 +78,7 @@
 	// Initialize speech-to-text
 	function initSpeechToText() {
 		if (!speechSupported) return;
-		
+
 		speechService = createBrowserSpeechToText({
 			continuous: false,
 			interimResults: true,
@@ -103,7 +107,7 @@
 			initSpeechToText();
 			if (!speechService) return;
 		}
-		
+
 		if (isListening) {
 			speechService.stop();
 			isListening = false;
@@ -121,7 +125,7 @@
 			connectionStatus[provider] = 'failed';
 			return;
 		}
-		
+
 		connectionStatus[provider] = 'testing';
 		try {
 			const connected = await testConnection(provider, key);
@@ -134,7 +138,7 @@
 	// Handle sending message
 	async function handleSend() {
 		if (!canSend) return;
-		
+
 		const userMessage = inputText.trim();
 		messages = [...messages, { role: 'user', content: userMessage }];
 		inputText = '';
@@ -145,14 +149,14 @@
 			// Build context summary
 			const context = buildContext();
 			const contextSummary = buildContextSummary(context);
-			
+
 			// Add context to the conversation
 			const messagesWithContext = [
 				{ role: 'user' as const, content: `${contextSummary}\n\nUser request: ${userMessage}` }
 			];
-			
+
 			let response: SculptorResponse;
-			
+
 			if (selectedProvider === 'local') {
 				// Local AI not yet implemented in this new system
 				// Fall back to a simple response
@@ -171,25 +175,28 @@
 					maxTokens: 2000
 				});
 			}
-			
+
 			// Execute the actions
 			if (response.actions.length > 0) {
 				const results = executeActions(response.actions);
-				const successCount = results.filter(r => r.success).length;
+				const successCount = results.filter((r) => r.success).length;
 				const failCount = results.length - successCount;
-				
+
 				console.log(`[AI PANEL] Executed ${successCount}/${results.length} actions`);
 				if (failCount > 0) {
-					console.warn('[AI PANEL] Failed actions:', results.filter(r => !r.success));
+					console.warn(
+						'[AI PANEL] Failed actions:',
+						results.filter((r) => !r.success)
+					);
 				}
 			}
-			
+
 			// Add AI response to messages
 			let responseContent = response.explanation;
 			if (response.suggestions?.length) {
 				responseContent += `\n\n💡 ${response.suggestions.join('\n💡 ')}`;
 			}
-			
+
 			messages = [...messages, { role: 'assistant', content: responseContent }];
 			status = 'idle';
 		} catch (error) {
@@ -203,7 +210,7 @@
 	function handleProviderChange(provider: AIProviderType) {
 		selectedProvider = provider;
 		updateSettings({ aiProvider: provider });
-		
+
 		// Set default model for new provider
 		const models = getModelsForProvider(provider === 'local' ? 'local' : selectedCloudProvider);
 		if (models.length > 0) {
@@ -219,7 +226,7 @@
 	function handleCloudProviderChange(provider: CloudProvider) {
 		selectedCloudProvider = provider;
 		updateSettings({ cloudProvider: provider });
-		
+
 		// Set default model for new provider
 		const models = getModelsForProvider(provider);
 		if (models.length > 0) {
@@ -262,9 +269,9 @@
 			<span class="text-xl">🤖</span>
 			AI Sculptor
 		</h2>
-		<button 
+		<button
 			class="text-sm text-secondary hover:text-primary"
-			onclick={() => showSettings = !showSettings}
+			onclick={() => (showSettings = !showSettings)}
 		>
 			{showSettings ? '✕ Close' : '⚙️ Settings'}
 		</button>
@@ -276,13 +283,17 @@
 			<!-- Provider Selection -->
 			<div class="flex gap-2">
 				<button
-					class="flex-1 px-3 py-2 rounded transition-colors {selectedProvider !== 'local' ? 'bg-primary text-white' : 'surface-panel'}"
+					class="flex-1 px-3 py-2 rounded transition-colors {selectedProvider !== 'local'
+						? 'bg-primary text-white'
+						: 'surface-panel'}"
 					onclick={() => handleProviderChange(selectedCloudProvider)}
 				>
 					☁️ Cloud
 				</button>
 				<button
-					class="flex-1 px-3 py-2 rounded transition-colors {selectedProvider === 'local' ? 'bg-primary text-white' : 'surface-panel'}"
+					class="flex-1 px-3 py-2 rounded transition-colors {selectedProvider === 'local'
+						? 'bg-primary text-white'
+						: 'surface-panel'}"
 					onclick={() => handleProviderChange('local')}
 				>
 					💻 Local
@@ -292,8 +303,11 @@
 			{#if selectedProvider !== 'local'}
 				<!-- Cloud Provider Selection -->
 				<div>
-					<label class="block text-xs text-secondary mb-1">Cloud Provider</label>
+					<label for="cloud-provider-select" class="block text-xs text-secondary mb-1"
+						>Cloud Provider</label
+					>
 					<select
+						id="cloud-provider-select"
 						class="w-full surface-panel px-2 py-1.5 rounded"
 						value={selectedCloudProvider}
 						onchange={(e) => handleCloudProviderChange(e.currentTarget.value as CloudProvider)}
@@ -306,11 +320,12 @@
 
 				<!-- API Key Input -->
 				<div>
-					<label class="block text-xs text-secondary mb-1">
+					<label for="api-key-input" class="block text-xs text-secondary mb-1">
 						{getProviderName(selectedCloudProvider)} API Key
 					</label>
 					<div class="flex gap-2">
 						<input
+							id="api-key-input"
 							type="password"
 							class="flex-1 surface-panel px-2 py-1.5 rounded text-sm"
 							placeholder="Enter API key..."
@@ -337,8 +352,9 @@
 
 				<!-- Model Selection -->
 				<div>
-					<label class="block text-xs text-secondary mb-1">Model</label>
+					<label for="model-select" class="block text-xs text-secondary mb-1">Model</label>
 					<select
+						id="model-select"
 						class="w-full surface-panel px-2 py-1.5 rounded"
 						value={selectedModel}
 						onchange={(e) => {
@@ -362,11 +378,14 @@
 					<p class="mb-2">🔒 Local AI runs entirely in your browser using WebGPU.</p>
 					<p>No data is sent to external servers.</p>
 				</div>
-				
+
 				<!-- Local Model Selection -->
 				<div>
-					<label class="block text-xs text-secondary mb-1">Local Model</label>
+					<label for="local-model-select" class="block text-xs text-secondary mb-1"
+						>Local Model</label
+					>
 					<select
+						id="local-model-select"
 						class="w-full surface-panel px-2 py-1.5 rounded"
 						value={selectedModel}
 						onchange={(e) => {
@@ -388,7 +407,9 @@
 				<div class="flex items-center justify-between pt-2 border-t border-muted">
 					<span class="text-xs">🎤 Voice Commands</span>
 					<button
-						class="px-2 py-1 rounded text-xs {appSettings.speechToTextEnabled ? 'bg-primary text-white' : 'surface-panel'}"
+						class="px-2 py-1 rounded text-xs {appSettings.speechToTextEnabled
+							? 'bg-primary text-white'
+							: 'surface-panel'}"
 						onclick={() => {
 							updateSettings({ speechToTextEnabled: !appSettings.speechToTextEnabled });
 							if (!appSettings.speechToTextEnabled) {
@@ -411,7 +432,7 @@
 				<p class="text-xs opacity-70">Try: "Make it taller and add a twist"</p>
 			</div>
 		{/if}
-		
+
 		{#each messages as message}
 			<div class="message {message.role === 'user' ? 'user-message' : 'assistant-message'}">
 				<span class="font-semibold text-xs opacity-70">
@@ -420,13 +441,11 @@
 				<p class="text-sm whitespace-pre-wrap">{message.content}</p>
 			</div>
 		{/each}
-		
+
 		{#if status === 'generating'}
-			<div class="text-sm text-secondary animate-pulse">
-				🎨 Sculpting...
-			</div>
+			<div class="text-sm text-secondary animate-pulse">🎨 Sculpting...</div>
 		{/if}
-		
+
 		{#if errorMessage}
 			<div class="text-sm bg-red-900/30 text-red-300 p-2 rounded">
 				⚠️ {errorMessage}
@@ -441,7 +460,7 @@
 				🎤 {interimTranscript}
 			</div>
 		{/if}
-		
+
 		<div class="flex gap-2">
 			{#if appSettings.speechToTextEnabled && speechSupported}
 				<button
@@ -452,12 +471,12 @@
 					{isListening ? '🔴' : '🎤'}
 				</button>
 			{/if}
-			
+
 			<input
 				type="text"
 				class="flex-1 surface-panel-alt px-3 py-2 rounded text-sm"
-				placeholder={selectedProvider === 'local' && !sculptureStore.currentSculpture 
-					? 'Record a sculpture first...' 
+				placeholder={selectedProvider === 'local' && !sculptureStore.currentSculpture
+					? 'Record a sculpture first...'
 					: 'Describe changes...'}
 				bind:value={inputText}
 				disabled={status === 'generating'}
@@ -468,16 +487,12 @@
 					}
 				}}
 			/>
-			
-			<button
-				class="send-button"
-				onclick={handleSend}
-				disabled={!canSend}
-			>
+
+			<button class="send-button" onclick={handleSend} disabled={!canSend}>
 				{status === 'generating' ? '⏳' : '➤'}
 			</button>
 		</div>
-		
+
 		{#if messages.length > 0}
 			<div class="flex gap-2 mt-2">
 				{#if status === 'error'}
@@ -555,8 +570,13 @@
 	}
 
 	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.5; }
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
 	}
 
 	.settings-panel {

@@ -59,7 +59,8 @@ export function pitchToTwist(pitch: number): number {
 	const clamped = Math.max(VOICE_LINK_PITCH_MIN, Math.min(VOICE_LINK_PITCH_MAX, pitch));
 
 	// Normalize to 0-1
-	const normalized = (clamped - VOICE_LINK_PITCH_MIN) / (VOICE_LINK_PITCH_MAX - VOICE_LINK_PITCH_MIN);
+	const normalized =
+		(clamped - VOICE_LINK_PITCH_MIN) / (VOICE_LINK_PITCH_MAX - VOICE_LINK_PITCH_MIN);
 
 	// Map to -1 to 1 range
 	const twisted = normalized * 2 - 1;
@@ -74,10 +75,15 @@ export function pitchToTwist(pitch: number): number {
  */
 export function timbreToRoughness(spectralCentroid: number): number {
 	// Clamp spectral centroid to range
-	const clamped = Math.max(VOICE_LINK_TIMBRE_SMOOTH_MIN, Math.min(VOICE_LINK_TIMBRE_RASPY_MAX, spectralCentroid));
+	const clamped = Math.max(
+		VOICE_LINK_TIMBRE_SMOOTH_MIN,
+		Math.min(VOICE_LINK_TIMBRE_RASPY_MAX, spectralCentroid)
+	);
 
 	// Normalize to 0-1
-	const normalized = (clamped - VOICE_LINK_TIMBRE_SMOOTH_MIN) / (VOICE_LINK_TIMBRE_RASPY_MAX - VOICE_LINK_TIMBRE_SMOOTH_MIN);
+	const normalized =
+		(clamped - VOICE_LINK_TIMBRE_SMOOTH_MIN) /
+		(VOICE_LINK_TIMBRE_RASPY_MAX - VOICE_LINK_TIMBRE_SMOOTH_MIN);
 
 	return normalized;
 }

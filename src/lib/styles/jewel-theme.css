@@ -1,6 +1,7 @@
 /* Jewel Engine Theme Tokens – Low-Contrast Jewels
  * Warm-charcoal base + muted Garnet (primary) & Topaz (secondary)
  * All jewel tones are low-contrast / closer to the background.
+ * Updated 2025: Added glassmorphism, micro-interactions, animations
  */
 
 :root {
@@ -11,6 +12,13 @@
 	--bg-panel-alt: #2b262f;
 	--border-subtle: #3a343f;
 	--border-strong: #4a424f;
+
+	/* Glassmorphism surfaces */
+	--glass-bg: rgba(33, 31, 38, 0.75);
+	--glass-bg-light: rgba(43, 38, 47, 0.65);
+	--glass-border: rgba(255, 255, 255, 0.08);
+	--glass-highlight: rgba(255, 255, 255, 0.05);
+	--glass-blur: 12px;
 
 	/* Text */
 	--text-primary: #f9fafb;
@@ -23,9 +31,11 @@
 	--brand-primary-hover: #ae5d37;
 	--brand-primary-soft: #5b2b33;
 	--brand-primary-outline: rgba(143, 62, 72, 0.9);
+	--brand-primary-glow: rgba(143, 62, 72, 0.4);
 
 	--brand-secondary: #b5933c; /* muted topaz (secondary) */
 	--brand-secondary-soft: #7f6530;
+	--brand-secondary-glow: rgba(181, 147, 60, 0.4);
 
 	/* Jewel tones – low contrast / closer to background */
 	--jewel-amethyst: #6b5d88;
@@ -55,6 +65,12 @@
 	--z-footer: 50;
 	--z-modal-backdrop: 100;
 	--z-modal: 110;
+
+	/* Animation timing */
+	--transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+	--transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+	--spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Example utility mappings (optional – adapt to your system) */
@@ -131,4 +147,294 @@
 .badge-info {
 	background: color-mix(in srgb, var(--info) 24%, transparent);
 	color: #d3f2f1;
+}
+
+/* ============================================
+   GLASSMORPHISM PANELS (2025 Modern Style)
+   ============================================ */
+
+.glass-panel {
+	background: var(--glass-bg);
+	backdrop-filter: blur(var(--glass-blur));
+	-webkit-backdrop-filter: blur(var(--glass-blur));
+	border: 1px solid var(--glass-border);
+	box-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.3),
+		inset 0 1px 0 var(--glass-highlight);
+	border-radius: 12px;
+}
+
+.glass-panel-light {
+	background: var(--glass-bg-light);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	border: 1px solid var(--glass-border);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+	border-radius: 8px;
+}
+
+/* ============================================
+   MICRO-INTERACTIONS & ANIMATIONS
+   ============================================ */
+
+/* Button hover lift effect */
+.button-primary,
+.button-secondary {
+	transition: all var(--transition-fast);
+}
+
+.button-primary:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px var(--brand-primary-glow);
+}
+
+.button-primary:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 6px var(--brand-primary-glow);
+}
+
+.button-secondary:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px var(--brand-secondary-glow);
+}
+
+.button-secondary:active {
+	transform: translateY(0);
+}
+
+/* Interactive element scale */
+.interactive-scale {
+	transition: transform var(--transition-fast);
+}
+
+.interactive-scale:hover {
+	transform: scale(1.02);
+}
+
+.interactive-scale:active {
+	transform: scale(0.98);
+}
+
+/* Recording pulse animation */
+.recording-pulse {
+	animation: recording-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+	}
+	50% {
+		box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+	}
+}
+
+/* Success pulse */
+.success-pulse {
+	animation: success-pulse 0.6s ease-out;
+}
+
+@keyframes success-pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(90, 120, 80, 0.6);
+	}
+	100% {
+		box-shadow: 0 0 0 16px rgba(90, 120, 80, 0);
+	}
+}
+
+/* Glow effect for active elements */
+.glow-primary {
+	box-shadow: 0 0 20px var(--brand-primary-glow);
+}
+
+.glow-secondary {
+	box-shadow: 0 0 20px var(--brand-secondary-glow);
+}
+
+/* Fade in animation */
+.fade-in {
+	animation: fade-in var(--transition-normal) ease-out;
+}
+
+@keyframes fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Slide in from right (for panels) */
+.slide-in-right {
+	animation: slide-in-right var(--transition-normal) ease-out;
+}
+
+@keyframes slide-in-right {
+	from {
+		opacity: 0;
+		transform: translateX(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+/* Slide in from left (for sidebars) */
+.slide-in-left {
+	animation: slide-in-left var(--transition-normal) ease-out;
+}
+
+@keyframes slide-in-left {
+	from {
+		opacity: 0;
+		transform: translateX(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+/* Scale bounce for selections */
+.scale-bounce {
+	animation: scale-bounce 0.3s var(--spring-bounce);
+}
+
+@keyframes scale-bounce {
+	0% {
+		transform: scale(0.9);
+	}
+	50% {
+		transform: scale(1.05);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+/* Skeleton loading animation */
+.skeleton {
+	background: linear-gradient(
+		90deg,
+		var(--bg-panel-alt) 25%,
+		var(--bg-elevated) 50%,
+		var(--bg-panel-alt) 75%
+	);
+	background-size: 200% 100%;
+	animation: skeleton-shimmer 1.5s infinite;
+	border-radius: 4px;
+}
+
+@keyframes skeleton-shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* Spinner animation */
+.spinner {
+	animation: spinner 0.8s linear infinite;
+}
+
+@keyframes spinner {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+
+.custom-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-strong) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+	background: var(--border-strong);
+	border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+/* ============================================
+   FOCUS STATES (Accessibility)
+   ============================================ */
+
+.focus-ring:focus-visible {
+	outline: 2px solid var(--brand-primary);
+	outline-offset: 2px;
+}
+
+/* ============================================
+   REDUCED MOTION (Accessibility)
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* ============================================
+   TOOLTIP STYLES
+   ============================================ */
+
+.tooltip {
+	position: relative;
+}
+
+.tooltip::after {
+	content: attr(data-tooltip);
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%) translateY(-4px);
+	padding: 6px 10px;
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	font-size: 0.75rem;
+	border-radius: 6px;
+	white-space: nowrap;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		opacity var(--transition-fast),
+		transform var(--transition-fast);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	border: 1px solid var(--border-subtle);
+	z-index: 1000;
+}
+
+.tooltip:hover::after {
+	opacity: 1;
+	transform: translateX(-50%) translateY(-8px);
 }

@@ -2,12 +2,18 @@
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { toastStore } from '$lib/stores/toastStore.svelte';
+	import { pushHistory } from '$lib/stores/historyStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
 	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
+	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
+
+	// Loading states
+	let isExporting = $state(false);
+	let exportingFormat = $state<string | null>(null);
 
 	// Get current UI settings for exports
 	function getExportOptions(): ExportOptions {
@@ -44,7 +50,10 @@
 	function handleExportBlueprint() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
+			toastStore.warning(
+				'Export Failed',
+				'No sculpture loaded. Generate a test mesh or record audio first.'
+			);
 			return;
 		}
 
@@ -63,7 +72,10 @@
 	function handleExportSTL() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
+			toastStore.warning(
+				'Export Failed',
+				'No sculpture loaded. Generate a test mesh or record audio first.'
+			);
 			return;
 		}
 
@@ -83,10 +95,15 @@
 	async function handleExportGLB() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
+			toastStore.warning(
+				'Export Failed',
+				'No sculpture loaded. Generate a test mesh or record audio first.'
+			);
 			return;
 		}
 
+		isExporting = true;
+		exportingFormat = 'GLB';
 		try {
 			toastStore.info('Exporting GLB', 'Generating 3D model...');
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
@@ -96,13 +113,19 @@
 		} catch (error) {
 			console.error('GLB export failed:', error);
 			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
+		} finally {
+			isExporting = false;
+			exportingFormat = null;
 		}
 	}
 
 	function handleExportPLY() {
 		const sculpture = sculptureStore.currentSculpture;
 		if (!sculpture) {
-			toastStore.warning('Export Failed', 'No sculpture loaded. Generate a test mesh or record audio first.');
+			toastStore.warning(
+				'Export Failed',
+				'No sculpture loaded. Generate a test mesh or record audio first.'
+			);
 			return;
 		}
 
@@ -199,12 +222,12 @@
 
 				<div class="mt-4 surface-panel-alt p-3 rounded">
 					<p class="text-xs text-secondary leading-relaxed">
-						<strong class="text-primary">GLB:</strong> Universal 3D format with vertex colors. Works in
-						Blender, Unity, web viewers.<br />
-						<strong class="text-primary">PLY:</strong> For colored 3D printing. Includes vertex colors
-						from glaze painting.<br />
-						<strong class="text-primary">STL:</strong> Standard 3D printing format (no colors). Includes
-						wall thickness if specified.<br />
+						<strong class="text-primary">GLB:</strong> Universal 3D format with vertex colors. Works
+						in Blender, Unity, web viewers.<br />
+						<strong class="text-primary">PLY:</strong> For colored 3D printing. Includes vertex
+						colors from glaze painting.<br />
+						<strong class="text-primary">STL:</strong> Standard 3D printing format (no colors).
+						Includes wall thickness if specified.<br />
 						<strong class="text-primary">Blueprint:</strong> Print at 1:1 scale, cut out, use as pottery
 						wheel profile rib.
 					</p>
@@ -229,4 +252,3 @@
 		background: #555;
 	}
 </style>
-

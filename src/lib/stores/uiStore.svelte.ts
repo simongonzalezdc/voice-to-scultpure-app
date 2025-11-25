@@ -12,6 +12,7 @@ export const uiStore = $state<{
 		aiPanel: boolean;
 		projectList: boolean;
 		settings: boolean;
+		shortcuts: boolean;
 	};
 	workspace: Workspace;
 	onboarding: {
@@ -32,6 +33,9 @@ export const uiStore = $state<{
 	activeGlaze: {
 		color: string; // Hex color
 		roughness: number; // 0-1
+		transmission: number; // 0-1 (glass-like transparency)
+		materialType: 'ceramic' | 'plastic'; // Material type
+		baseColor: string; // Base material color
 	};
 	view: {
 		lightingAngle: number;
@@ -63,7 +67,8 @@ export const uiStore = $state<{
 	panels: {
 		aiPanel: false,
 		projectList: false,
-		settings: false
+		settings: false,
+		shortcuts: false
 	},
 	workspace: 'sculpt',
 	onboarding: {
@@ -82,7 +87,10 @@ export const uiStore = $state<{
 	},
 	activeGlaze: {
 		color: '#FFFFFF',
-		roughness: 0.5
+		roughness: 0.5,
+		transmission: 0.3,
+		materialType: 'ceramic',
+		baseColor: '#E0C9A6'
 	},
 	view: {
 		lightingAngle: 0,
@@ -230,7 +238,11 @@ export function setToolMode(mode: 'sculpt' | 'glaze-mix' | 'glaze-paint' | 'forc
 }
 
 export function setActiveGlaze(color: string, roughness: number): void {
-	uiStore.activeGlaze = { color, roughness };
+	uiStore.activeGlaze = {
+		...uiStore.activeGlaze,
+		color,
+		roughness
+	};
 }
 
 export function setSculptZone(min: number, max: number): void {

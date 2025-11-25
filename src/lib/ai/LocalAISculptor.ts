@@ -70,13 +70,13 @@ export class LocalAISculptor implements AISculptor {
 
 		this.status = 'generating';
 
-		// Read current values from uiStore (legacy properties moved there)
+		// Read current values from uiStore
 		const radiusCurve = current.radiusCurve || [];
 		const roughness = uiStore.activeGlaze.roughness ?? 0.5;
-		const transmission = 0.5; // TODO: Map from glaze color/intensity if needed
+		const transmission = uiStore.activeGlaze.transmission ?? 0.3;
 		const twist = uiStore.deformation.twist;
 		const compression = uiStore.deformation.compression;
-		
+
 		const userMessage = `Current sculpture:
 - Radius curve: ${JSON.stringify(radiusCurve.slice(0, 10))}... (${radiusCurve.length} points)
 - Surface roughness: ${roughness}

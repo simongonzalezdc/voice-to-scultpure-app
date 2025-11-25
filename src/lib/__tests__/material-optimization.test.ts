@@ -164,7 +164,7 @@ describe('Material Optimization in Sculpture.svelte', () => {
 			// These props are reactive and will update without flashing
 			color: '#FFFFFF',
 			roughness: 0.5,
-			transmission: 0.3,
+			transmission: 0.3
 			// ... other material properties
 		};
 

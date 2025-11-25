@@ -9,7 +9,8 @@
 		setBlueprint
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
-	import { Eye, Settings } from 'lucide-svelte';
+	import { undo, redo, canUndo, canRedo } from '$lib/stores/historyStore.svelte';
+	import { Eye, RotateCcw, Undo2, Redo2, Home } from 'lucide-svelte';
 
 	let showMenu = $state(false);
 
@@ -39,6 +40,13 @@
 			}
 		});
 	}
+
+	function resetView() {
+		setZoom(1.5);
+		setLightingAngle(0);
+		setViewMode('standard');
+		console.log('🏠 [VIEW] Reset to default');
+	}
 </script>
 
 <div class="flex flex-col gap-2 relative">
@@ -60,8 +68,10 @@
 		>
 			<div class="space-y-3">
 				<!-- View Mode -->
-				<div>
-					<label class="text-xs text-secondary font-semibold block mb-2">View Mode</label>
+				<div role="group" aria-labelledby="view-mode-label">
+					<span id="view-mode-label" class="text-xs text-secondary font-semibold block mb-2"
+						>View Mode</span
+					>
 					<div class="grid grid-cols-2 gap-1">
 						<button
 							class="px-2 py-1 text-xs rounded {viewMode === 'standard'
@@ -100,10 +110,16 @@
 
 				<!-- Lighting -->
 				<div class="border-t border-subtle pt-3">
-					<label class="text-xs text-secondary font-semibold block mb-2">Lighting</label>
+					<label for="lighting-select" class="text-xs text-secondary font-semibold block mb-2"
+						>Lighting</label
+					>
 					<select
+						id="lighting-select"
 						value={environment}
-						onchange={(e) => setEnvironment((e.target as HTMLSelectElement).value as any)}
+						onchange={(e) =>
+							setEnvironment(
+								(e.target as HTMLSelectElement).value as 'studio' | 'neon' | 'darkroom'
+							)}
 						class="w-full bg-surface-alt px-2 py-1 rounded text-xs text-white"
 					>
 						<option value="studio">Studio</option>
@@ -114,7 +130,7 @@
 
 				<!-- Guides -->
 				<div class="border-t border-subtle pt-3">
-					<label class="text-xs text-secondary font-semibold block mb-2">Guides</label>
+					<span class="text-xs text-secondary font-semibold block mb-2">Guides</span>
 					<label class="flex items-center gap-2 cursor-pointer">
 						<input
 							type="checkbox"
@@ -138,7 +154,7 @@
 
 				<!-- Camera -->
 				<div class="border-t border-subtle pt-3">
-					<label class="text-xs text-secondary font-semibold block mb-2">Camera</label>
+					<span class="text-xs text-secondary font-semibold block mb-2">Camera</span>
 					<label class="flex items-center gap-2 cursor-pointer">
 						<input
 							type="checkbox"
@@ -177,6 +193,38 @@
 			title="Zoom Out"
 		>
 			-
+		</button>
+	</div>
+
+	<!-- Reset View -->
+	<button
+		class="w-10 h-10 rounded-full bg-[#1a1a1a] border border-[#4a4a4a] text-white flex items-center justify-center hover:bg-[#2a2a2a] transition-colors tooltip"
+		onclick={resetView}
+		title="Reset View (Home)"
+		data-tooltip="Reset View"
+	>
+		<Home size={18} />
+	</button>
+
+	<!-- Undo/Redo -->
+	<div class="flex flex-col rounded-full bg-[#1a1a1a] border border-[#4a4a4a] overflow-hidden">
+		<button
+			class="w-10 h-10 text-white flex items-center justify-center hover:bg-[#2a2a2a] transition-colors border-b border-[#4a4a4a] disabled:opacity-30 disabled:cursor-not-allowed tooltip"
+			onclick={undo}
+			disabled={!canUndo}
+			title="Undo (Ctrl+Z)"
+			data-tooltip="Undo"
+		>
+			<Undo2 size={16} />
+		</button>
+		<button
+			class="w-10 h-10 text-white flex items-center justify-center hover:bg-[#2a2a2a] transition-colors disabled:opacity-30 disabled:cursor-not-allowed tooltip"
+			onclick={redo}
+			disabled={!canRedo}
+			title="Redo (Ctrl+Shift+Z)"
+			data-tooltip="Redo"
+		>
+			<Redo2 size={16} />
 		</button>
 	</div>
 </div>

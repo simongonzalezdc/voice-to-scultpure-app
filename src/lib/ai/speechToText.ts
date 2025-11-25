@@ -1,6 +1,6 @@
 /**
  * Speech-to-Text Service
- * 
+ *
  * Uses the Web Speech API for browser-native voice recognition.
  * Falls back to OpenAI Whisper API if available and preferred.
  */
@@ -80,7 +80,8 @@ export function createBrowserSpeechToText(options: SpeechToTextOptions = {}): Sp
 	let listening = false;
 
 	// Check if supported
-	const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+	const SpeechRecognitionConstructor =
+		(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 	const supported = !!SpeechRecognitionConstructor;
 
 	if (supported) {
@@ -148,10 +149,7 @@ export function createBrowserSpeechToText(options: SpeechToTextOptions = {}): Sp
  * OpenAI Whisper API Speech-to-Text
  * For higher accuracy transcription
  */
-export async function transcribeWithWhisper(
-	audioBlob: Blob,
-	apiKey: string
-): Promise<string> {
+export async function transcribeWithWhisper(audioBlob: Blob, apiKey: string): Promise<string> {
 	const formData = new FormData();
 	formData.append('file', audioBlob, 'audio.webm');
 	formData.append('model', 'whisper-1');
@@ -184,10 +182,7 @@ export async function transcribeWithWhisper(
  * Check if Web Speech API is available
  */
 export function isSpeechRecognitionSupported(): boolean {
-	return !!(
-		(window as any).SpeechRecognition || 
-		(window as any).webkitSpeechRecognition
-	);
+	return !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 }
 
 /**
@@ -195,33 +190,84 @@ export function isSpeechRecognitionSupported(): boolean {
  */
 export const SCULPTURE_COMMAND_HINTS = [
 	// Deformation
-	'twist', 'more twist', 'less twist', 'no twist',
-	'compress', 'compression', 'squish', 'flatten',
-	'taper', 'narrow', 'widen',
-	
-	// Colors
-	'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink',
-	'white', 'black', 'gray', 'gold', 'silver', 'bronze',
-	'ocean blue', 'forest green', 'sunset orange',
-	
-	// Materials
-	'ceramic', 'plastic', 'metal', 'glass', 'matte', 'glossy', 'shiny',
-	'rough', 'smooth',
-	
-	// Shapes
-	'taller', 'shorter', 'wider', 'thinner', 'bigger', 'smaller',
-	'vase', 'bowl', 'cup', 'cylinder', 'sphere',
-	
-	// Actions
-	'record', 'stop', 'undo', 'reset', 'export', 'save',
-	
-	// Modes
-	'sculpt mode', 'glaze mode', 'force mode', 'export mode',
-	
-	// Layers
-	'add layer', 'remove layer', 'new layer', 'delete layer',
-	
-	// View
-	'zoom in', 'zoom out', 'wireframe', 'x-ray', 'standard view'
-];
+	'twist',
+	'more twist',
+	'less twist',
+	'no twist',
+	'compress',
+	'compression',
+	'squish',
+	'flatten',
+	'taper',
+	'narrow',
+	'widen',
 
+	// Colors
+	'red',
+	'blue',
+	'green',
+	'yellow',
+	'orange',
+	'purple',
+	'pink',
+	'white',
+	'black',
+	'gray',
+	'gold',
+	'silver',
+	'bronze',
+	'ocean blue',
+	'forest green',
+	'sunset orange',
+
+	// Materials
+	'ceramic',
+	'plastic',
+	'metal',
+	'glass',
+	'matte',
+	'glossy',
+	'shiny',
+	'rough',
+	'smooth',
+
+	// Shapes
+	'taller',
+	'shorter',
+	'wider',
+	'thinner',
+	'bigger',
+	'smaller',
+	'vase',
+	'bowl',
+	'cup',
+	'cylinder',
+	'sphere',
+
+	// Actions
+	'record',
+	'stop',
+	'undo',
+	'reset',
+	'export',
+	'save',
+
+	// Modes
+	'sculpt mode',
+	'glaze mode',
+	'force mode',
+	'export mode',
+
+	// Layers
+	'add layer',
+	'remove layer',
+	'new layer',
+	'delete layer',
+
+	// View
+	'zoom in',
+	'zoom out',
+	'wireframe',
+	'x-ray',
+	'standard view'
+];

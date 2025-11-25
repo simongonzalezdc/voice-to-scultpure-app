@@ -66,8 +66,10 @@
 
 	async function startRecordingFlow() {
 		const pipelineReady = isPipelineReady();
-		console.log(`🎬 [TRANSPORT] startRecordingFlow called (pipelineReady: ${pipelineReady}, ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`);
-		
+		console.log(
+			`🎬 [TRANSPORT] startRecordingFlow called (pipelineReady: ${pipelineReady}, ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`
+		);
+
 		pipelineMetrics.initAttempts++;
 		const maxRetries = 3;
 		let lastError: Error | null = null;
@@ -79,7 +81,9 @@
 				// Initialize if any pipeline component is missing
 				if (!ringBuffer || !workerClient) {
 					justInitialized = true; // Mark that we're creating a new pipeline
-					console.log(`🛠️ [TRANSPORT] Starting initialization... (ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`);
+					console.log(
+						`🛠️ [TRANSPORT] Starting initialization... (ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`
+					);
 					pipelineMetrics.initStartTime = Date.now();
 					// Initialize ring buffer
 					if (typeof SharedArrayBuffer === 'undefined') {
@@ -114,7 +118,7 @@
 					console.log('🎤 [TRANSPORT] Starting microphone capture...');
 					const stream = await startMicrophoneCapture();
 					console.log('✅ [TRANSPORT] Microphone stream acquired');
-					
+
 					connectMicrophoneToWorklet(stream);
 					console.log('✅ [TRANSPORT] Microphone connected to worklet');
 
@@ -135,58 +139,70 @@
 						if (isRecording) {
 							addAnalysisFrame(frame);
 							if (frameCallbackCount % 30 === 0) {
-								console.log(`📊 [TRANSPORT] Recording: ${frameCallbackCount} frames captured (state: ${recordingStore.state})`);
+								console.log(
+									`📊 [TRANSPORT] Recording: ${frameCallbackCount} frames captured (state: ${recordingStore.state})`
+								);
 							}
 						} else if (frameCallbackCount % 60 === 0) {
-							console.log(`👁️ [TRANSPORT] Monitoring: ${frameCallbackCount} frames processed (not recording, state: ${recordingStore.state})`);
+							console.log(
+								`👁️ [TRANSPORT] Monitoring: ${frameCallbackCount} frames processed (not recording, state: ${recordingStore.state})`
+							);
 						}
 					});
 
 					console.log('✅ [TRANSPORT] Pipeline initialized successfully');
 					pipelineMetrics.initSuccesses++;
 
-				// DIRECTIVE 2: Verify worklet is writing before starting worker
-				// Wait for worklet to write some data to the ring buffer
-				let verifyAttempts = 0;
-				const MAX_VERIFY_ATTEMPTS = 40; // 40 * 50ms = 2 seconds max wait
-				
-				const verifyWorkletWriting = () => {
-					if (!ringBuffer) {
-						console.error('❌ [TRANSPORT] Ring buffer is null - cannot verify worklet writing');
-						return;
-					}
-					
-					verifyAttempts++;
-					const intView = new Int32Array(ringBuffer.buffer);
-					const writePtr = Atomics.load(intView, 0);
-					
-					if (writePtr > 0) {
-						console.log(`✅ [TRANSPORT] Worklet is writing (writePtr=${writePtr}, attempts=${verifyAttempts}) - starting worker`);
-						if (workerClient) {
-							workerClient.start();
-							console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
-						} else {
-							console.error('❌ [TRANSPORT] Worker client is null - cannot start');
-						}
-					} else if (verifyAttempts >= MAX_VERIFY_ATTEMPTS) {
-						// Timeout - start worker anyway and show warning
-						console.warn(`⚠️ [TRANSPORT] Worklet verification timeout (${verifyAttempts} attempts) - starting worker anyway`);
-						console.warn('⚠️ [TRANSPORT] No audio data in buffer. Check: 1) Mic selected correctly 2) Mic not muted 3) Mic volume > 0');
-						if (workerClient) {
-							workerClient.start();
-							console.log('🎧 [TRANSPORT] Analysis worker started (no audio data yet)');
-						}
-					} else {
-						// Retry after a short delay
-						if (verifyAttempts % 10 === 0) {
-							console.log(`🔍 [TRANSPORT] Waiting for worklet data... (attempt ${verifyAttempts}/${MAX_VERIFY_ATTEMPTS}, writePtr=${writePtr})`);
-						}
-						setTimeout(verifyWorkletWriting, 50);
-					}
-				};
+					// DIRECTIVE 2: Verify worklet is writing before starting worker
+					// Wait for worklet to write some data to the ring buffer
+					let verifyAttempts = 0;
+					const MAX_VERIFY_ATTEMPTS = 40; // 40 * 50ms = 2 seconds max wait
 
-				// Start verification after initial delay
-				setTimeout(verifyWorkletWriting, 200);
+					const verifyWorkletWriting = () => {
+						if (!ringBuffer) {
+							console.error('❌ [TRANSPORT] Ring buffer is null - cannot verify worklet writing');
+							return;
+						}
+
+						verifyAttempts++;
+						const intView = new Int32Array(ringBuffer.buffer);
+						const writePtr = Atomics.load(intView, 0);
+
+						if (writePtr > 0) {
+							console.log(
+								`✅ [TRANSPORT] Worklet is writing (writePtr=${writePtr}, attempts=${verifyAttempts}) - starting worker`
+							);
+							if (workerClient) {
+								workerClient.start();
+								console.log('🎧 [TRANSPORT] Analysis worker started in monitor mode');
+							} else {
+								console.error('❌ [TRANSPORT] Worker client is null - cannot start');
+							}
+						} else if (verifyAttempts >= MAX_VERIFY_ATTEMPTS) {
+							// Timeout - start worker anyway and show warning
+							console.warn(
+								`⚠️ [TRANSPORT] Worklet verification timeout (${verifyAttempts} attempts) - starting worker anyway`
+							);
+							console.warn(
+								'⚠️ [TRANSPORT] No audio data in buffer. Check: 1) Mic selected correctly 2) Mic not muted 3) Mic volume > 0'
+							);
+							if (workerClient) {
+								workerClient.start();
+								console.log('🎧 [TRANSPORT] Analysis worker started (no audio data yet)');
+							}
+						} else {
+							// Retry after a short delay
+							if (verifyAttempts % 10 === 0) {
+								console.log(
+									`🔍 [TRANSPORT] Waiting for worklet data... (attempt ${verifyAttempts}/${MAX_VERIFY_ATTEMPTS}, writePtr=${writePtr})`
+								);
+							}
+							setTimeout(verifyWorkletWriting, 50);
+						}
+					};
+
+					// Start verification after initial delay
+					setTimeout(verifyWorkletWriting, 200);
 				} else if (workerClient) {
 					// Pipeline already exists - restart worker to ensure it's active
 					// (Only restart if we didn't just initialize, to avoid duplicate start calls)
@@ -226,7 +242,8 @@
 	// Log metrics when recording stops
 	function logMetrics() {
 		const initTime = pipelineMetrics.firstFrameTime - pipelineMetrics.initStartTime;
-		console.log(`
+		console.log(
+			`
 📊 [PIPELINE METRICS]
   Initialization:
     - Attempts: ${pipelineMetrics.initAttempts}
@@ -238,13 +255,14 @@
   Pipeline State:
     - Ring Buffer: ${ringBuffer !== null ? 'Active' : 'NULL'}
     - Worker Client: ${workerClient !== null ? 'Active' : 'NULL'}
-		`.trim());
+		`.trim()
+		);
 	}
 
 	async function stopRecordingFlow() {
 		// Log metrics before stopping
 		logMetrics();
-		
+
 		// DIRECTIVE 2: Don't stop the worker - keep it running for continuous monitoring
 		// The analysis worker should stay active for GlazeMixer to receive pitch/timbre data
 		// workerClient?.stop(); // REMOVED - keep worker running
@@ -410,6 +428,11 @@
 		/>
 	</div>
 	{#if recordingStore.state === 'recording'}
-		<div class="px-1.5 py-0.5 text-[10px] bg-[#ff4444] text-white rounded font-medium" role="status">REC</div>
+		<div
+			class="px-1.5 py-0.5 text-[10px] bg-[#ff4444] text-white rounded font-medium"
+			role="status"
+		>
+			REC
+		</div>
 	{/if}
 </div>

@@ -1,6 +1,6 @@
 /**
  * System Prompt for the Sculptor AI Agent
- * 
+ *
  * This AI is specialized ONLY for sculpture modifications.
  * It cannot modify the UI, app code, or anything outside the sculpture domain.
  */

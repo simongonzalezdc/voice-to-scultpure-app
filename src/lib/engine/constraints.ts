@@ -52,10 +52,10 @@ export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): n
 	for (let i = 0; i < curve.length; i++) {
 		const original = safeArrayAccess(curve, i);
 		const fixed = safeArrayAccess(constrained, i);
-		
+
 		// Skip if either is undefined (shouldn't happen, but safety check)
 		if (!original || !fixed) continue;
-		
+
 		const diff = Math.abs(original.x - fixed.x);
 
 		// If fixed is different, it was a violation
@@ -108,7 +108,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 			constrained[i] = { x: MIN_HAND_RADIUS, y: i / constrained.length };
 			continue;
 		}
-		
+
 		const normalizedHeight = point.y;
 
 		// Allow rim to close (top 5%)
@@ -128,7 +128,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 0; i < constrained.length; i++) {
 		const currentPoint = safeArrayAccess(constrained, i);
 		if (!currentPoint) continue;
-		
+
 		const start = Math.max(0, i - Math.floor(SMOOTH_WINDOW / 2));
 		const end = Math.min(constrained.length, i + Math.floor(SMOOTH_WINDOW / 2) + 1);
 
@@ -163,7 +163,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 1; i < constrained.length; i++) {
 		const prevPoint = safeArrayAccess(constrained, i - 1);
 		const currPoint = safeArrayAccess(constrained, i);
-		
+
 		// Skip if either point is undefined
 		if (!prevPoint || !currPoint) continue;
 
@@ -205,10 +205,11 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// RULE C: Base Stability - Wide base to support upper mass
 	// Bottom 10% should be wider than average radius
 	const baseThreshold = 0.1;
-	const updatedAverageRadius = constrained.reduce((sum, p) => {
-		if (!p) return sum;
-		return sum + p.x;
-	}, 0) / constrained.length;
+	const updatedAverageRadius =
+		constrained.reduce((sum, p) => {
+			if (!p) return sum;
+			return sum + p.x;
+		}, 0) / constrained.length;
 	const minBaseRadius = Math.max(
 		updatedAverageRadius * BASE_STABILITY_RATIO,
 		MIN_HAND_RADIUS * 1.2
@@ -217,7 +218,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) continue;
-		
+
 		if (point.y < baseThreshold) {
 			// Enforce wide base
 			if (point.x < minBaseRadius) {
@@ -243,7 +244,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 1; i < constrained.length; i++) {
 		const prevPoint = safeArrayAccess(constrained, i - 1);
 		const currPoint = safeArrayAccess(constrained, i);
-		
+
 		// Skip if either point is undefined
 		if (!prevPoint || !currPoint) continue;
 
@@ -277,7 +278,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) continue;
-		
+
 		if (point.x < MIN_RADIUS) {
 			point.x = MIN_RADIUS;
 		}
