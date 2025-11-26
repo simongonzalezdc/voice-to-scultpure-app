@@ -5,7 +5,7 @@
 	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
 	import { checkOllamaAvailable, getOllamaModels } from '$lib/ai/MultiProviderAdapter';
 	import { PROVIDER_CONFIGS } from '$lib/ai/providers';
-	import type { CloudProvider } from '$lib/types';
+	import type { CloudProvider, AIProviderType } from '$lib/types';
 	import { onMount } from 'svelte';
 
 	let apiKeyInput = $state(appSettings.apiKey || '');
@@ -25,6 +25,9 @@
 	let reduceMotion = $state(appSettings.reduceMotion ?? false);
 	let flashIntensity = $state(appSettings.flashIntensity ?? 1.0);
 
+	// AI mode: 'cloud' means use selectedCloudProvider, 'local' means use WebGPU
+	let aiMode = $state<'cloud' | 'local'>(appSettings.aiProvider === 'local' ? 'local' : 'cloud');
+
 	// Cloud provider selection
 	let selectedCloudProvider = $state<CloudProvider>(appSettings.cloudProvider || 'openai');
 
@@ -35,8 +38,9 @@
 			ollamaAvailable = await checkOllamaAvailable();
 			if (ollamaAvailable) {
 				ollamaModels = await getOllamaModels();
-				if (ollamaModels.length > 0 && !selectedOllamaModel) {
-					selectedOllamaModel = ollamaModels[0];
+				const firstModel = ollamaModels[0];
+				if (firstModel && !selectedOllamaModel) {
+					selectedOllamaModel = firstModel;
 				}
 			}
 		} catch (e) {
@@ -48,7 +52,11 @@
 	}
 
 	function handleSave() {
+		// Determine actual aiProvider from mode and selection
+		const aiProvider: AIProviderType = aiMode === 'local' ? 'local' : selectedCloudProvider;
+
 		updateSettings({
+			aiProvider,
 			apiKey: apiKeyInput,
 			apiEndpoint: apiEndpointInput,
 			cloudProvider: selectedCloudProvider,
@@ -160,17 +168,16 @@
 				<select
 					id="ai-provider"
 					class="surface-panel-alt px-3 py-2 rounded w-full mb-2"
-					value={appSettings.aiProvider}
-					onchange={(e) =>
-						updateSettings({
-							aiProvider: (e.target as HTMLSelectElement).value as 'cloud' | 'local'
-						})}
+					value={aiMode}
+					onchange={(e) => {
+						aiMode = (e.target as HTMLSelectElement).value as 'cloud' | 'local';
+					}}
 				>
 					<option value="cloud">Cloud AI</option>
 					<option value="local">Local (WebGPU)</option>
 				</select>
 
-				{#if appSettings.aiProvider === 'cloud'}
+				{#if aiMode === 'cloud'}
 					<!-- Cloud Provider Selection -->
 					<label for="cloud-provider" class="text-sm text-secondary block mb-1">Cloud Service</label>
 					<select

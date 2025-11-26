@@ -74,7 +74,7 @@ function getDefaultModelForProvider(provider: CloudProvider): string {
  */
 function getActiveProvider(): { provider: CloudProvider; apiKey: string; model: string } {
 	const provider = (appSettings.cloudProvider || 'openai') as CloudProvider;
-	const apiKey = appSettings.apiKeys?.[provider] || appSettings.aiApiKey || '';
+	const apiKey = appSettings.apiKeys?.[provider] || appSettings.apiKey || '';
 	const model = appSettings.selectedModel || getDefaultModelForProvider(provider);
 
 	return { provider, apiKey, model };

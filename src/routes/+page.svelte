@@ -1,4 +1,6 @@
 <script lang="ts">
+	console.log('🔴🔴🔴 [PAGE] +page.svelte LOADED at', new Date().toLocaleTimeString());
+	
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import MainScene from '$lib/components/scene/MainScene.svelte';
@@ -69,7 +71,8 @@
 			timbre: { spectralCentroid: 2000, zcr: 0.1, spectralFlux: 0.05 }
 		}));
 
-		const profile = generateLathe(defaultFrames, undefined, 'additive', undefined, 'ceramic');
+		// Use uiStore.constraintMode to ensure consistency with recording
+		const profile = generateLathe(defaultFrames, undefined, 'additive', undefined, uiStore.constraintMode);
 		const resolution = 128;
 		const layerData = new Float32Array(resolution);
 
@@ -171,18 +174,18 @@
 							break;
 						case 'r':
 						case 'R':
-							// Toggle Ribbon/Lathe geometry
-							setBaseShape(uiStore.baseShape === 'ribbon' ? 'lathe' : 'ribbon');
-							showToast('info', `Geometry: ${uiStore.baseShape === 'ribbon' ? 'Ribbon' : 'Lathe'}`, 'Shape toggled');
+							// Toggle recording (start/stop)
+							// Reserved for future use
 							break;
 						case 's':
 						case 'S':
 							// Cycle recording mode: standard → song → coil → standard
 							const modes: ('standard' | 'song' | 'coil')[] = ['standard', 'song', 'coil'];
-							const currentIdx = modes.indexOf(uiStore.recordingMode);
-							const nextMode = modes[(currentIdx + 1) % modes.length];
+							const currentMode = uiStore.recordingMode ?? 'standard';
+							const currentIdx = modes.indexOf(currentMode);
+							const nextMode = modes[(currentIdx + 1) % modes.length] ?? 'standard';
 							setRecordingMode(nextMode);
-							showToast('info', `Recording: ${nextMode}`, 'Mode changed');
+							showToast(`Recording: ${nextMode}`, 'info');
 							break;
 					}
 				}

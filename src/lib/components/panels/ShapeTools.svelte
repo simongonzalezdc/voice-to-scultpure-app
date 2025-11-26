@@ -11,14 +11,13 @@
 		setControlMode,
 		setQuantizeEnabled,
 		setSymmetryCount,
-		setRecordingMode,
-		setBaseShape
+		setRecordingMode
 	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
 	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
-	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers, Waves } from 'lucide-svelte';
+	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers, Zap } from 'lucide-svelte';
 
 	// Local state for sliders (deformation only - no duplicates!)
 	let twist = $state(0);
@@ -26,8 +25,7 @@
 	let smoothness = $state(0.5); // Renamed from "roughness"
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
 	let controlMode = $state(uiStore.controlMode);
-	let recordingMode = $state(uiStore.recordingMode); // Option B+C: Song/Coil Mode
-	let baseShape = $state(uiStore.baseShape); // lathe | ribbon
+	let recordingMode = $state(uiStore.recordingMode);
 	let quantize = $derived(uiStore.modifiers.quantize);
 	let symmetryCount = $state(uiStore.modifiers.symmetryCount);
 
@@ -37,6 +35,13 @@
 
 	let isDragging = $state(false);
 	let previewSculpture = $state<typeof sculptureStore.currentSculpture>(null);
+
+	// Auto-enable Song Mode on load if in song recording mode
+	$effect(() => {
+		if (uiStore.recordingMode === 'song' && !songModeStore.enabled) {
+			enableSongMode();
+		}
+	});
 
 	// Sync sliders with current sculpture
 	$effect(() => {
@@ -61,7 +66,6 @@
 
 		controlMode = uiStore.controlMode;
 		recordingMode = uiStore.recordingMode;
-		baseShape = uiStore.baseShape;
 		symmetryCount = uiStore.modifiers.symmetryCount;
 	});
 
@@ -141,115 +145,63 @@
 
 <div class="h-full flex flex-col">
 	<div class="p-4 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
-		<!-- Control Mode Selector -->
-		<div>
-			<p class="text-sm text-secondary block mb-2">Control Mode</p>
-			<div class="flex gap-2 mb-4">
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
-					'standard'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => {
-						controlMode = 'standard';
-						setControlMode('standard');
-					}}
-					title="Standard Mode: Volume controls Radius"
-				>
-					<span class="flex items-center justify-center gap-2"><BarChart size={16} /> Standard</span
-					>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {controlMode ===
-					'melodic'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => {
-						controlMode = 'melodic';
-						setControlMode('melodic');
-					}}
-					title="Virtuoso Mode: Pitch controls Radius, Volume controls Twist"
-				>
-					<span class="flex items-center justify-center gap-2"><Music size={16} /> Virtuoso</span>
-				</button>
-			</div>
-		</div>
-
-		<!-- Geometry Shape Selector -->
-		<div class="rounded border border-subtle p-3">
+		<!-- Control Mode: Virtuoso is Default -->
+		<div class="rounded border border-brand-primary/30 bg-brand-primary/5 p-3">
 			<p class="text-sm text-secondary mb-2 flex items-center gap-2">
-				<Disc3 size={14} />
-				Geometry Shape
+				<Music size={14} class="text-brand-primary" />
+				<span class="text-brand-primary font-medium">Virtuoso Mode</span>
+				<span class="text-xs bg-brand-primary text-white px-1.5 py-0.5 rounded">ACTIVE</span>
 			</p>
-			<div class="flex gap-2">
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {baseShape === 'lathe'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => {
-						baseShape = 'lathe';
-						setBaseShape('lathe');
-					}}
-					title="Lathe: Pottery wheel-style rotational symmetry"
-				>
-					<span class="flex items-center justify-center gap-2"><Disc3 size={16} /> Lathe</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors relative {baseShape === 'ribbon'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => {
-						baseShape = 'ribbon';
-						setBaseShape('ribbon');
-					}}
-					title="Ribbon: 3D waveform that flows through space (best for Song Mode)"
-				>
-					<span class="flex items-center justify-center gap-2"><Waves size={16} /> Ribbon</span>
-					<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
-				</button>
-			</div>
-			<p class="text-xs text-secondary mt-2">
-				{#if baseShape === 'lathe'}
-					🏺 <strong>Lathe:</strong> Your voice spins clay like a pottery wheel. Volume shapes the radius.
-				{:else}
-					〰️ <strong>Ribbon:</strong> Your voice paints a 3D waveform. Pitch steers left/right, volume controls width.
-				{/if}
+			<p class="text-xs text-secondary">
+				🎵 <strong>Pitch controls Radius</strong> — Higher notes make wider shapes, lower notes make narrower shapes.
 			</p>
+			<p class="text-xs text-secondary mt-1">
+				🔊 <strong>Volume controls Twist</strong> — Louder = more twist deformation.
+			</p>
+			
+			<!-- Advanced toggle for Standard mode -->
+			<details class="mt-3">
+				<summary class="text-xs text-subtle cursor-pointer hover:text-secondary">
+					Advanced: Switch to Standard Mode
+				</summary>
+				<div class="mt-2 flex gap-2">
+					<button
+						class="flex-1 py-1.5 px-2 text-xs rounded border transition-colors {controlMode ===
+						'standard'
+							? 'bg-surface-panel-alt border-brand-primary text-primary'
+							: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
+						onclick={() => {
+							controlMode = 'standard';
+							setControlMode('standard');
+						}}
+						title="Standard Mode: Volume controls Radius"
+					>
+						<span class="flex items-center justify-center gap-1"><BarChart size={12} /> Standard</span>
+					</button>
+					<button
+						class="flex-1 py-1.5 px-2 text-xs rounded border transition-colors {controlMode ===
+						'melodic'
+							? 'bg-brand-primary border-brand-primary text-white'
+							: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
+						onclick={() => {
+							controlMode = 'melodic';
+							setControlMode('melodic');
+						}}
+						title="Virtuoso Mode: Pitch controls Radius, Volume controls Twist"
+					>
+						<span class="flex items-center justify-center gap-1"><Music size={12} /> Virtuoso</span>
+					</button>
+				</div>
+			</details>
 		</div>
 
-		<!-- Recording Duration Mode (Option B+C) -->
+		<!-- Recording Duration Mode -->
 		<div class="rounded border border-subtle p-3">
 			<p class="text-sm text-secondary mb-2 flex items-center gap-2">
 				<Clock size={14} />
 				Recording Duration
 			</p>
 			<div class="flex flex-col gap-2">
-				<button
-					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
-					'standard'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => {
-						recordingMode = 'standard';
-						setRecordingMode('standard');
-						// SYNERGY: Auto-disable Song Mode when switching away
-						if (songModeStore.enabled) {
-							disableSongMode();
-						}
-						// Switch back to Lathe (default)
-						if (baseShape === 'ribbon') {
-							baseShape = 'lathe';
-							setBaseShape('lathe');
-						}
-					}}
-					title="Standard Mode: 10-30 second recordings"
-				>
-					<span class="flex items-center gap-2">
-						<Disc3 size={14} />
-						<span class="flex-1">Standard</span>
-						<span class="text-xs opacity-70">10-30s</span>
-					</span>
-				</button>
 				<button
 					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left relative {recordingMode ===
 					'song'
@@ -258,14 +210,9 @@
 					onclick={() => {
 						recordingMode = 'song';
 						setRecordingMode('song');
-						// SYNERGY: Auto-enable Song Mode AI features
+						// Auto-enable Song Mode AI features
 						if (!songModeStore.enabled) {
 							enableSongMode();
-						}
-						// SYNERGY: Auto-switch to Ribbon geometry (best for songs)
-						if (baseShape !== 'ribbon') {
-							baseShape = 'ribbon';
-							setBaseShape('ribbon');
 						}
 					}}
 					title="Song Mode: 1-5 minute recordings with 4x detail + AI features"
@@ -275,7 +222,9 @@
 						<span class="flex-1">Song Mode</span>
 						<span class="text-xs opacity-70">1-5 min</span>
 					</span>
-					<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
+					{#if recordingMode === 'song'}
+						<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">DEFAULT</span>
+					{/if}
 				</button>
 				<button
 					class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
@@ -285,11 +234,6 @@
 					onclick={() => {
 						recordingMode = 'coil';
 						setRecordingMode('coil');
-						// SYNERGY: Coil mode works best with Lathe geometry
-						if (baseShape === 'ribbon') {
-							baseShape = 'lathe';
-							setBaseShape('lathe');
-						}
 						// Disable Song Mode for Coil (different workflow)
 						if (songModeStore.enabled) {
 							disableSongMode();
@@ -303,6 +247,33 @@
 						<span class="text-xs opacity-70">∞ layers</span>
 					</span>
 				</button>
+				
+				<!-- Quick capture mode (hidden under details) -->
+				<details>
+					<summary class="text-xs text-subtle cursor-pointer hover:text-secondary py-1">
+						Quick Capture (10-30s)
+					</summary>
+					<button
+						class="w-full mt-1 py-1.5 px-2 text-xs rounded border transition-colors text-left {recordingMode ===
+						'standard'
+							? 'bg-surface-panel-alt border-brand-primary text-primary'
+							: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
+						onclick={() => {
+							recordingMode = 'standard';
+							setRecordingMode('standard');
+							if (songModeStore.enabled) {
+								disableSongMode();
+							}
+						}}
+						title="Standard Mode: 10-30 second recordings"
+					>
+						<span class="flex items-center gap-2">
+							<Zap size={12} />
+							<span class="flex-1">Quick Capture</span>
+							<span class="text-xs opacity-70">10-30s</span>
+						</span>
+					</button>
+				</details>
 			</div>
 			<p class="text-xs text-secondary mt-2">
 				{#if recordingMode === 'standard'}
@@ -310,7 +281,7 @@
 				{:else if recordingMode === 'song'}
 					Full songs with 512-point resolution (4× detail). Sing for 1-5 minutes without losing detail.
 				{:else}
-					<strong class="text-brand-primary">Coil Handbuilding:</strong> Like traditional pottery coiling or FDM 3D printing. Each recording adds a new coil ring that stacks on top of the previous one. Build up your sculpture layer by layer, phrase by phrase.
+					<strong class="text-brand-primary">Coil Handbuilding:</strong> Like traditional pottery coiling or FDM 3D printing. Each recording adds a new coil ring that stacks on top of the previous one.
 				{/if}
 			</p>
 			{#if recordingMode === 'coil'}

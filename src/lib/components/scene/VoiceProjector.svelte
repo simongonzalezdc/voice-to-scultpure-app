@@ -234,10 +234,10 @@
 </script>
 
 {#if isVisible}
-	<!-- Voice Wave Rings -->
+	<!-- Voice Wave Rings - Travel FROM camera (high Z) TOWARD sculpture (Z=0) -->
 	{#each activeWaves as wave (wave.id)}
 		<T.Mesh
-			position.z={-1 + wave.progress * 3}
+			position.z={4 - wave.progress * 3}
 			scale={[wave.scale, wave.scale, 1]}
 			rotation.x={Math.PI / 2}
 		>

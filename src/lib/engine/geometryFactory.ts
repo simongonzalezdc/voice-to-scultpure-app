@@ -64,10 +64,27 @@ export function createGeometryFromProfile(profile: LathePoint[]): {
 			return createFallbackGeometry();
 		}
 		const segments = Math.max(GEOMETRY_MIN_SEGMENTS, Math.min(64, vectors.length));
+		
+		// DEBUG: Log the vectors being used for LatheGeometry
+		if (vectors.length > 0) {
+			const minY = Math.min(...vectors.map(v => v.y));
+			const maxY = Math.max(...vectors.map(v => v.y));
+			const minX = Math.min(...vectors.map(v => v.x));
+			const maxX = Math.max(...vectors.map(v => v.x));
+			console.log(`🔷 [LATHE GEO] Creating with ${vectors.length} vectors: X=[${minX.toFixed(3)}-${maxX.toFixed(3)}], Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}]`);
+		}
+		
 		const geometry = new LatheGeometry(vectors, segments);
 
 		// 4. Compute normals for proper lighting
 		geometry.computeVertexNormals();
+		
+		// DEBUG: Log actual geometry bounds
+		geometry.computeBoundingBox();
+		if (geometry.boundingBox) {
+			const bb = geometry.boundingBox;
+			console.log(`📦 [LATHE GEO] BoundingBox: X=[${bb.min.x.toFixed(3)},${bb.max.x.toFixed(3)}], Y=[${bb.min.y.toFixed(3)},${bb.max.y.toFixed(3)}], Z=[${bb.min.z.toFixed(3)},${bb.max.z.toFixed(3)}]`);
+		}
 
 		return { geometry, vectors };
 	} catch (err) {

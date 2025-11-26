@@ -1,56 +1,32 @@
-/**
- * Ribbon Store
- * 
- * Stores ribbon geometry points for export.
- * The RibbonGeometryManager in Sculpture.svelte updates this store
- * so ExportTools can access the ribbon data.
- */
+// DEPRECATED: Ribbon mode has been removed
+// This file is kept as a stub for backwards compatibility
 
-import type { RibbonPoint } from '$lib/engine/RibbonGeometryManager';
-
-interface RibbonStoreState {
-	/** Current ribbon points (for export) */
-	points: RibbonPoint[];
-	/** Number of segments in the ribbon */
-	segmentCount: number;
-	/** Whether a ribbon is currently being recorded */
-	isRecording: boolean;
+export interface RibbonPoint {
+	x: number;
+	y: number;
+	z: number;
+	width: number;
+	color?: { r: number; g: number; b: number };
 }
 
-export const ribbonStore = $state<RibbonStoreState>({
+export const ribbonStore = $state<{
+	points: RibbonPoint[];
+	isRecording: boolean;
+	segmentCount: number;
+}>({
 	points: [],
-	segmentCount: 0,
-	isRecording: false
+	isRecording: false,
+	segmentCount: 0
 });
 
-/**
- * Update the ribbon points (called from Sculpture.svelte)
- */
-export function setRibbonPoints(points: RibbonPoint[]): void {
-	ribbonStore.points = points;
-	ribbonStore.segmentCount = points.length;
+export function setRibbonPoints(_newPoints: RibbonPoint[]): void {
+	// No-op: Ribbon mode removed
 }
 
-/**
- * Clear ribbon data
- */
-export function clearRibbon(): void {
-	ribbonStore.points = [];
-	ribbonStore.segmentCount = 0;
-	ribbonStore.isRecording = false;
+export function setRibbonRecording(_isRecording: boolean): void {
+	// No-op: Ribbon mode removed
 }
 
-/**
- * Set recording state
- */
-export function setRibbonRecording(isRecording: boolean): void {
-	ribbonStore.isRecording = isRecording;
-}
-
-/**
- * Get ribbon points for export
- */
 export function getRibbonPointsForExport(): RibbonPoint[] {
-	return [...ribbonStore.points];
+	return [];
 }
-

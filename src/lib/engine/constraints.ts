@@ -17,18 +17,25 @@ export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
  * @returns Constrained curve that is physically manufacturable
  */
 export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): LathePoint[] {
+	console.log(`🔧 [CONSTRAINTS] Applying "${mode}" constraints to ${curve.length} points`);
+	
 	if (curve.length < 2) {
+		console.log(`🔧 [CONSTRAINTS] Skipped: curve has < 2 points`);
 		return curve;
 	}
 
 	switch (mode) {
 		case 'digital':
+			console.log(`🔧 [CONSTRAINTS] Digital mode: no constraints applied`);
 			return applyDigitalConstraints(curve);
 		case 'ceramic':
+			console.log(`🔧 [CONSTRAINTS] Ceramic mode: applying pottery constraints`);
 			return applyCeramicConstraints(curve);
 		case '3d_print':
+			console.log(`🔧 [CONSTRAINTS] 3D Print mode: applying FDM constraints`);
 			return apply3DPrintConstraints(curve);
 		default:
+			console.log(`🔧 [CONSTRAINTS] Unknown mode "${mode}": returning unchanged`);
 			return curve;
 	}
 }
@@ -85,19 +92,25 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
  * Ensures hand access, prevents collapse, maintains stability
  *
  * DIRECTIVE 1: Harden constraints to prevent pinched necks
- * - MIN_RADIUS_MM = 35mm for practical hand access (1.5" radius / 3" opening)
+ * - MIN_HAND_RADIUS in normalized units (sculpture units where height=1.0)
  * - Structural smoothing via SMA to turn audio jitter into clay flow
  * - Topological safe mode: if too narrow overall, boost entire shape
+ *
+ * UNITS: Sculpture uses normalized units where:
+ * - Height Y goes from 0 to 1 (bottom to top)
+ * - Radius X typically ranges 0.05 to 1.5
+ * - For a 150mm tall sculpture, radius 0.2 ≈ 30mm
  */
 function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 
-	// DIRECTIVE 1A: Hand Access Floor (35mm = 1.5" radius)
-	const MIN_RADIUS_MM = 35;
-	const MIN_HAND_RADIUS = MIN_RADIUS_MM / 1000; // Convert to normalized units (~0.035)
+	// FIXED: Use normalized units that match sculpture geometry
+	// A reasonable minimum radius for hand access (~35mm on 150mm tall pot = ~0.23 normalized)
+	// But we use a smaller value to allow more creative freedom
+	const MIN_HAND_RADIUS = 0.1; // Minimum radius for hand access (allows finger entry)
 
 	const MAX_OVERHANG_ANGLE = 45; // degrees
-	const BASE_STABILITY_RATIO = 1.5; // Base should be 1.5x wider than average
+	const BASE_STABILITY_RATIO = 1.2; // Base should be 1.2x wider than average (reduced from 1.5)
 
 	// RULE A: Hand Access - Ensure minimum radius for hand entry
 	// Exception: Top 5% (rim) can be narrower for closure
@@ -187,12 +200,14 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
 	const minDetectedRadius = Math.min(...constrained.map((p) => p.x));
 
-	if (averageRadius < MIN_HAND_RADIUS || minDetectedRadius < MIN_HAND_RADIUS / 2) {
+	// Only boost if the shape is dangerously narrow (would collapse)
+	const criticalMinRadius = 0.05; // Absolute minimum to prevent degenerate geometry
+	if (averageRadius < criticalMinRadius || minDetectedRadius < criticalMinRadius / 2) {
 		// Boost entire shape to ensure it forms a viable vessel
-		const boostAmount = Math.max(0, MIN_HAND_RADIUS - averageRadius);
-		// console.log(
-		// 	`🏺 [CERAMIC] Boosting shape by ${(boostAmount * 1000).toFixed(1)}mm to ensure hand access`
-		// );
+		const boostAmount = Math.max(0, criticalMinRadius - minDetectedRadius);
+		console.log(
+			`🏺 [CERAMIC] Boosting shape by ${boostAmount.toFixed(3)} (avgRadius: ${averageRadius.toFixed(3)}, min: ${minDetectedRadius.toFixed(3)})`
+		);
 
 		for (let i = 0; i < constrained.length; i++) {
 			const point = safeArrayAccess(constrained, i);
@@ -203,18 +218,21 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	}
 
 	// RULE C: Base Stability - Wide base to support upper mass
-	// Bottom 10% should be wider than average radius
+	// Bottom 10% should be slightly wider for stability (but not excessively)
 	const baseThreshold = 0.1;
 	const updatedAverageRadius =
 		constrained.reduce((sum, p) => {
 			if (!p) return sum;
 			return sum + p.x;
 		}, 0) / constrained.length;
+	// FIXED: Use a more reasonable minimum base radius
+	// This prevents the "flat disc" appearance while still ensuring stability
 	const minBaseRadius = Math.max(
-		updatedAverageRadius * BASE_STABILITY_RATIO,
-		MIN_HAND_RADIUS * 1.2
+		updatedAverageRadius * BASE_STABILITY_RATIO, // 1.2x average
+		MIN_HAND_RADIUS // At least the minimum hand radius
 	);
 
+	let basePointsAdjusted = 0;
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) continue;
@@ -223,8 +241,13 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 			// Enforce wide base
 			if (point.x < minBaseRadius) {
 				point.x = minBaseRadius;
+				basePointsAdjusted++;
 			}
 		}
+	}
+	
+	if (basePointsAdjusted > 0) {
+		console.log(`🏺 [CERAMIC] Base stability: adjusted ${basePointsAdjusted} points to minRadius=${minBaseRadius.toFixed(3)}`);
 	}
 
 	return constrained;

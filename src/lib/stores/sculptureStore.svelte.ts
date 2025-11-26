@@ -51,6 +51,8 @@ function ensureCurrentSculpture(): SculptureDefinition {
 }
 
 export function setCurrentSculpture(sculpture: SculptureDefinition | null): void {
+	console.log('🔴🔴🔴 [SCULPTURE STORE] setCurrentSculpture() called with:', sculpture ? `${sculpture.name}, ${sculpture.layers?.length || 0} layers` : 'null');
+	console.trace('🔴🔴🔴 [SCULPTURE STORE] Call stack:');
 	sculptureStore.currentSculpture = sculpture;
 	if (sculpture) {
 		(sculptureStore as any).layers = sculpture.layers;

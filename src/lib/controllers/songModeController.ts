@@ -106,7 +106,7 @@ async function processSentiment(): Promise<void> {
 	try {
 		// Try AI analysis first, fallback to offline
 		let sentiment;
-		if (appSettings.aiApiKey) {
+		if (appSettings.apiKey) {
 			sentiment = await analyzeSentiment(lyrics);
 		}
 
@@ -157,7 +157,7 @@ async function processMood(): Promise<void> {
 
 	try {
 		let mood;
-		if (appSettings.aiApiKey) {
+		if (appSettings.apiKey) {
 			mood = await classifyMood(lyrics);
 		}
 
@@ -201,7 +201,7 @@ function applyMoodToEnvironment(mood: typeof songModeStore.currentMood): void {
 
 async function processMaterial(): Promise<void> {
 	if (!songModeStore.layers.material) return;
-	if (!appSettings.aiApiKey) return; // Material requires AI
+	if (!appSettings.apiKey) return; // Material requires AI
 
 	const lyrics = getRecentLyrics(5);
 	if (!lyrics || lyrics.length < 15) return;

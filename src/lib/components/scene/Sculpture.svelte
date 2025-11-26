@@ -25,8 +25,9 @@
 	import { useTask } from '@threlte/core';
 	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
-	import { computeProfile } from '$lib/engine/compositor';
+	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze, applyModifiers } from '$lib/engine/physicsMapping';
+	import { applyConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
@@ -66,9 +67,7 @@
 		deriveProfileWithTransforms
 	} from '$lib/engine/geometryFactory';
 import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
-import { RibbonGeometryManager } from '$lib/engine/RibbonGeometryManager';
 import { songModeStore } from '$lib/stores/songModeStore.svelte';
-import { setRibbonPoints, setRibbonRecording } from '$lib/stores/ribbonStore.svelte';
 import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
 import {
 		deriveMaterialColor,
@@ -100,13 +99,6 @@ import {
 	let dynamicGeoManager: DynamicGeometryManager | null = null;
 	let useDynamicGeometry = $state(true); // Enable by default for recording
 
-	// RIBBON GEOMETRY: For Song Mode waveform sculptures
-	let ribbonGeoManager: RibbonGeometryManager | null = null;
-	let ribbonGeometry = $state<BufferGeometry | null>(null);
-
-	// Check if we're in ribbon mode
-	let isRibbonMode = $derived(uiStore.baseShape === 'ribbon');
-
 	// Initialize dynamic geometry manager on mount
 	$effect(() => {
 		if (!dynamicGeoManager && useDynamicGeometry) {
@@ -123,27 +115,6 @@ import {
 			if (dynamicGeoManager) {
 				dynamicGeoManager.dispose();
 				dynamicGeoManager = null;
-			}
-		};
-	});
-
-	// Initialize ribbon geometry manager when needed
-	$effect(() => {
-		if (isRibbonMode && !ribbonGeoManager) {
-			ribbonGeoManager = new RibbonGeometryManager({
-				maxSegments: 3000, // 5 min @ 10fps
-				crossSectionPoints: 8,
-				dynamic: true
-			});
-			ribbonGeometry = ribbonGeoManager.getGeometry();
-			console.log('〰️ [SCULPTURE] Ribbon geometry manager initialized');
-		}
-
-		return () => {
-			if (ribbonGeoManager) {
-				ribbonGeoManager.dispose();
-				ribbonGeoManager = null;
-				ribbonGeometry = null;
 			}
 		};
 	});
@@ -174,15 +145,44 @@ import {
 	let ghostMaterialColor = $derived(deriveGhostMaterialColor(!!sculptureStore.ghostSculpture));
 
 	// Parent Rig Transform Values
+	// During recording: Height grows dynamically as you capture more frames (visual feedback)
+	// After recording: Height is based on physical dimension setting
+	const MIN_RECORDING_HEIGHT = 0.5; // Start at half height
+	const MAX_RECORDING_HEIGHT = 3.0; // Cap at 3x normal for visual feedback (more dramatic growth)
+	const FRAMES_FOR_FULL_HEIGHT = 300; // Reach max height faster (~6 seconds at 50fps)
+	
 	let heightScale = $derived.by(() => {
-		// Directive 2: Implosion on Empty Frames during Recording
+		// RECORDING MODE: Dynamic height growth as you sing
+		// Gives visual feedback that the sculpture is "building" with your voice
 		if (recordingStore.state === 'recording') {
 			const frames = getCapturedFrames();
-			if (!frames || frames.length === 0) {
-				// return RECORDING_IMPLOSION_SCALE; // Disable for now
+			const frameCount = frames?.length ?? 0;
+			
+			if (frameCount === 0) {
+				const scale = MIN_RECORDING_HEIGHT;
+				console.log(`📐 [HEIGHT] Recording start: scale=${scale.toFixed(2)} (0 frames)`);
+				return scale;
 			}
+			
+			// Grow from MIN to MAX based on frame count
+			const growthProgress = Math.min(1, frameCount / FRAMES_FOR_FULL_HEIGHT);
+			const dynamicHeight = MIN_RECORDING_HEIGHT + (MAX_RECORDING_HEIGHT - MIN_RECORDING_HEIGHT) * growthProgress;
+			
+			// Apply physical height scaling on top
+			const physHeight = sculpture?.physical.height ?? DEFAULT_HEIGHT_MM;
+			const baseScale = physHeight / DEFAULT_HEIGHT_MM;
+			
+			const finalScale = dynamicHeight * baseScale;
+			
+			// Log periodically (every 50 frames) to avoid spam
+			if (frameCount % 50 === 0) {
+				console.log(`📐 [HEIGHT] Recording: scale=${finalScale.toFixed(2)} (${frameCount} frames, growth=${(growthProgress * 100).toFixed(0)}%)`);
+			}
+			
+			return finalScale;
 		}
 
+		// NOT RECORDING: Use physical height setting
 		const height = sculpture?.physical.height;
 		if (!height || height <= 0 || !Number.isFinite(height) || Number.isNaN(height)) {
 			return 1.0;
@@ -211,6 +211,13 @@ import {
 
 	// Frame rate limiting for smoother, less jittery updates
 	let lastUpdateTime = 0;
+	let lastRenderLogTime = 0; // Rate-limit render loop logs
+	const RENDER_LOG_INTERVAL_MS = 3000; // Log at most every 3 seconds
+	
+	// Track constraint/modifier changes for non-destructive updates
+	let lastConstraintMode = $state<string>(uiStore.constraintMode);
+	let lastAutoFixGeometry = $state<boolean>(uiStore.autoFixGeometry);
+	let lastQuantize = $state<boolean>(uiStore.modifiers?.quantize ?? false);
 
 	// COMPOSITOR LOOP
 	// Directive 3.2: Call computeProfile in useTask
@@ -227,12 +234,25 @@ import {
 		}
 		lastUpdateTime = now;
 
-		// Optimization: Only re-compute if layers changed or recording
+		// Optimization: Only re-compute if layers changed, recording, or settings changed
 		const isRecording = recordingStore.state === 'recording';
 		const isGlazeMode = uiStore.workspace === 'glaze';
-		const needsUpdate = isRecording || sculptureStore.geometryDirty;
+		const constraintChanged = uiStore.constraintMode !== lastConstraintMode || uiStore.autoFixGeometry !== lastAutoFixGeometry;
+		const modifierChanged = (uiStore.modifiers?.quantize ?? false) !== lastQuantize;
+		const needsUpdate = isRecording || sculptureStore.geometryDirty || constraintChanged || modifierChanged;
 
 		if (!needsUpdate) return;
+		
+		// Update tracked values AFTER the needsUpdate check
+		if (constraintChanged) {
+			console.log(`🔄 [RENDER] Constraint changed: ${lastConstraintMode}→${uiStore.constraintMode}, autoFix: ${lastAutoFixGeometry}→${uiStore.autoFixGeometry}`);
+			lastConstraintMode = uiStore.constraintMode;
+			lastAutoFixGeometry = uiStore.autoFixGeometry;
+		}
+		if (modifierChanged) {
+			console.log(`🔢 [RENDER] Modifier changed: quantize ${lastQuantize}→${uiStore.modifiers?.quantize}`);
+			lastQuantize = uiStore.modifiers?.quantize ?? false;
+		}
 
 		try {
 			let profile: LathePoint[];
@@ -257,55 +277,64 @@ import {
 					// Need at least a few frames
 					// Pass maxPoints = 0 to use EVERY frame without compression
 					// This makes the sculpture grow vertically as you sing longer
+					// NON-DESTRUCTIVE: Constraints are applied at RENDER time, not here
+					// (rate-limited logging is done via heightScale $derived)
+					
 					const radiusCurve = generateLathe(
 						frames,
 						appSettings.userProfile,
 						uiStore.sculptMode || 'additive',
 						undefined,
-						uiStore.constraintMode,
+						'digital', // Raw data - constraints applied at render time
 						'standard',
 						'lathe',
 						0 // <-- UNLIMITED RESOLUTION: No downsampling during live recording
 					);
 
-					// Convert to layer data (exactly as stopRecording does)
-					const tempLayerData = new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR);
-					for (let i = 0; i < GEOMETRY_RESOLUTION_COMPOSITOR; i++) {
-						const normalizedY = i / (GEOMETRY_RESOLUTION_COMPOSITOR - 1);
+					// Get the effective resolution from existing layers or use default
+					const effectiveResolution = sculpture?.layers && sculpture.layers.length > 0
+						? getEffectiveResolution(sculpture.layers)
+						: GEOMETRY_RESOLUTION_COMPOSITOR;
+
+					// Convert to layer data
+					// CRITICAL: Store DELTA values (deviation from 0.5 baseline) for 'add' blend mode
+					// Otherwise compositor will double-count: base 0.5 + full 0.3 = 0.8 (wrong!)
+					// Should be: base 0.5 + delta (0.3-0.5) = base 0.5 + (-0.2) = 0.3 (correct!)
+					const BASELINE_RADIUS = 0.5;
+					const tempLayerData = new Float32Array(effectiveResolution);
+					for (let i = 0; i < effectiveResolution; i++) {
+						const normalizedY = i / (effectiveResolution - 1);
 						const curveLen = radiusCurve?.length ?? 1;
 						const targetIndex = Math.round(normalizedY * (curveLen - 1));
 						const clampedIndex = Math.min(targetIndex, curveLen - 1);
 						const point = radiusCurve?.[clampedIndex];
-						tempLayerData[i] = point?.x ?? 0.5; // Default radius if point is undefined
+						const fullRadius = point?.x ?? 0.5;
+						// Store delta from baseline for additive blend
+						tempLayerData[i] = fullRadius - BASELINE_RADIUS;
 					}
 
-					// If we have existing layers, composite with them
-					if (sculpture?.layers && sculpture.layers.length > 0) {
-						// Create temp layer and composite
-						const tempLayers = [
-							...sculpture.layers,
-							{
-								id: 'preview-temp',
-								name: 'Live Preview',
-								type: 'distortion' as const,
-								visible: true,
-								locked: false,
-								blendMode: 'add' as const,
-								opacity: 1.0,
-								data: tempLayerData,
-								mask: new Float32Array(GEOMETRY_RESOLUTION_COMPOSITOR).fill(1.0),
-								sourceFrameCount: frames.length
-							}
-						];
-						profile = computeProfile(tempLayers);
-					} else {
-						// First recording - convert layer data back to LathePoint[]
-						const profileResolution = GEOMETRY_RESOLUTION_COMPOSITOR;
-						profile = Array.from({ length: profileResolution }, (_, i) => ({
-							x: tempLayerData[i] ?? 0.5,
-							y: i / (profileResolution - 1)
-						}));
-					}
+				// LIVE PREVIEW STRATEGY:
+				// During recording, show the CURRENT recording directly without additive blending
+				// This gives clearer visual feedback of what you're creating RIGHT NOW
+				// The compositor/layer system is used AFTER recording stops
+				
+				// Check if this is effectively the first meaningful recording
+				// (Default sculpture creates a "Base Layer" that we can replace)
+				const existingLayers = sculpture?.layers ?? [];
+				const hasOnlyDefaultBase = existingLayers.length === 1 && existingLayers[0]?.name === 'Base Layer';
+				
+				if (existingLayers.length === 0 || hasOnlyDefaultBase) {
+					// First recording OR only default template - show raw recording directly
+					profile = radiusCurve;
+				} else {
+					// Multiple recordings exist - show current recording overlaid
+					// Use 'overwrite' blend to preview what THIS recording looks like
+					// (user can see existing layers separately in the layer panel)
+					
+					// For now, show the raw recording directly so user sees their current input
+					// The compositor will blend properly when recording stops
+					profile = radiusCurve;
+				}
 				} else if (sculpture?.layers && sculpture.layers.length > 0) {
 					// Not enough frames yet, use existing layers
 					profile = computeProfile(sculpture.layers);
@@ -325,14 +354,7 @@ import {
 					return;
 				}
 
-				// Check for resolution mismatches
-				for (const layer of sculpture.layers) {
-					if (layer.visible && layer.data.length !== GEOMETRY_RESOLUTION_COMPOSITOR) {
-						trackError('compositorResolutionMismatch');
-					}
-				}
-
-				// Compute profile from layers
+				// Compute profile from layers (compositor now handles resolution auto-detection)
 				profile = computeProfile(sculpture.layers);
 			}
 
@@ -341,10 +363,35 @@ import {
 				return;
 			}
 
+			// Rate-limited logging for render loop
+			const shouldLogRender = now - lastRenderLogTime > RENDER_LOG_INTERVAL_MS;
+			
+			// NON-DESTRUCTIVE MODIFIERS: Apply quantize/symmetry at render time
+			// This allows users to toggle modifiers without re-recording
+			if (uiStore.modifiers?.quantize) {
+				profile = applyModifiers(profile, 1.0, { quantize: true });
+			}
+
+			// NON-DESTRUCTIVE CONSTRAINTS: Apply at render time based on current uiStore settings
+			// This allows users to toggle between Digital/Ceramic/3D Print without re-recording
+			const effectiveConstraint = uiStore.autoFixGeometry ? uiStore.constraintMode : 'digital';
+			if (effectiveConstraint !== 'digital') {
+				profile = applyConstraints(profile, effectiveConstraint);
+			}
+
 			// OPTIMIZATION: Use DynamicGeometryManager during recording for better performance
 			// This avoids recreating geometry every frame - just updates vertex buffers
 			let geometry: BufferGeometry;
 			let vectors: Vector2[];
+
+			// DEBUG: Log profile dimensions (rate-limited)
+			if (shouldLogRender && profile.length > 0) {
+				lastRenderLogTime = now;
+				const minY = Math.min(...profile.map(p => p.y));
+				const maxY = Math.max(...profile.map(p => p.y));
+				const avgX = profile.reduce((sum, p) => sum + p.x, 0) / profile.length;
+				console.log(`🎨 [PROFILE] ${profile.length} pts, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)}, mode=${effectiveConstraint}, quantize=${uiStore.modifiers?.quantize ?? false}`);
+			}
 
 			if (isRecording && dynamicGeoManager && useDynamicGeometry) {
 				// Use optimized dynamic geometry (updates buffers in-place)
@@ -423,73 +470,6 @@ import {
 			trackError('geometryComputation');
 			if (err instanceof Error && err.message.includes('state_unsafe_mutation')) {
 				trackError('stateUnsafeMutation');
-			}
-		}
-	});
-
-	// RIBBON MODE: Capture frames in real-time when recording
-	let lastRibbonFrameTime = 0;
-	const RIBBON_FRAME_INTERVAL = 100; // 10fps sampling
-
-	useTask(() => {
-		if (!isRibbonMode || !ribbonGeoManager) return;
-
-		const isRecording = recordingStore.state === 'recording';
-		if (!isRecording) return;
-
-		// Rate limit to 10fps
-		const now = Date.now();
-		if (now - lastRibbonFrameTime < RIBBON_FRAME_INTERVAL) return;
-		lastRibbonFrameTime = now;
-
-		// Get current analysis frame
-		const frame = analysisStore.latestFrame;
-		if (!frame) return;
-
-		// Get sentiment color from Song Mode (if available)
-		const sentimentColor = songModeStore.currentSentiment
-			? (() => {
-					const { valence, energy } = songModeStore.currentSentiment;
-					// Map sentiment to RGB
-					const h = ((valence + 1) / 2) * 0.78; // Blue to gold hue
-					const s = 0.5 + ((energy + 1) / 2) * 0.5;
-					const l = 0.4 + ((valence + 1) / 2) * 0.2;
-					// Simple HSL to RGB
-					const c = (1 - Math.abs(2 * l - 1)) * s;
-					const x = c * (1 - Math.abs(((h * 6) % 2) - 1));
-					const m = l - c / 2;
-					let r = 0, g = 0, b = 0;
-					const hue = h * 6;
-					if (hue < 1) { r = c; g = x; }
-					else if (hue < 2) { r = x; g = c; }
-					else if (hue < 3) { g = c; b = x; }
-					else if (hue < 4) { g = x; b = c; }
-					else if (hue < 5) { r = x; b = c; }
-					else { r = c; b = x; }
-					return { r: r + m, g: g + m, b: b + m };
-			  })()
-			: undefined;
-
-		// Add frame to ribbon
-		ribbonGeoManager.addFrame(frame, sentimentColor);
-
-		// Update reference to trigger reactivity
-		ribbonGeometry = ribbonGeoManager.getGeometry();
-
-		// Update ribbon store for export (every 10 frames to reduce overhead)
-		if (ribbonGeoManager.getSegmentCount() % 10 === 0) {
-			setRibbonPoints(ribbonGeoManager.getRibbonPoints());
-		}
-	});
-
-	// Track ribbon recording state
-	$effect(() => {
-		const isRecording = recordingStore.state === 'recording';
-		if (isRibbonMode) {
-			setRibbonRecording(isRecording);
-			// Save final ribbon points when recording stops
-			if (!isRecording && ribbonGeoManager) {
-				setRibbonPoints(ribbonGeoManager.getRibbonPoints());
 			}
 		}
 	});
@@ -816,27 +796,8 @@ import {
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
-		<!-- RIBBON MODE: 3D waveform sculpture -->
-		{#if isRibbonMode && ribbonGeometry}
-			<T.Mesh
-				bind:ref={meshRef}
-				geometry={ribbonGeometry}
-				castShadow
-				receiveShadow
-				frustumCulled={false}
-				position.y={-0.5}
-			>
-				<T.MeshPhysicalMaterial
-					{...materialProps}
-					transparent={uiStore.view.mode === 'xray'}
-					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
-					wireframe={uiStore.view.mode === 'wireframe'}
-					vertexColors={true}
-					side={2}
-				/>
-			</T.Mesh>
-		<!-- LATHE MODE: Pottery wheel sculpture (default) -->
-		{:else if currentGeometry}
+		<!-- LATHE MODE: Pottery wheel sculpture -->
+		{#if currentGeometry}
 			<T.Mesh
 				bind:ref={meshRef}
 				geometry={currentGeometry}
@@ -855,7 +816,7 @@ import {
 		{/if}
 
 		<!-- Ghost Mesh -->
-		{#if sculptureStore.ghostSculpture && !isRibbonMode}
+		{#if sculptureStore.ghostSculpture}
 			<T.Mesh
 				bind:ref={ghostMeshRef}
 				frustumCulled={false}
@@ -875,13 +836,13 @@ import {
 
 		<!-- COIL MODE: Visual band indicators -->
 		{#if uiStore.recordingMode === 'coil' && sculpture?.layers}
-			{@const layerCount = sculpture.layers.filter(l => l.type === 'distortion').length}
+			{@const layerCount = sculpture.layers.filter((l: import('$lib/types').SculptureLayer) => l.type === 'distortion').length}
 			{@const nextBandStart = layerCount / (layerCount + 1)}
 			{@const nextBandEnd = (layerCount + 1) / (layerCount + 2)}
 			{@const bandCenter = (nextBandStart + nextBandEnd) / 2}
 			
 			<!-- Show existing coil layers as colored bands -->
-			{#each sculpture.layers.filter(l => l.type === 'distortion') as layer, i}
+			{#each sculpture.layers.filter((l: import('$lib/types').SculptureLayer) => l.type === 'distortion') as layer, i}
 				{@const bandY = (i + 0.5) / (layerCount + 1)}
 				{@const hue = (i / Math.max(1, layerCount)) * 0.7}
 				<T.Mesh position.y={bandY - 0.5} rotation.x={Math.PI / 2}>

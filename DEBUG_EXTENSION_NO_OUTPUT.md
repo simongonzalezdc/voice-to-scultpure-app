@@ -106,3 +106,4 @@ If this works, the issue is definitely in the extension's UI/communication layer
 3. Check if extension is enabled and running
 4. Share what you find and we can debug further
 
+

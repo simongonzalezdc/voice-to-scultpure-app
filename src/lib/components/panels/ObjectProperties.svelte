@@ -5,13 +5,12 @@
 	import type { BaseShape } from '$lib/types';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-	import { Cylinder, Circle, Box, FileText, Info } from 'lucide-svelte';
+	import { Cylinder, Circle, Box, FileText } from 'lucide-svelte';
 
 	// Reactive state from current sculpture
 	const currentSculpture = $derived(sculptureStore.currentSculpture);
 
-	// Local editing state
-	let height = $state(150);
+	// Local editing state (height removed - set at export time only)
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
 	let baseColor = $state(DEFAULT_MATERIAL_CERAMIC);
 	let baseShape = $state<BaseShape>('lathe');
@@ -23,21 +22,11 @@
 	// Sync with sculpture changes
 	$effect(() => {
 		if (currentSculpture) {
-			height = currentSculpture.physical.height;
 			materialType = 'ceramic'; // Default - material type is now in uiStore
 			baseColor = uiStore.activeGlaze.color || DEFAULT_MATERIAL_CERAMIC;
 			baseShape = currentSculpture.baseShape || 'lathe';
 		}
 	});
-
-	// Update sculpture when values change
-	function updateHeight() {
-		if (!currentSculpture) return;
-		setCurrentSculpture({
-			...currentSculpture,
-			physical: { ...currentSculpture.physical, height }
-		});
-	}
 
 	function updateMaterial() {
 		// Material type is now handled via uiStore, not sculpture
@@ -149,34 +138,8 @@
 			</div>
 		</div>
 
-		<!-- Physical Dimensions -->
-		<div class="border-t border-subtle pt-4">
-			<h3 class="text-sm font-semibold text-secondary mb-3">Physical Dimensions</h3>
-			<div>
-				<label
-					for="obj-height"
-					class="text-sm text-secondary block mb-1 flex items-center gap-2"
-					title="Physical height of the sculpture"
-				>
-					Height: {height.toFixed(0)}mm
-					<span class="text-subtle opacity-50"><Info size={12} /></span>
-				</label>
-				<input
-					id="obj-height"
-					type="range"
-					min="10"
-					max="1000"
-					step="5"
-					bind:value={height}
-					onchange={updateHeight}
-					class="w-full accent-brand-primary"
-				/>
-				<div class="flex justify-between text-xs text-secondary mt-1">
-					<span>1cm</span>
-					<span>1 meter</span>
-				</div>
-			</div>
-		</div>
+		<!-- NOTE: Physical Dimensions (Height) moved to Export panel -->
+		<!-- Height is set at export time to not limit creative freedom -->
 
 		<!-- Material -->
 		<div class="border-t border-subtle pt-4">

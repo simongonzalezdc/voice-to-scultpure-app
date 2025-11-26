@@ -277,13 +277,13 @@ export function generateLathe(
 		};
 	});
 
-	// 4. DIRECTIVE 3: Apply Fabrication Constraints
-	// This ensures the geometry is physically manufacturable
-	// Non-destructive: Original recording is preserved, but output geometry is sanitized
-	const constrainedCurve = applyConstraints(rawCurve, constraintMode);
-
-	// DIRECTIVE 1: Final sanitization pass - remove any invalid points
-	const sanitizedCurve = constrainedCurve.filter((p) => {
+	// NON-DESTRUCTIVE CONSTRAINTS:
+	// Constraints are NO LONGER applied here during recording.
+	// Raw data is stored, and constraints are applied at RENDER TIME in Sculpture.svelte
+	// This allows users to toggle between Digital/Ceramic/3D Print modes without re-recording.
+	
+	// DIRECTIVE 1: Final sanitization pass - remove any invalid points (but NOT constraint application)
+	const sanitizedCurve = rawCurve.filter((p) => {
 		const safeX = Number.isFinite(p.x) && !Number.isNaN(p.x) && p.x > 0;
 		const safeY = Number.isFinite(p.y) && !Number.isNaN(p.y) && p.y >= 0;
 		return safeX && safeY;
@@ -294,8 +294,23 @@ export function generateLathe(
 		return createDefaultCylinder();
 	}
 
+	// DEBUG: Log Y range to verify height is correct (rate-limited, constraints applied later at render)
+	const now = Date.now();
+	if (sanitizedCurve.length > 0 && now - lastLatheLogTime > LOG_INTERVAL_MS) {
+		lastLatheLogTime = now;
+		const minY = Math.min(...sanitizedCurve.map(p => p.y));
+		const maxY = Math.max(...sanitizedCurve.map(p => p.y));
+		const avgX = sanitizedCurve.reduce((sum, p) => sum + p.x, 0) / sanitizedCurve.length;
+		console.log(`📏 [LATHE] RAW Profile: ${sanitizedCurve.length} points, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)} (constraints applied at render)`);
+	}
+
 	return sanitizedCurve;
 }
+
+// Rate-limit logging in hot paths
+let lastModifierLogTime = 0;
+let lastLatheLogTime = 0;
+const LOG_INTERVAL_MS = 3000;
 
 export function applyModifiers(
 	curve: LathePoint[],
@@ -303,7 +318,18 @@ export function applyModifiers(
 	modifiers?: { quantize?: boolean }
 ): LathePoint[] {
 	const safeHeightScale = Math.max(0.0001, heightScale || 1);
-	return curve.map((point) => {
+	
+	// Rate-limited logging
+	const now = Date.now();
+	const shouldLog = modifiers?.quantize && now - lastModifierLogTime > LOG_INTERVAL_MS;
+	
+	if (shouldLog && curve.length > 0) {
+		lastModifierLogTime = now;
+		const beforeAvg = curve.reduce((sum, p) => sum + (p?.x ?? 0.5), 0) / curve.length;
+		console.log(`🔢 [QUANTIZE] Applying to ${curve.length} points (beforeAvg=${beforeAvg.toFixed(3)})`);
+	}
+	
+	const result = curve.map((point) => {
 		if (!point) {
 			return { x: 0.5, y: 0 }; // Fallback point
 		}
@@ -312,7 +338,7 @@ export function applyModifiers(
 			// Quantize to create faceted/stepped surfaces
 			// Radius is in normalized units (typically 0-1.5 range)
 			// Use a step size relative to the typical radius range, not millimeters
-			const step = 0.1; // 10% increments (creates ~10 distinct radius levels)
+			const step = 0.15; // 15% increments (creates ~7 distinct radius levels - more visible)
 			radius = Math.round(radius / step) * step;
 		}
 
@@ -321,6 +347,14 @@ export function applyModifiers(
 			x: radius
 		};
 	});
+	
+	// DEBUG: Log after quantize (rate-limited)
+	if (shouldLog && result.length > 0) {
+		const afterAvg = result.reduce((sum, p) => sum + (p?.x ?? 0.5), 0) / result.length;
+		console.log(`🔢 [QUANTIZE] After: avgRadius=${afterAvg.toFixed(3)}`);
+	}
+	
+	return result;
 }
 
 export function applyDeformation(

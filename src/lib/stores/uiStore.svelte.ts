@@ -23,11 +23,11 @@ export const uiStore = $state<{
 	orientation: 'vertical' | 'horizontal';
 	sculptMode: 'additive' | 'subtractive';
 	// toolMode deprecated in favor of workspace + local state
-	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius
+	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius (Virtuoso)
 	// Recording Mode (Option B: Song Mode)
 	recordingMode: 'standard' | 'song' | 'coil'; // 'standard' = 10-30s, 'song' = 1-5min, 'coil' = spiral pottery
-	// Base Shape for sculpture geometry
-	baseShape: 'lathe' | 'ribbon'; // 'lathe' = pottery wheel, 'ribbon' = waveform
+	// Base Shape for sculpture geometry (only lathe supported now)
+	baseShape: 'lathe'; // 'lathe' = pottery wheel (ribbon mode removed)
 	forceParams: {
 		damping: number; // 0-1
 		hardness: number; // 0-1
@@ -89,9 +89,9 @@ export const uiStore = $state<{
 	},
 	orientation: 'vertical',
 	sculptMode: 'additive',
-	controlMode: 'standard',
-	recordingMode: 'standard', // Default: standard mode (10-30s recordings)
-	baseShape: 'lathe', // Default: lathe (pottery wheel)
+	controlMode: 'melodic', // Default: Virtuoso mode (Pitch->Radius)
+	recordingMode: 'song', // Default: Song mode (1-5 min recordings)
+	baseShape: 'lathe', // Only lathe supported (ribbon removed)
 	forceParams: {
 		damping: 0.5,
 		hardness: 0.5,
@@ -134,12 +134,13 @@ export const uiStore = $state<{
 		min: 0.0, // Default: entire height (bottom)
 		max: 1.0 // Default: entire height (top)
 	},
-	constraintMode: 'digital', // Default: no constraints
+	constraintMode: 'ceramic', // Default: pottery wheel constraints for manufacturable art
 	autoFixGeometry: true, // Default: Auto-fix enabled
 	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
 });
 
 export function setAutoFixGeometry(enabled: boolean): void {
+	console.log(`🔧 [UI STORE] setAutoFixGeometry: ${uiStore.autoFixGeometry} → ${enabled}`);
 	uiStore.autoFixGeometry = enabled;
 }
 
@@ -309,6 +310,7 @@ export function toggleBlueprintVisibility(): void {
 }
 
 export function setQuantizeEnabled(enabled: boolean): void {
+	console.log(`🔢 [UI STORE] setQuantizeEnabled: ${uiStore.modifiers.quantize} → ${enabled}`);
 	uiStore.modifiers.quantize = enabled;
 }
 
@@ -330,8 +332,8 @@ export function setRecordingMode(mode: 'standard' | 'song' | 'coil'): void {
 	console.log(`🎵 [UI] Recording mode set to: ${mode}`);
 }
 
-// Base Shape (lathe = pottery wheel, ribbon = waveform)
-export function setBaseShape(shape: 'lathe' | 'ribbon'): void {
+// Base Shape (only lathe supported now - ribbon removed)
+export function setBaseShape(shape: 'lathe'): void {
 	uiStore.baseShape = shape;
 	console.log(`📐 [UI] Base shape set to: ${shape}`);
 }
@@ -371,6 +373,7 @@ export function setSculptZone(min: number, max: number): void {
 }
 
 export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
+	console.log(`🔧 [UI STORE] setConstraintMode called: "${uiStore.constraintMode}" → "${mode}"`);
 	uiStore.constraintMode = mode;
 }
 

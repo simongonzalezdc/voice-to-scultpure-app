@@ -1,3 +1,5 @@
+console.log('🔴🔴🔴 [MODULE LOAD] recording.svelte.ts loaded at', new Date().toLocaleTimeString());
+
 import {
 	setCurrentSculpture,
 	sculptureStore,
@@ -98,6 +100,7 @@ export function hasCapturedFrames(): boolean {
  * DIRECTIVE 2: Non-destructive for glaze mode - only clears frames, preserves sculpture
  */
 export function startRecording(): void {
+	console.log('🔴🔴🔴 [RECORDING] startRecording() CALLED');
 	const isGlazeMode = uiStore.workspace === 'glaze';
 
 	// Clear frames array (prepare for new recording)
@@ -118,6 +121,8 @@ export function startRecording(): void {
  * CRITICAL FIX: Capture vertex colors before setting state to 'complete' or 'idle'
  */
 export async function stopRecording(): Promise<void> {
+	console.log('🔴🔴🔴 [RECORDING] stopRecording() CALLED, state:', recordingStore.state, 'frames:', capturedFrames.length);
+	
 	if (recordingStore.state !== 'recording') {
 		console.warn('⚠️ [RECORDING] Stop called but not in recording state');
 		return;
@@ -127,6 +132,7 @@ export async function stopRecording(): Promise<void> {
 	const duration = recordingStore.startTime ? Date.now() - recordingStore.startTime : 0;
 	recordingStateSetTimings(null, duration);
 	setRecordingState('processing');
+	console.log('🔴🔴🔴 [RECORDING] Processing... duration:', duration, 'ms');
 	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
 
 	// RESCUE PATH: Worker failed or frames empty -> generate minimal fallback
@@ -200,8 +206,15 @@ export async function stopRecording(): Promise<void> {
 			// SCULPT MODE: Add a new layer from recorded frames
 			console.log(`✨ [RECORDING] Processing ${capturedFrames.length} frames into new layer...`);
 
-			if (!sculptureStore.currentSculpture) {
-				// First recording ever - create initial sculpture with base layer
+			// Check if we should CREATE a new sculpture or ADD to existing
+			// KEY INSIGHT: If the only layer is the default "Base Layer", we should REPLACE it
+			// This ensures preview matches final result
+			const existingLayers = sculptureStore.currentSculpture?.layers ?? [];
+			const hasOnlyDefaultBase = existingLayers.length === 1 && existingLayers[0]?.name === 'Base Layer';
+			const shouldCreateNew = !sculptureStore.currentSculpture || hasOnlyDefaultBase;
+
+			if (shouldCreateNew) {
+				// First meaningful recording - create/replace with user's recording as base layer
 				const mode = uiStore.sculptMode ?? 'additive';
 				const zone =
 					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
@@ -209,53 +222,82 @@ export async function stopRecording(): Promise<void> {
 				// Get resolution based on recording mode (Song Mode uses 512 for 4x detail)
 				const resolution = getResolutionForMode();
 
+				// NON-DESTRUCTIVE CONSTRAINTS: Store RAW data, apply constraints at RENDER time
+				// This allows users to toggle between Digital/Ceramic/3D Print without re-recording
+				console.log(`📦 [RECORDING] Creating sculpture from recording (${resolution} pts) - replacing default template`);
+
 				const sculpture = createSculptureFromFrames(
 					capturedFrames,
 					appSettings.userProfile,
 					undefined,
 					mode,
 					zone,
-					uiStore.constraintMode,
+					'digital', // Always store raw data - constraints applied at render time
 					'lathe', // baseShape
 					resolution // Pass recording mode resolution
 				);
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
-				console.log(`🗿 [RECORDING] Initial sculpture created with ${pointCount} points (resolution: ${resolution})`);
+				console.log(`🗿 [RECORDING] Sculpture created with ${pointCount} points (resolution: ${resolution})`);
 			} else {
-				// Subsequent recordings - add as new layer
+				// Subsequent recordings - add as new layer ON TOP of user's base
 				const mode = sculptureStore.currentSculpture.physical.sculptMode ?? 'additive';
 				const zone =
 					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
 
-				// Generate geometry from frames
+				// NON-DESTRUCTIVE: Generate RAW geometry - constraints applied at render time
+				console.log(`📦 [RECORDING] Adding layer to existing ${existingLayers.length} layers`);
+
+				// Generate geometry from frames (no constraints - raw data)
 				const radiusCurve = generateLathe(
 					capturedFrames,
 					appSettings.userProfile,
 					mode,
 					zone,
-					uiStore.constraintMode
+					'digital' // Always raw - constraints at render time
 				);
 
-				// Convert to layer data (just radius values)
+				// Convert to layer data (radius values)
 				// Option B: Use recording mode resolution
 				const resolution = getResolutionForMode();
 				const layerData = new Float32Array(resolution);
 				const curveLen = radiusCurve?.length ?? 1;
+				
+				// Determine layer position before computing data
+				// Option C: Coil mode creates stacked ring layers
+				const isCoilMode = uiStore.recordingMode === 'coil';
+				const layerIndex = existingLayers.length;
+				
+				// First USER layer (after replacing default) should be base with full radius
+				// Subsequent layers are distortions with delta values
+				const isFirstUserLayer = layerIndex === 0 || (layerIndex === 1 && existingLayers[0]?.name === 'Base Layer');
+				const isFirstLayer = isFirstUserLayer;
+				
+				// For subsequent layers: compute delta relative to existing profile
+				// This ensures additive blending produces expected results
+				// Delta = newRadius - existingBaselineRadius
+				const BASELINE_RADIUS = 0.5; // Used as fallback
+				
 				for (let i = 0; i < resolution; i++) {
 					const normalizedY = i / (resolution - 1);
 					const targetIndex = Math.round(normalizedY * (curveLen - 1));
 					const clampedIndex = Math.min(targetIndex, curveLen - 1);
 					const point = radiusCurve?.[clampedIndex];
-					layerData[i] = point?.x ?? 0.5;
+					const fullRadius = point?.x ?? 0.5;
+					
+					if (isFirstLayer) {
+						// Base layer: Store full radius (used with 'overwrite' blend mode)
+						layerData[i] = fullRadius;
+					} else {
+						// Distortion layer: Store DELTA from baseline
+						// 'add' blend mode adds deviation, not full value
+						layerData[i] = fullRadius - BASELINE_RADIUS;
+					}
 				}
-
-				// Create new layer
-				// Option C: Coil mode creates stacked ring layers
-				const isCoilMode = uiStore.recordingMode === 'coil';
-				const layerIndex = sculptureStore.currentSculpture.layers.length;
-				const isFirstLayer = layerIndex === 0;
+				
+				const avgData = layerData.reduce((a, b) => a + b, 0) / layerData.length;
+				console.log(`📊 [LAYER DATA] ${isFirstLayer ? 'Base' : 'Distortion'}: ${resolution} pts, avg=${avgData.toFixed(3)}`);
 
 				// For coil mode: Create mask that only affects a height band
 				let layerMask = new Float32Array(resolution).fill(1.0);

@@ -4,20 +4,31 @@ import type { AudioRingBuffer } from '$lib/types';
 let worker: Worker | null = null;
 let configured = false;
 
+// CRITICAL FIX: Use callback array instead of overwriting onmessage
+let frameCallbacks: Array<(frame: AnalysisFrame) => void> = [];
+
 export interface AnalysisWorkerClient {
 	start: () => void;
 	stop: () => void;
 	onFrame: (callback: (frame: AnalysisFrame) => void) => void;
 	dispose: () => void;
+	isConfigured: () => boolean;
 }
 
 export function createAnalysisWorkerClient(
 	ringBuffer: AudioRingBuffer,
 	onFrame: (frame: AnalysisFrame) => void
 ): AnalysisWorkerClient {
+	// Clean up existing worker if any
 	if (worker) {
+		console.log('🔄 [WORKER] Terminating existing worker before creating new one');
 		worker.terminate();
+		worker = null;
 	}
+
+	// Reset state
+	frameCallbacks = [onFrame]; // Initialize with the provided callback
+	configured = false;
 
 	worker = new Worker(new URL('../workers/analysis.worker.ts', import.meta.url), {
 		type: 'module'
@@ -25,14 +36,22 @@ export function createAnalysisWorkerClient(
 
 	let frameCount = 0;
 	let configConfirmed = false;
+	let lastErrorTime = 0;
 
+	// CRITICAL FIX: Single message handler that dispatches to all callbacks
 	worker.onmessage = (e) => {
 		const { type, payload } = e.data;
 
-		if (type === 'status' && payload === 'configured') {
-			configConfirmed = true;
-			configured = true;
-			console.log('✅ [WORKER] Configuration confirmed by worker');
+		if (type === 'status') {
+			if (payload === 'configured') {
+				configConfirmed = true;
+				configured = true;
+				console.log('✅ [WORKER] Configuration confirmed by worker');
+			} else if (payload === 'started') {
+				console.log('✅ [WORKER] Worker started successfully');
+			} else if (payload === 'stopped') {
+				console.log('✅ [WORKER] Worker stopped');
+			}
 		}
 
 		if (type === 'analysis-frame') {
@@ -40,29 +59,43 @@ export function createAnalysisWorkerClient(
 			if (frameCount === 1) {
 				console.log('🔊 [WORKER] First analysis frame received');
 			}
-			onFrame(payload as AnalysisFrame);
+			// CRITICAL FIX: Call ALL registered callbacks
+			const frame = payload as AnalysisFrame;
+			for (const callback of frameCallbacks) {
+				try {
+					callback(frame);
+				} catch (err) {
+					// Don't let one bad callback break others
+					console.error('❌ [WORKER] Frame callback error:', err);
+				}
+			}
 		}
 
 		if (type === 'error') {
-			console.error('❌ [WORKER] Worker error:', payload);
+			const now = Date.now();
+			// Rate-limit error logging to avoid spam
+			if (now - lastErrorTime > 1000) {
+				console.error('❌ [WORKER] Worker error:', payload);
+				lastErrorTime = now;
+			}
 		}
 	};
 
 	worker.onerror = (error) => {
-		console.error('❌ [WORKER] Analysis worker error:', error);
+		console.error('❌ [WORKER] Analysis worker fatal error:', error.message);
+		console.error('   Filename:', error.filename, 'Line:', error.lineno);
 		configured = false;
 		configConfirmed = false;
 	};
 
 	// Configure worker - wait for confirmation before marking as configured
-	configured = false; // Reset to false
 	worker.postMessage({
 		type: 'config',
 		payload: {
 			ringBuffer: ringBuffer.buffer,
 			sampleRate: ringBuffer.sampleRate,
 			fftSize: 2048,
-			hopSize: 512 // REVERT: 2048 caused Meyda buffer size error. Improved pitch detection in autocorrelation instead.
+			hopSize: 512
 		}
 	});
 
@@ -73,7 +106,7 @@ export function createAnalysisWorkerClient(
 			console.warn('⚠️ [WORKER] Config confirmation timeout - assuming configured');
 			configured = true;
 		}
-	}, 100);
+	}, 200); // Increased timeout for slower systems
 
 	return {
 		start: () => {
@@ -82,7 +115,16 @@ export function createAnalysisWorkerClient(
 				return;
 			}
 			if (!configured) {
-				console.warn('⚠️ [WORKER] Starting before configuration confirmed - this may cause issues');
+				console.warn('⚠️ [WORKER] Starting before configuration confirmed - waiting 100ms...');
+				// Wait a bit and try again
+				setTimeout(() => {
+					if (worker && configured) {
+						console.log('▶️ [WORKER] Delayed start after config confirmed');
+						frameCount = 0;
+						worker.postMessage({ type: 'start' });
+					}
+				}, 100);
+				return;
 			}
 			console.log('▶️ [WORKER] Starting analysis worker');
 			frameCount = 0;
@@ -94,14 +136,10 @@ export function createAnalysisWorkerClient(
 				worker.postMessage({ type: 'stop' });
 			}
 		},
+		// CRITICAL FIX: Add callback to array instead of overwriting
 		onFrame: (callback: (frame: AnalysisFrame) => void) => {
-			if (worker) {
-				worker.onmessage = (e) => {
-					const { type, payload } = e.data;
-					if (type === 'analysis-frame') {
-						callback(payload as AnalysisFrame);
-					}
-				};
+			if (!frameCallbacks.includes(callback)) {
+				frameCallbacks.push(callback);
 			}
 		},
 		dispose: () => {
@@ -110,7 +148,9 @@ export function createAnalysisWorkerClient(
 				worker.terminate();
 				worker = null;
 				configured = false;
+				frameCallbacks = [];
 			}
-		}
+		},
+		isConfigured: () => configured
 	};
 }
