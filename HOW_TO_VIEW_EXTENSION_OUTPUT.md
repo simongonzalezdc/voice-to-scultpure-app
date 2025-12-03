@@ -116,3 +116,5 @@ When you find the extension's output, look for:
 If the extension uses a Language Server Protocol (LSP), the output channel is usually named after the language server (e.g., "ESLint", "TypeScript", "Pylance").
 
 
+
+
