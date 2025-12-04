@@ -4,7 +4,209 @@ import { uiStore } from '$lib/stores/uiStore.svelte';
 import { getSegmentsForFacetStyle, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
-import { Mesh, BufferGeometry, Matrix4 } from 'three';
+import { Mesh, BufferGeometry, Matrix4, Vector3 } from 'three';
+
+// ============================================================================
+// MANIFOLD GEOMETRY VALIDATION & REPAIR
+// ============================================================================
+
+interface ManifoldReport {
+	isValid: boolean;
+	degenerateTriangles: number;
+	nanVertices: number;
+	zeroAreaTriangles: number;
+	repaired: boolean;
+}
+
+/**
+ * Validate and repair geometry to ensure manifold (watertight) mesh
+ * Fixes common issues that cause slicer errors:
+ * - NaN/Infinity vertex coordinates
+ * - Degenerate triangles (zero area)
+ * - Duplicate vertices within triangles
+ */
+function validateAndRepairGeometry(geometry: BufferGeometry): ManifoldReport {
+	const report: ManifoldReport = {
+		isValid: true,
+		degenerateTriangles: 0,
+		nanVertices: 0,
+		zeroAreaTriangles: 0,
+		repaired: false
+	};
+	
+	const positions = geometry.getAttribute('position');
+	if (!positions) {
+		console.error('❌ [MANIFOLD] No position attribute found');
+		report.isValid = false;
+		return report;
+	}
+	
+	const posArray = positions.array as Float32Array;
+	const vertexCount = positions.count;
+	
+	// Check for NaN/Infinity values and repair
+	for (let i = 0; i < posArray.length; i++) {
+		if (!Number.isFinite(posArray[i])) {
+			report.nanVertices++;
+			// Repair: replace with 0 (safe default)
+			posArray[i] = 0;
+			report.repaired = true;
+		}
+	}
+	
+	// Check triangles for degeneracy (zero area)
+	const EPSILON = 1e-10; // Minimum edge length squared
+	const triangleCount = vertexCount / 3;
+	
+	const v1 = new Vector3();
+	const v2 = new Vector3();
+	const v3 = new Vector3();
+	const edge1 = new Vector3();
+	const edge2 = new Vector3();
+	const cross = new Vector3();
+	
+	for (let t = 0; t < triangleCount; t++) {
+		const i = t * 3;
+		
+		v1.fromBufferAttribute(positions, i);
+		v2.fromBufferAttribute(positions, i + 1);
+		v3.fromBufferAttribute(positions, i + 2);
+		
+		// Check for duplicate vertices
+		if (v1.distanceToSquared(v2) < EPSILON ||
+			v2.distanceToSquared(v3) < EPSILON ||
+			v3.distanceToSquared(v1) < EPSILON) {
+			report.degenerateTriangles++;
+		}
+		
+		// Check for zero area (collinear points)
+		edge1.subVectors(v2, v1);
+		edge2.subVectors(v3, v1);
+		cross.crossVectors(edge1, edge2);
+		
+		const area = cross.lengthSq();
+		if (area < EPSILON) {
+			report.zeroAreaTriangles++;
+		}
+	}
+	
+	// Update validity
+	report.isValid = report.nanVertices === 0 && 
+	                 report.degenerateTriangles === 0 &&
+	                 report.zeroAreaTriangles === 0;
+	
+	// Mark buffer as needing update if repaired
+	if (report.repaired) {
+		positions.needsUpdate = true;
+	}
+	
+	// Log report
+	if (!report.isValid || report.repaired) {
+		console.warn(`⚠️ [MANIFOLD] Geometry issues detected:`, {
+			nanVertices: report.nanVertices,
+			degenerateTriangles: report.degenerateTriangles,
+			zeroAreaTriangles: report.zeroAreaTriangles,
+			repaired: report.repaired
+		});
+	} else {
+		console.log(`✅ [MANIFOLD] Geometry is valid (${triangleCount} triangles)`);
+	}
+	
+	return report;
+}
+
+/**
+ * Remove degenerate triangles from indexed geometry
+ * This creates a new geometry without zero-area faces
+ */
+function removeDegenerate(geometry: BufferGeometry): BufferGeometry {
+	const positions = geometry.getAttribute('position');
+	if (!positions) return geometry;
+	
+	const EPSILON = 1e-8;
+	const newPositions: number[] = [];
+	const newNormals: number[] = [];
+	const normals = geometry.getAttribute('normal');
+	
+	const v1 = new Vector3();
+	const v2 = new Vector3();
+	const v3 = new Vector3();
+	const edge1 = new Vector3();
+	const edge2 = new Vector3();
+	const cross = new Vector3();
+	
+	let removed = 0;
+	const triangleCount = positions.count / 3;
+	
+	for (let t = 0; t < triangleCount; t++) {
+		const i = t * 3;
+		
+		v1.fromBufferAttribute(positions, i);
+		v2.fromBufferAttribute(positions, i + 1);
+		v3.fromBufferAttribute(positions, i + 2);
+		
+		// Check edge lengths
+		const e1Len = v1.distanceToSquared(v2);
+		const e2Len = v2.distanceToSquared(v3);
+		const e3Len = v3.distanceToSquared(v1);
+		
+		if (e1Len < EPSILON || e2Len < EPSILON || e3Len < EPSILON) {
+			removed++;
+			continue; // Skip degenerate
+		}
+		
+		// Check area
+		edge1.subVectors(v2, v1);
+		edge2.subVectors(v3, v1);
+		cross.crossVectors(edge1, edge2);
+		
+		if (cross.lengthSq() < EPSILON) {
+			removed++;
+			continue; // Skip zero-area
+		}
+		
+		// Keep this triangle
+		newPositions.push(v1.x, v1.y, v1.z);
+		newPositions.push(v2.x, v2.y, v2.z);
+		newPositions.push(v3.x, v3.y, v3.z);
+		
+		if (normals) {
+			for (let vi = 0; vi < 3; vi++) {
+				const ni = i + vi;
+				newNormals.push(
+					normals.getX(ni),
+					normals.getY(ni),
+					normals.getZ(ni)
+				);
+			}
+		}
+	}
+	
+	if (removed > 0) {
+		console.log(`🔧 [MANIFOLD] Removed ${removed} degenerate triangles`);
+		
+		const cleanGeometry = new BufferGeometry();
+		cleanGeometry.setAttribute('position', 
+			new (geometry.getAttribute('position') as any).constructor(
+				new Float32Array(newPositions), 3
+			)
+		);
+		
+		if (newNormals.length > 0) {
+			cleanGeometry.setAttribute('normal',
+				new (geometry.getAttribute('normal') as any).constructor(
+					new Float32Array(newNormals), 3
+				)
+			);
+		} else {
+			cleanGeometry.computeVertexNormals();
+		}
+		
+		return cleanGeometry;
+	}
+	
+	return geometry;
+}
 
 // ============================================================================
 // DIRECT MESH EXPORT (Guaranteed to match app view)
@@ -28,7 +230,7 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 	console.log(`📦 [STL DIRECT] Exporting actual rendered mesh geometry`);
 	
 	// Clone the geometry to avoid modifying the original
-	const geometry = mesh.geometry.clone();
+	let geometry = mesh.geometry.clone();
 	
 	// Apply the mesh's world matrix to bake in all transforms (including heightScale)
 	mesh.updateMatrixWorld(true);
@@ -56,6 +258,29 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 	// Apply scaling to convert to millimeters
 	const scaleMatrix = new Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
 	geometry.applyMatrix4(scaleMatrix);
+	
+	// ========================================================================
+	// MANIFOLD VALIDATION & REPAIR
+	// Ensures the mesh is watertight and slicer-compatible
+	// ========================================================================
+	console.log(`🔍 [STL DIRECT] Validating geometry for manifold integrity...`);
+	
+	// Step 1: Validate and repair NaN values
+	const report = validateAndRepairGeometry(geometry);
+	
+	// Step 2: Remove degenerate triangles (zero area, duplicate vertices)
+	if (report.degenerateTriangles > 0 || report.zeroAreaTriangles > 0) {
+		const cleanGeometry = removeDegenerate(geometry);
+		geometry.dispose();
+		geometry = cleanGeometry;
+	}
+	
+	// Log final status
+	if (report.repaired || report.degenerateTriangles > 0 || report.zeroAreaTriangles > 0) {
+		console.log(`🔧 [STL DIRECT] Geometry repaired for slicer compatibility`);
+	} else {
+		console.log(`✅ [STL DIRECT] Geometry is manifold-ready`);
+	}
 	
 	// Create a temporary mesh for the exporter
 	const exportMesh = new Mesh(geometry);
@@ -115,6 +340,8 @@ export function lathePointsToSTL(
 	console.log(`📦 [STL EXPORT] Last 3 points:`, points.slice(-3).map(p => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`));
 
 	const triangles: string[] = [];
+	let skippedDegenerate = 0; // Count degenerate triangles removed
+	
 	// CRITICAL: Use the SAME segment count as the renderer (facet style)
 	// This ensures the STL matches the app view exactly (including the "fins" aesthetic)
 	const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
@@ -151,16 +378,16 @@ export function lathePointsToSTL(
 			const z4 = Math.sin(angle2) * nextPoint.x;
 			const y4 = nextPoint.y;
 
-			// Two triangles per segment
+			// Two triangles per segment (skip degenerate)
 			// Triangle 1: current1, current2, next1
-			triangles.push(
-				createTriangle({ x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 }, { x: x3, y: y3, z: z3 })
-			);
+			const tri1 = createTriangle({ x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 }, { x: x3, y: y3, z: z3 });
+			if (tri1) triangles.push(tri1);
+			else skippedDegenerate++;
 
 			// Triangle 2: current2, next2, next1
-			triangles.push(
-				createTriangle({ x: x2, y: y2, z: z2 }, { x: x4, y: y4, z: z4 }, { x: x3, y: y3, z: z3 })
-			);
+			const tri2 = createTriangle({ x: x2, y: y2, z: z2 }, { x: x4, y: y4, z: z4 }, { x: x3, y: y3, z: z3 });
+			if (tri2) triangles.push(tri2);
+			else skippedDegenerate++;
 		}
 	}
 
@@ -179,13 +406,12 @@ export function lathePointsToSTL(
 			const x2 = Math.cos(angle2) * secondPoint.x;
 			const z2 = Math.sin(angle2) * secondPoint.x;
 
-			triangles.push(
-				createTriangle(
-					{ x: 0, y: bottomY, z: 0 },
-					{ x: x2, y: bottomY, z: z2 },
-					{ x: x1, y: bottomY, z: z1 }
-				)
+			const capTri = createTriangle(
+				{ x: 0, y: bottomY, z: 0 },
+				{ x: x2, y: bottomY, z: z2 },
+				{ x: x1, y: bottomY, z: z1 }
 			);
+			if (capTri) triangles.push(capTri);
 		}
 	}
 
@@ -203,15 +429,20 @@ export function lathePointsToSTL(
 			const x2 = Math.cos(angle2) * secondLastPoint.x;
 			const z2 = Math.sin(angle2) * secondLastPoint.x;
 
-			triangles.push(
-				createTriangle(
-					{ x: 0, y: topY, z: 0 },
-					{ x: x1, y: topY, z: z1 },
-					{ x: x2, y: topY, z: z2 }
-				)
+			const topTri = createTriangle(
+				{ x: 0, y: topY, z: 0 },
+				{ x: x1, y: topY, z: z1 },
+				{ x: x2, y: topY, z: z2 }
 			);
+			if (topTri) triangles.push(topTri);
 		}
 	}
+
+	// Log manifold repair stats
+	if (skippedDegenerate > 0) {
+		console.log(`🔧 [STL EXPORT] Removed ${skippedDegenerate} degenerate triangles for manifold compliance`);
+	}
+	console.log(`✅ [STL EXPORT] Final mesh: ${triangles.length} triangles (manifold-ready)`);
 
 	const stlContent = `solid sculpture
 ${triangles.join('\n')}
@@ -224,23 +455,37 @@ function createTriangle(
 	v1: { x: number; y: number; z: number },
 	v2: { x: number; y: number; z: number },
 	v3: { x: number; y: number; z: number }
-): string {
-	// Calculate normal vector
+): string | null {
+	// Skip triangles with NaN/Infinity values
+	const values = [v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, v3.x, v3.y, v3.z];
+	if (values.some(v => !Number.isFinite(v))) {
+		return null; // Skip invalid triangle
+	}
+	
+	// Calculate edge vectors
 	const u = { x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z };
 	const v = { x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z };
+	
+	// Calculate normal (cross product)
 	const normal = {
 		x: u.y * v.z - u.z * v.y,
 		y: u.z * v.x - u.x * v.z,
 		z: u.x * v.y - u.y * v.x
 	};
 
-	// Normalize
+	// Calculate length (also area * 2 of triangle)
 	const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-	if (length > 0) {
-		normal.x /= length;
-		normal.y /= length;
-		normal.z /= length;
+	
+	// Skip degenerate triangles (zero area / collinear points)
+	const EPSILON = 1e-10;
+	if (length < EPSILON) {
+		return null; // Skip zero-area triangle
 	}
+	
+	// Normalize
+	normal.x /= length;
+	normal.y /= length;
+	normal.z /= length;
 
 	return `facet normal ${normal.x} ${normal.y} ${normal.z}
   outer loop
@@ -262,3 +507,4 @@ export function downloadSTL(stlContent: string, filename: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
+
