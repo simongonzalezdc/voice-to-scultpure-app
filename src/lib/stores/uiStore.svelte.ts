@@ -101,8 +101,8 @@ export const uiStore = $state<{
 	},
 	activeGlaze: {
 		color: '#FFFFFF',
-		roughness: 0.5,
-		transmission: 0.3,
+		roughness: 0.4,
+		transmission: 0, // Solid ceramic - no transparency
 		materialType: 'ceramic',
 		baseColor: '#E0C9A6',
 		// Dazzler Effect defaults
@@ -134,7 +134,7 @@ export const uiStore = $state<{
 		min: 0.0, // Default: entire height (bottom)
 		max: 1.0 // Default: entire height (top)
 	},
-	constraintMode: 'ceramic', // Default: pottery wheel constraints for manufacturable art
+	constraintMode: 'digital', // Default: no constraints for maximum creative freedom
 	autoFixGeometry: true, // Default: Auto-fix enabled
 	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
 });

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { uiStore, togglePanel, toggleOrientation } from '$lib/stores/uiStore.svelte';
-	import { Folder, Bot, MoveVertical, Orbit, Settings, HelpCircle, Gem } from 'lucide-svelte';
+	import { uiStore, togglePanel } from '$lib/stores/uiStore.svelte';
+	import { Folder, Bot, Settings, HelpCircle, Gem } from 'lucide-svelte';
 
 	// Tool definitions
 	const tools = $derived([
@@ -17,13 +17,6 @@
 			icon: Bot,
 			action: () => togglePanel('aiPanel'),
 			active: uiStore.panels.aiPanel
-		},
-		{
-			id: 'orientation',
-			label: uiStore.orientation === 'vertical' ? 'Pottery' : 'Lathe',
-			icon: uiStore.orientation === 'vertical' ? MoveVertical : Orbit,
-			action: () => toggleOrientation(),
-			active: false // Toggle state, not a panel
 		},
 		{
 			id: 'settings',

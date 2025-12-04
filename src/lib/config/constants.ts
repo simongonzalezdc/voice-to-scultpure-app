@@ -140,15 +140,15 @@ export const GLAZE_SATURATION_BASE = 0.5; // Base saturation (50%)
 export const GLAZE_SATURATION_RANGE = 0.5; // Saturation range added by energy
 
 // Ceramic Material PBR Constants (from materialFactory.ts)
-export const CERAMIC_DEFAULT_ROUGHNESS = 0.35; // Semi-matte ceramic body
-export const CERAMIC_CLEARCOAT = 0.9; // Base clearcoat for glossy glazes
-export const CERAMIC_CLEARCOAT_ROUGHNESS = 0.15; // Slightly textured glaze
+export const CERAMIC_DEFAULT_ROUGHNESS = 0.3; // Semi-matte ceramic body (lower = shinier, more visible)
+export const CERAMIC_CLEARCOAT = 1.0; // Full clearcoat for glossy glazes (makes form more visible)
+export const CERAMIC_CLEARCOAT_ROUGHNESS = 0.1; // Smoother glaze for better reflections
 export const CERAMIC_SHEEN = 0.3; // Subtle ceramic sheen
 export const CERAMIC_SHEEN_ROUGHNESS = 0.4; // Sheen roughness
 export const CERAMIC_SHEEN_COLOR = '#E8DCC8'; // Warm ceramic undertone
 export const CERAMIC_IOR = 1.52; // Glass-like index of refraction for glaze
 export const CERAMIC_THICKNESS = 0.5; // Subsurface scatter distance
-export const CERAMIC_ENV_MAP_INTENSITY = 1.2; // Environment reflection strength
+export const CERAMIC_ENV_MAP_INTENSITY = 1.8; // Higher environment reflection for visibility
 export const CERAMIC_ATTENUATION_COLOR = '#D4C4A8'; // Warm clay shows through
 export const CERAMIC_ATTENUATION_DISTANCE = 0.5; // Attenuation distance
 
@@ -158,19 +158,19 @@ export const ENERGY_MATERIAL_ROUGHNESS = 0.8; // Matte to prevent reflection int
 
 // Fabrication Constraint Constants
 export const CONSTRAINT_DIFF_THRESHOLD = 0.001; // Threshold for detecting constraint changes
-export const CERAMIC_MIN_HAND_RADIUS = 0.2; // ~24mm radius for finger access
-export const CERAMIC_MAX_OVERHANG_ANGLE = 45; // Maximum outward overhang (degrees)
-export const CERAMIC_BASE_STABILITY_RATIO = 1.2; // Base should be 1.2x wider than average
+export const CERAMIC_MIN_HAND_RADIUS = 0.25; // ~30mm radius for hand access (more visible constraint)
+export const CERAMIC_MAX_OVERHANG_ANGLE = 40; // Maximum outward overhang - stricter for clay stability
+export const CERAMIC_BASE_STABILITY_RATIO = 1.4; // Base should be 1.4x wider than average (more stable)
 export const CERAMIC_TOP_EXEMPT_THRESHOLD = 0.95; // Top 5% exempt from min radius (rim)
-export const CERAMIC_CRITICAL_MIN_RADIUS = 0.05; // Absolute minimum to prevent degenerate geometry
-export const CERAMIC_SMOOTH_WINDOW = 7; // SMA window size for clay smoothing
-export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.1; // Bottom 10% is base zone
+export const CERAMIC_CRITICAL_MIN_RADIUS = 0.08; // Higher minimum to prevent degenerate geometry
+export const CERAMIC_SMOOTH_WINDOW = 11; // Larger SMA window = more smoothing (clay-like)
+export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.15; // Bottom 15% is base zone (larger base)
 
 // 3D Print Constraint Constants
-export const PRINT_3D_MAX_OVERHANG_ANGLE = 60; // FDM typical max overhang (degrees)
-export const PRINT_3D_MIN_RADIUS = 0.001; // 1mm minimum to prevent zero-radius gaps
-export const PRINT_3D_STEEP_INWARD_ANGLE = 75; // Allow steep inward slopes (degrees)
-export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.01; // 10mm minimum first layer for adhesion
+export const PRINT_3D_MAX_OVERHANG_ANGLE = 50; // FDM typical max overhang - stricter for visible effect
+export const PRINT_3D_MIN_RADIUS = 0.08; // 8% minimum radius to prevent thin walls (more visible)
+export const PRINT_3D_STEEP_INWARD_ANGLE = 60; // Stricter inward slopes for printability
+export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.15; // 15% minimum first layer for bed adhesion
 
 // Compositor Constants
 export const COMPOSITOR_MIN_RADIUS = 0.01; // Minimum radius constraint in compositor

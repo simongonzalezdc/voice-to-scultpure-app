@@ -42,15 +42,15 @@
 <!-- Hemisphere Light: Sky/Ground ambient for natural fill -->
 <T.HemisphereLight 
 	skyColor="#FDFBF7"
-	groundColor="#4A4A6A" 
-	intensity={0.4} 
+	groundColor="#5A5A7A" 
+	intensity={0.6} 
 />
 
 <!-- Key Light - Main directional, rotatable -->
 <T.Group rotation.y={lightAngle}>
 	<T.DirectionalLight
 		position={[5, 8, 4]}
-		intensity={1.2}
+		intensity={1.5}
 		castShadow
 		shadow-mapSize-width={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
 		shadow-mapSize-height={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
@@ -62,19 +62,19 @@
 <!-- Fill Light - Softer, opposite side -->
 <T.DirectionalLight 
 	position={[-3, 4, -2]} 
-	intensity={0.4}
+	intensity={0.6}
 	color="#E8E4E0"
 />
 
 <!-- Rim/Back Light - Creates edge definition -->
 <T.DirectionalLight 
 	position={[0, 2, -5]} 
-	intensity={0.25}
+	intensity={0.4}
 	color="#D4E5F7"
 />
 
-<!-- Subtle ambient for shadow fill -->
-<T.AmbientLight intensity={0.15} />
+<!-- Ambient for shadow fill - increased for visibility -->
+<T.AmbientLight intensity={0.25} />
 
 {#if currentEnv.map}
 	<Environment files={currentEnv.map} intensity={currentEnv.intensity} />

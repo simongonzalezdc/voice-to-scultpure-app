@@ -1,27 +1,12 @@
 <script lang="ts">
 	import { appSettings, updateSettings, setReduceMotion, setFlashIntensity } from '$lib/stores/appSettingsStore.svelte';
 	import { resetCalibration } from '$lib/audio/calibration';
-	import { closePanel } from '$lib/stores/uiStore.svelte';
+	import { closePanel, togglePanel } from '$lib/stores/uiStore.svelte';
 	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
-	import { checkOllamaAvailable, getOllamaModels } from '$lib/ai/MultiProviderAdapter';
-	import { PROVIDER_CONFIGS } from '$lib/ai/providers';
-	import type { CloudProvider, AIProviderType } from '$lib/types';
-	import { onMount } from 'svelte';
 	import VoiceCalibration from '$lib/components/onboarding/VoiceCalibration.svelte';
-	import { calibrationStore, loadSavedCalibration } from '$lib/stores/calibrationStore.svelte';
-
-	let apiKeyInput = $state(appSettings.apiKey || '');
-	let apiEndpointInput = $state(
-		appSettings.apiEndpoint || 'https://api.openai.com/v1/chat/completions'
-	);
+	import { calibrationStore } from '$lib/stores/calibrationStore.svelte';
 
 	const graphicsQuality = $derived(appSettings.graphicsQuality);
-
-	// Ollama state
-	let ollamaAvailable = $state(false);
-	let ollamaModels = $state<string[]>([]);
-	let ollamaLoading = $state(false);
-	let selectedOllamaModel = $state(appSettings.selectedModel || '');
 
 	// Accessibility state
 	let reduceMotion = $state(appSettings.reduceMotion ?? false);
@@ -31,42 +16,8 @@
 	let showVoiceCalibration = $state(false);
 	let hasVoiceCalibration = $derived(calibrationStore.isCalibrated);
 
-	// AI mode: 'cloud' means use selectedCloudProvider, 'local' means use WebGPU
-	let aiMode = $state<'cloud' | 'local'>(appSettings.aiProvider === 'local' ? 'local' : 'cloud');
-
-	// Cloud provider selection
-	let selectedCloudProvider = $state<CloudProvider>(appSettings.cloudProvider || 'openai');
-
-	// Check Ollama on mount
-	async function checkOllama() {
-		ollamaLoading = true;
-		try {
-			ollamaAvailable = await checkOllamaAvailable();
-			if (ollamaAvailable) {
-				ollamaModels = await getOllamaModels();
-				const firstModel = ollamaModels[0];
-				if (firstModel && !selectedOllamaModel) {
-					selectedOllamaModel = firstModel;
-				}
-			}
-		} catch (e) {
-			console.warn('Ollama check failed:', e);
-			ollamaAvailable = false;
-		} finally {
-			ollamaLoading = false;
-		}
-	}
-
 	function handleSave() {
-		// Determine actual aiProvider from mode and selection
-		const aiProvider: AIProviderType = aiMode === 'local' ? 'local' : selectedCloudProvider;
-
 		updateSettings({
-			aiProvider,
-			apiKey: apiKeyInput,
-			apiEndpoint: apiEndpointInput,
-			cloudProvider: selectedCloudProvider,
-			selectedModel: selectedOllamaModel || undefined,
 			reduceMotion,
 			flashIntensity
 		});
@@ -177,91 +128,23 @@
 			</div>
 
 			<!-- AI Provider Selection -->
+			<!-- AI Settings - redirect to AI Panel -->
 			<div class="border-t border-subtle pt-4">
-				<h3 class="text-sm font-semibold mb-2">🤖 AI Provider</h3>
-				<select
-					id="ai-provider"
-					class="surface-panel-alt px-3 py-2 rounded w-full mb-2"
-					value={aiMode}
-					onchange={(e) => {
-						aiMode = (e.target as HTMLSelectElement).value as 'cloud' | 'local';
+				<h3 class="text-sm font-semibold mb-2">🤖 AI Assistant</h3>
+				<p class="text-sm text-secondary mb-3">
+					Configure AI provider and API keys directly in the AI chat panel.
+				</p>
+				<button
+					type="button"
+					class="w-full px-3 py-2 rounded surface-panel-alt hover:bg-brand-primary/20 transition-colors text-sm flex items-center justify-center gap-2"
+					onclick={() => {
+						closePanel('settings');
+						togglePanel('aiPanel');
 					}}
 				>
-					<option value="cloud">Cloud AI</option>
-					<option value="local">Local (WebGPU)</option>
-				</select>
-
-				{#if aiMode === 'cloud'}
-					<!-- Cloud Provider Selection -->
-					<label for="cloud-provider" class="text-sm text-secondary block mb-1">Cloud Service</label>
-					<select
-						id="cloud-provider"
-						class="surface-panel-alt px-3 py-2 rounded w-full mb-2"
-						bind:value={selectedCloudProvider}
-					>
-						<option value="openai">OpenAI</option>
-						<option value="anthropic">Anthropic (Claude)</option>
-						<option value="google">Google (Gemini)</option>
-						<option value="groq">Groq</option>
-						<option value="openrouter">OpenRouter</option>
-						<option value="together">Together.ai</option>
-						<option value="deepseek">DeepSeek</option>
-						<option value="ollama">Ollama (Local Server)</option>
-					</select>
-
-					{#if selectedCloudProvider === 'ollama'}
-						<!-- Ollama Model Selection -->
-						<div class="bg-surface-alt p-3 rounded mb-2">
-							{#if ollamaLoading}
-								<p class="text-sm text-secondary">🔄 Checking Ollama...</p>
-							{:else if ollamaAvailable}
-								<p class="text-sm text-green-400 mb-2">✅ Ollama connected</p>
-								<label for="ollama-model" class="text-sm text-secondary block mb-1">Model</label>
-								<select
-									id="ollama-model"
-									class="surface-panel-alt px-3 py-2 rounded w-full"
-									bind:value={selectedOllamaModel}
-								>
-									{#each ollamaModels as model}
-										<option value={model}>{model}</option>
-									{/each}
-								</select>
-								<button
-									class="text-xs text-brand-primary mt-2 hover:underline"
-									type="button"
-									onclick={checkOllama}
-								>
-									Refresh Models
-								</button>
-							{:else}
-								<p class="text-sm text-yellow-400 mb-1">⚠️ Ollama not detected</p>
-								<p class="text-xs text-secondary">
-									Make sure Ollama is running locally on port 11434.
-									<a href="https://ollama.ai" target="_blank" class="text-brand-primary hover:underline">Install Ollama</a>
-								</p>
-								<button
-									class="text-xs text-brand-primary mt-2 hover:underline"
-									type="button"
-									onclick={checkOllama}
-								>
-									Retry Connection
-								</button>
-							{/if}
-						</div>
-					{:else}
-						<!-- API Key for other providers -->
-						<div>
-							<label for="api-key" class="text-sm text-secondary block mb-1">API Key</label>
-							<input
-								id="api-key"
-								type="password"
-								class="surface-panel-alt px-3 py-2 rounded w-full"
-								bind:value={apiKeyInput}
-								placeholder={selectedCloudProvider === 'openai' ? 'sk-...' : 'Enter API key'}
-							/>
-						</div>
-					{/if}
-				{/if}
+					<span>🤖</span>
+					<span>Open AI Chat & Settings</span>
+				</button>
 			</div>
 
 			<!-- Accessibility Settings -->

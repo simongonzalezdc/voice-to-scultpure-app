@@ -23,7 +23,6 @@
 		Color
 	} from 'three';
 	import { useTask } from '@threlte/core';
-	import { spring } from 'svelte/motion';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze, applyModifiers } from '$lib/engine/physicsMapping';
@@ -41,8 +40,6 @@
 		DEFAULT_CYLINDER_SEGMENTS,
 		DEFAULT_ICOSAHEDRON_RADIUS,
 		DEFAULT_ICOSAHEDRON_DETAIL,
-		ORIENTATION_SPRING_STIFFNESS,
-		ORIENTATION_SPRING_DAMPING,
 		RECORDING_IMPLOSION_SCALE,
 		COMPOSITOR_TARGET_FPS,
 		COMPOSITOR_FRAME_TIME_MS,
@@ -69,15 +66,6 @@
 import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
 import { songModeStore } from '$lib/stores/songModeStore.svelte';
 import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
-import { 
-	feedbackModeStore, 
-	updateFeedback, 
-	getScaleTransform, 
-	getTwistRotation,
-	shouldShowPulseFlash,
-	getPulseColor
-} from '$lib/stores/feedbackModeStore.svelte';
-import { addFrame as addPhraseFrame } from '$lib/stores/phraseStore.svelte';
 import {
 		deriveMaterialColor,
 		deriveGhostMaterialColor,
@@ -201,19 +189,6 @@ import {
 		}
 		return height / DEFAULT_HEIGHT_MM;
 	});
-
-	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
-	const orientationSpring = spring(0, {
-		stiffness: ORIENTATION_SPRING_STIFFNESS,
-		damping: ORIENTATION_SPRING_DAMPING
-	});
-
-	$effect(() => {
-		const targetRotation = uiStore.orientation === 'horizontal' ? -Math.PI / 2 : 0;
-		orientationSpring.set(targetRotation);
-	});
-
-	let orientationRotation = $derived($orientationSpring);
 
 	// Live Geometry State - Updated by compositor
 	let liveGeometry = $state<BufferGeometry | null>(null);
@@ -351,8 +326,9 @@ import {
 				profile = applyConstraints(profile, effectiveConstraint);
 			}
 
-			// OPTIMIZATION: Use DynamicGeometryManager during recording for better performance
-			// This avoids recreating geometry every frame - just updates vertex buffers
+			// OPTIMIZATION: Use DynamicGeometryManager for ALL geometry updates
+			// This ensures the final sculpture looks identical to the preview
+			// (Both use the same 32-segment faceted lathe)
 			let geometry: BufferGeometry;
 			let vectors: Vector2[];
 
@@ -365,7 +341,8 @@ import {
 				console.log(`🎨 [PROFILE] ${profile.length} pts, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)}, mode=${effectiveConstraint}, quantize=${uiStore.modifiers?.quantize ?? false}`);
 			}
 
-			if (isRecording && dynamicGeoManager && useDynamicGeometry) {
+			// FIX: Always use DynamicGeometryManager to ensure preview matches final
+			if (dynamicGeoManager && useDynamicGeometry) {
 				// Use optimized dynamic geometry (updates buffers in-place)
 				const updated = dynamicGeoManager.updateFromProfile(profile);
 				if (updated) {
@@ -376,7 +353,7 @@ import {
 					return;
 				}
 			} else {
-				// Standard geometry creation (for non-recording or fallback)
+				// Fallback only if DynamicGeometryManager unavailable
 				const result = createGeometryFromProfile(profile);
 				geometry = result.geometry;
 				vectors = result.vectors;
@@ -573,25 +550,10 @@ import {
 	let smoothedEmission = $state(0);
 	let smoothedDazzlerIntensity = $state(0);
 	let beatFlashIntensity = $state(0); // Beat-triggered flash
-	
-	// Real-time feedback mode transforms
-	let feedbackScale = $derived(getScaleTransform());
-	let feedbackTwist = $derived(getTwistRotation());
-	let showPulseFlash = $derived(shouldShowPulseFlash());
-	let pulseFlashColor = $derived(getPulseColor());
 
 	useTask((delta) => {
 		// Update cinematic transitions (Song Mode atmosphere changes)
 		updateCinematicTransition();
-		
-		// P1: Update real-time feedback mode (Breath/Pulse/Flow)
-		const frame = analysisStore.latestFrame;
-		if (frame && feedbackModeStore.enabled) {
-			updateFeedback(frame.energy ?? 0, frame.pitch ?? 0, frame.beat ?? false);
-			
-			// Also feed frames to phrase detector for musical analysis
-			addPhraseFrame(frame);
-		}
 
 		const isRecording = recordingStore.state === 'recording';
 		const isEnergyMaterial = uiStore.activeGlaze.materialType === 'energy';
@@ -790,27 +752,10 @@ import {
 
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
-	<!-- P1: Real-time feedback transforms (Breath/Pulse/Flow modes) applied via feedbackScale -->
 	<T.Group 
-		rotation={[0, feedbackTwist, orientationRotation]} 
-		scale.x={feedbackScale.x} 
-		scale.y={heightScale * feedbackScale.y} 
-		scale.z={feedbackScale.z} 
+		scale.y={heightScale} 
 		position={[0, 0, 0]}
 	>
-		<!-- Pulse flash overlay (P1: Feedback Mode) -->
-		{#if showPulseFlash}
-			<T.Mesh>
-				<T.SphereGeometry args={[2, 16, 16]} />
-				<T.MeshBasicMaterial 
-					color={pulseFlashColor}
-					transparent={true}
-					opacity={0.15}
-					side={1}
-				/>
-			</T.Mesh>
-		{/if}
-		
 		<!-- LATHE MODE: Pottery wheel sculpture -->
 		{#if currentGeometry}
 			<T.Mesh

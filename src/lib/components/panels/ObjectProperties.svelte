@@ -218,19 +218,6 @@
 				</button>
 				<button
 					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
-					'ceramic'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintChange('ceramic')}
-					title={getConstraintDescription('ceramic')}
-				>
-					<span class="flex items-center justify-center gap-1">
-						{getConstraintIcon('ceramic')}
-						Ceramic
-					</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
 					'3d_print'
 						? 'bg-brand-primary border-brand-primary text-white'
 						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
@@ -240,6 +227,19 @@
 					<span class="flex items-center justify-center gap-1">
 						{getConstraintIcon('3d_print')}
 						3D Print
+					</span>
+				</button>
+				<button
+					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
+					'ceramic'
+						? 'bg-brand-primary border-brand-primary text-white'
+						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
+					onclick={() => handleConstraintChange('ceramic')}
+					title={getConstraintDescription('ceramic')}
+				>
+					<span class="flex items-center justify-center gap-1">
+						{getConstraintIcon('ceramic')}
+						Ceramic
 					</span>
 				</button>
 			</div>

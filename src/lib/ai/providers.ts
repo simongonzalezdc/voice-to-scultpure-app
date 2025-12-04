@@ -4,7 +4,7 @@
  * Defines all supported AI providers and their models.
  */
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek';
+export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek' | 'zhipu';
 export type AIProviderType = CloudProvider | 'local';
 
 export interface ModelConfig {
@@ -324,6 +324,40 @@ export const PROVIDER_CONFIGS: Record<CloudProvider, ProviderConfig> = {
 				name: 'DeepSeek Coder',
 				contextWindow: 64000,
 				maxOutput: 4096,
+				supportsJson: true,
+				cost: 'low'
+			}
+		]
+	},
+
+	zhipu: {
+		name: 'Zhipu AI (Z.ai)',
+		baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+		authHeader: 'Authorization',
+		authPrefix: 'Bearer ',
+		keyFormat: '^[a-zA-Z0-9]+$', // Z.ai API key format
+		models: [
+			{
+				id: 'glm-4.6',
+				name: 'GLM-4.6',
+				contextWindow: 200000,
+				maxOutput: 128000,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'glm-4.5',
+				name: 'GLM-4.5',
+				contextWindow: 200000,
+				maxOutput: 128000,
+				supportsJson: true,
+				cost: 'low'
+			},
+			{
+				id: 'glm-4.5-air',
+				name: 'GLM-4.5-Air (Fast)',
+				contextWindow: 128000,
+				maxOutput: 64000,
 				supportsJson: true,
 				cost: 'low'
 			}

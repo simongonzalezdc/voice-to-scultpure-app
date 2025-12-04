@@ -5,14 +5,8 @@
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
-	// DIRECTIVE 1: Dynamic Ring Orientation based on uiStore.orientation
-	// Pottery (Vertical): Ring lies flat on XZ plane (parallel to floor)
-	// Lathe (Horizontal): Ring stands up, facing X-axis (perpendicular to floor)
-	let ringOrientation = $derived(
-		uiStore.orientation === 'horizontal'
-			? [0, Math.PI / 2, 0] // Lathe: Rotate 90° around Y-axis to face X-axis
-			: [Math.PI / 2, 0, 0] // Pottery: Rotate 90° around X-axis to lie flat
-	);
+	// Ring orientation: always pottery mode (lies flat on XZ plane)
+	const ringOrientation: [number, number, number] = [Math.PI / 2, 0, 0];
 
 	// Ring visualizer that scales with energy/mic level
 	// Base scale and responsive range

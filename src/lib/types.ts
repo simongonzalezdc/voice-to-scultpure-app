@@ -98,7 +98,7 @@ export interface UserProfile {
 	attackThreshold: number; // Dynamic threshold for detecting sharp attacks (chisel effect)
 }
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek';
+export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek' | 'zhipu';
 export type AIProviderType = CloudProvider | 'local';
 
 // Legacy alias for backward compatibility

@@ -258,14 +258,21 @@ export async function stopRecording(): Promise<void> {
 					uiStore.controlMode // FIX: Use actual control mode (melodic = pitch->radius)
 				);
 
-				// FIX: Store height based on recording duration so final matches preview
-				// Growth rate depends on mode: Song Mode (5%/sec), Standard (15%/sec)
+				// FIX: Store height using SAME formula as Sculpture.svelte preview
+				// Must match: MIN_HEIGHT_RATIO + (seconds * growthRate)
 				const seconds = capturedFrames.length / 30; // ~30 fps
 				const isSongMode = uiStore.recordingMode === 'song';
-				const growthRate = isSongMode ? 0.05 : 0.15; // 5%/sec vs 15%/sec
-				const maxRatio = isSongMode ? 8.0 : 4.0; // 800% vs 400%
-				const heightRatio = Math.min(maxRatio, 1.0 + seconds * growthRate);
+				
+				// MUST MATCH Sculpture.svelte constants exactly:
+				const MIN_HEIGHT_RATIO = 0.3; // Start at 30% height
+				const growthRate = isSongMode ? 0.25 : 0.50; // 25%/sec song, 50%/sec standard
+				const maxRatio = isSongMode ? 10.0 : 6.0; // 10x song, 6x standard
+				
+				// Same formula as Sculpture.svelte heightScale derived
+				const heightRatio = Math.min(maxRatio, MIN_HEIGHT_RATIO + (seconds * growthRate));
 				sculpture.physical.height = DEFAULT_HEIGHT_MM * heightRatio;
+				
+				console.log(`📐 [RECORDING] Final height: ${seconds.toFixed(1)}s → ${heightRatio.toFixed(2)}x (${DEFAULT_HEIGHT_MM * heightRatio}mm)`);
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
