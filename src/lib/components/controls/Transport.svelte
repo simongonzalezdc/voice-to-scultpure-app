@@ -28,6 +28,8 @@
 		isSongModeRunning
 	} from '$lib/controllers/songModeController';
 	import { Circle, Palette, Hand } from 'lucide-svelte';
+	import RecordingTips from '$lib/components/ui/RecordingTips.svelte';
+	import RecordingSummary from '$lib/components/ui/RecordingSummary.svelte';
 
 	let ringBuffer = $state<ReturnType<typeof createAudioRingBuffer> | null>(null);
 	let workerClient = $state<ReturnType<typeof createAnalysisWorkerClient> | null>(null);
@@ -477,3 +479,7 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Inline Guidance Components -->
+<RecordingTips />
+<RecordingSummary />

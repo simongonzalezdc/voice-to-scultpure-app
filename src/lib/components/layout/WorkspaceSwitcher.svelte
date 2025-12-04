@@ -5,7 +5,7 @@
 
 	const workspaces: { id: Workspace; label: string; icon: ComponentType }[] = [
 		{ id: 'sculpt', label: 'Sculpt', icon: Hammer },
-		{ id: 'force', label: 'Force', icon: Hand },
+		// { id: 'force', label: 'Force', icon: Hand }, // Disabled - Future feature
 		{ id: 'glaze', label: 'Glaze', icon: Palette },
 		{ id: 'export', label: 'Export', icon: Download }
 	];

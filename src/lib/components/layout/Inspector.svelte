@@ -79,6 +79,25 @@
 		</div>
 	{/if}
 
+	<!-- Contextual Guidance -->
+	{#if !isRecording && recordingStore.state === 'idle' && uiStore.workspace === 'sculpt'}
+		<div class="p-3 border-b border-brand-primary/20 bg-brand-primary/5">
+			<p class="text-xs text-brand-primary font-medium mb-1">💡 Getting Started</p>
+			<p class="text-xs text-secondary leading-relaxed">
+				Press the record button and sing. Your voice will sculpt the form in real-time.
+			</p>
+		</div>
+	{/if}
+
+	{#if recordingStore.currentSculpture && !isRecording && recordingStore.state !== 'recording'}
+		<div class="p-3 border-b border-amber-500/20 bg-amber-500/5">
+			<p class="text-xs text-amber-400 font-medium mb-1">✨ Next Steps</p>
+			<p class="text-xs text-secondary leading-relaxed">
+				Try adding another layer, applying colors, or adjusting fabrication constraints.
+			</p>
+		</div>
+	{/if}
+
 	<!-- ObjectProperties: Always Visible (Single Source of Truth) -->
 	<div class="border-b border-subtle">
 		<ObjectProperties />

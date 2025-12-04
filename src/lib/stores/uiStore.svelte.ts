@@ -25,7 +25,7 @@ export const uiStore = $state<{
 	// toolMode deprecated in favor of workspace + local state
 	controlMode: 'standard' | 'melodic'; // 'standard' = Volume->Radius, 'melodic' = Pitch->Radius (Virtuoso)
 	// Recording Mode (Option B: Song Mode)
-	recordingMode: 'standard' | 'song' | 'coil'; // 'standard' = 10-30s, 'song' = 1-5min, 'coil' = spiral pottery
+	recordingMode: 'standard' | 'song'; // 'standard' = 10-30s, 'song' = 1-5min (coil postponed)
 	// Base Shape for sculpture geometry (only lathe supported now)
 	baseShape: 'lathe'; // 'lathe' = pottery wheel (ribbon mode removed)
 	forceParams: {

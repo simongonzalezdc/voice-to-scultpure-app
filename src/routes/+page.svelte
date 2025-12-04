@@ -24,8 +24,6 @@
 		togglePanel,
 		setOrientation,
 		setWorkspace,
-		openPerformanceWizard,
-		closePerformanceWizard,
 		setBaseShape,
 		setRecordingMode
 	} from '$lib/stores/uiStore.svelte';
@@ -40,7 +38,7 @@
 	import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
-	import { Sparkles, X, Menu, ChevronUp } from 'lucide-svelte';
+	import { X, Menu, ChevronUp } from 'lucide-svelte';
 
 	// Mobile menu state
 	let mobileMenuOpen = $state(false);
@@ -49,7 +47,6 @@
 		mobileMenuOpen = !mobileMenuOpen;
 	}
 	import { resetVoiceLinks } from '$lib/stores/voiceLinksStore.svelte';
-	import Wizard from '$lib/components/wizard/Wizard.svelte';
 	import { clearLayers } from '$lib/stores/sculptureStore.svelte';
 	import GoldenGuide from '$lib/components/overlay/GoldenGuide.svelte';
 	import { undo, redo, pushHistory } from '$lib/stores/historyStore.svelte';
@@ -335,18 +332,6 @@
 
 					<div class="flex items-center gap-2">
 						<button
-							class="px-3 py-1.5 text-xs font-semibold rounded-md bg-gradient-to-r from-[#db7093] to-[#daa520] hover:from-[#ff85ad] hover:to-[#f0b840] text-white shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
-							type="button"
-							onclick={() => {
-								openPerformanceWizard();
-							}}
-							title="Multi-layered recording with musical intelligence"
-						>
-							<Sparkles size={14} />
-							<span>Performance</span>
-						</button>
-
-						<button
 							class="px-2 py-1 text-xs border border-[#4a4a4a] bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white/70 rounded"
 							type="button"
 							onclick={generateTestMesh}
@@ -451,21 +436,6 @@
 			onClose={() => (showKeyboardShortcuts = false)}
 		/>
 
-		<!-- GENERATIVE PERFORMANCE: Wizard Overlay -->
-		{#if uiStore.performanceWizardActive}
-			<div class="fixed inset-x-0 bottom-0 z-[100] h-[280px] shadow-2xl border-t border-white/10">
-				<div class="absolute top-0 right-0 p-4 z-[110]">
-					<button
-						class="p-2 bg-black/50 hover:bg-red-500/50 rounded-full text-white transition-colors"
-						onclick={closePerformanceWizard}
-						title="Exit Performance Mode"
-					>
-						<X size={20} />
-					</button>
-				</div>
-				<Wizard />
-			</div>
-		{/if}
 
 		<DebugOverlay />
 	</ErrorBoundary>
