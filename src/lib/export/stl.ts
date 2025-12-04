@@ -4,7 +4,7 @@ import { uiStore } from '$lib/stores/uiStore.svelte';
 import { getSegmentsForFacetStyle, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
-import { Mesh, BufferGeometry, Matrix4, Vector3 } from 'three';
+import { Mesh, BufferGeometry, Matrix4, Vector3, Float32BufferAttribute } from 'three';
 
 // ============================================================================
 // MANIFOLD GEOMETRY VALIDATION & REPAIR
@@ -228,9 +228,95 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 	}
 	
 	console.log(`📦 [STL DIRECT] Exporting actual rendered mesh geometry`);
+	console.log(`📦 [STL DIRECT] Mesh type: ${mesh.type}, geometry type: ${mesh.geometry.type}`);
 	
 	// Clone the geometry to avoid modifying the original
 	let geometry = mesh.geometry.clone();
+	
+	// DEBUG: Check geometry details
+	const positions = geometry.getAttribute('position');
+	const index = geometry.getIndex();
+	const drawRange = geometry.drawRange;
+	
+	if (positions) {
+		console.log(`📦 [STL DEBUG] Vertex count: ${positions.count}, Indexed: ${!!index}, Index count: ${index?.count ?? 0}`);
+		console.log(`📦 [STL DEBUG] Draw range: start=${drawRange.start}, count=${drawRange.count}`);
+		
+		// Sample first few vertices to check Z values
+		const samples: string[] = [];
+		for (let i = 0; i < Math.min(5, positions.count); i++) {
+			const x = positions.getX(i).toFixed(3);
+			const y = positions.getY(i).toFixed(3);
+			const z = positions.getZ(i).toFixed(3);
+			samples.push(`[${x}, ${y}, ${z}]`);
+		}
+		console.log(`📦 [STL DEBUG] First vertices (before transforms): ${samples.join(', ')}`);
+		
+		// Sample some vertices at different angles to verify 3D
+		const midIdx = Math.floor(positions.count / 2);
+		const sample2: string[] = [];
+		for (let i = midIdx; i < Math.min(midIdx + 5, positions.count); i++) {
+			const x = positions.getX(i).toFixed(3);
+			const y = positions.getY(i).toFixed(3);
+			const z = positions.getZ(i).toFixed(3);
+			sample2.push(`[${x}, ${y}, ${z}]`);
+		}
+		console.log(`📦 [STL DEBUG] Mid vertices (should have non-zero Z): ${sample2.join(', ')}`);
+		
+		// Check if geometry is flat (all Z near zero)
+		let hasNonZeroZ = false;
+		let zMin = Infinity, zMax = -Infinity;
+		for (let i = 0; i < positions.count; i++) {
+			const z = positions.getZ(i);
+			if (z < zMin) zMin = z;
+			if (z > zMax) zMax = z;
+			if (Math.abs(z) > 0.001) {
+				hasNonZeroZ = true;
+			}
+		}
+		console.log(`📦 [STL DEBUG] Z range: [${zMin.toFixed(3)}, ${zMax.toFixed(3)}]`);
+		
+		if (!hasNonZeroZ) {
+			console.error(`❌ [STL DEBUG] CRITICAL: All Z values are ~0! Geometry is flat/2D, not a 3D lathe!`);
+			console.error(`❌ [STL DEBUG] This means sculptureStore.meshReference is pointing to wrong geometry!`);
+		} else {
+			console.log(`✅ [STL DEBUG] Geometry is 3D with proper Z variation`);
+		}
+	}
+	
+	// FIX: If geometry has drawRange limiting visibility, convert to non-indexed
+	// and trim to only include the visible portion
+	// STLExporter may not respect drawRange, causing garbage data export
+	if (index && drawRange.count !== Infinity && drawRange.count < index.count) {
+		console.log(`🔧 [STL FIX] Trimming geometry to drawRange (${drawRange.count} of ${index.count} indices)`);
+		
+		// Convert to non-indexed geometry (STLExporter handles this better)
+		const nonIndexedGeometry = geometry.toNonIndexed();
+		
+		// Now trim to only the active triangles
+		const triCount = Math.floor(drawRange.count / 3);
+		const vertexCount = triCount * 3;
+		
+		const newPositions = new Float32Array(vertexCount * 3);
+		const oldPositions = nonIndexedGeometry.getAttribute('position');
+		
+		for (let i = 0; i < vertexCount; i++) {
+			newPositions[i * 3] = oldPositions.getX(i);
+			newPositions[i * 3 + 1] = oldPositions.getY(i);
+			newPositions[i * 3 + 2] = oldPositions.getZ(i);
+		}
+		
+		const trimmedGeometry = new BufferGeometry();
+		trimmedGeometry.setAttribute('position', new Float32BufferAttribute(newPositions, 3));
+		trimmedGeometry.computeVertexNormals();
+		
+		// Replace geometry with trimmed version
+		geometry.dispose();
+		nonIndexedGeometry.dispose();
+		geometry = trimmedGeometry;
+		
+		console.log(`✅ [STL FIX] Trimmed to ${vertexCount} vertices (${triCount} triangles)`);
+	}
 	
 	// Apply the mesh's world matrix to bake in all transforms (including heightScale)
 	mesh.updateMatrixWorld(true);
