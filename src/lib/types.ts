@@ -44,6 +44,10 @@ export interface SculptureLayer {
 
 	// Optional metadata
 	sourceFrameCount?: number; // Number of audio frames used to generate this layer
+	
+	// STORE RAW FRAMES (Best Quality)
+	// Allows re-generating geometry with different settings without data loss
+	sourceFrames?: AnalysisFrame[]; 
 }
 
 export interface SculptureDefinition {

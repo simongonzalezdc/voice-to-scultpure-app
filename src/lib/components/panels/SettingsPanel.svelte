@@ -7,6 +7,8 @@
 	import { PROVIDER_CONFIGS } from '$lib/ai/providers';
 	import type { CloudProvider, AIProviderType } from '$lib/types';
 	import { onMount } from 'svelte';
+	import VoiceCalibration from '$lib/components/onboarding/VoiceCalibration.svelte';
+	import { calibrationStore, loadSavedCalibration } from '$lib/stores/calibrationStore.svelte';
 
 	let apiKeyInput = $state(appSettings.apiKey || '');
 	let apiEndpointInput = $state(
@@ -24,6 +26,10 @@
 	// Accessibility state
 	let reduceMotion = $state(appSettings.reduceMotion ?? false);
 	let flashIntensity = $state(appSettings.flashIntensity ?? 1.0);
+	
+	// P0: Voice Calibration dialog state
+	let showVoiceCalibration = $state(false);
+	let hasVoiceCalibration = $derived(calibrationStore.isCalibrated);
 
 	// AI mode: 'cloud' means use selectedCloudProvider, 'local' means use WebGPU
 	let aiMode = $state<'cloud' | 'local'>(appSettings.aiProvider === 'local' ? 'local' : 'cloud');
@@ -71,6 +77,14 @@
 		if (confirm('Reset calibration? You will need to recalibrate.')) {
 			resetCalibration();
 		}
+	}
+	
+	function handleVoiceCalibration() {
+		showVoiceCalibration = true;
+	}
+	
+	function handleVoiceCalibrationComplete() {
+		showVoiceCalibration = false;
 	}
 
 	function handleClose() {
@@ -293,15 +307,46 @@
 
 			<!-- Calibration -->
 			<div class="border-t border-subtle pt-4">
-				<h3 class="text-sm font-semibold mb-2">🎙️ Calibration</h3>
+				<h3 class="text-sm font-semibold mb-2">🎙️ Voice Calibration</h3>
+				
+				<!-- P0: Enhanced Voice Calibration -->
+				<div class="mb-3">
+					{#if hasVoiceCalibration}
+						<div class="flex items-center gap-2 mb-2 text-sm text-green-400">
+							<span>✅</span>
+							<span>Voice profile calibrated</span>
+						</div>
+					{:else}
+						<p class="text-xs text-amber-400 mb-2">
+							⚠️ No voice calibration. For best results, calibrate your voice.
+						</p>
+					{/if}
+					
+					<button
+						class="button-primary px-4 py-2 w-full mb-2"
+						type="button"
+						onclick={handleVoiceCalibration}
+					>
+						🎤 {hasVoiceCalibration ? 'Recalibrate Voice' : 'Calibrate Voice'}
+					</button>
+					<p class="text-xs text-secondary">
+						Personalizes the sculpture mapping to your unique vocal range.
+					</p>
+				</div>
+				
 				<button
 					class="button-secondary px-4 py-2 w-full"
 					type="button"
 					onclick={handleResetCalibration}
 				>
-					Reset Calibration
+					Reset App Calibration
 				</button>
 			</div>
 		</div>
+		
+		<!-- P0: Voice Calibration Modal -->
+		{#if showVoiceCalibration}
+			<VoiceCalibration onComplete={handleVoiceCalibrationComplete} />
+		{/if}
 	</div>
 </div>

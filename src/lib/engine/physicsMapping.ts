@@ -91,7 +91,8 @@ export function generateLathe(
 	const silenceThreshold = noiseFloor * SILENCE_THRESHOLD_MULTIPLIER;
 
 	// 2. Resample: Limit to max points (High Res)
-	// For live recording, we can pass maxPoints = 0 to use ALL frames (no downsampling)
+	// FIX: Eliminate resampling limit by default to preserve preview details
+	// Only downsample if explicitly requested or if exceeding the new high limit (2048)
 	const effectiveMaxPoints = maxPoints !== undefined ? maxPoints : GEOMETRY_MAX_POINTS;
 	const samplingRate = effectiveMaxPoints > 0 ? Math.ceil(frames.length / effectiveMaxPoints) : 1;
 	const sampledFrames = samplingRate > 1 ? frames.filter((_, i) => i % samplingRate === 0) : frames;
@@ -101,6 +102,10 @@ export function generateLathe(
 	const MAX_RADIUS = SCULPTURE_MAX_RADIUS;
 	const SENSITIVITY = SCULPTURE_SENSITIVITY;
 	const MIN_RADIUS = SCULPTURE_MIN_RADIUS;
+
+	// Phrase detection state
+	let lastFrameTime = sampledFrames[0]?.time ?? 0;
+	const PHRASE_GAP_THRESHOLD = 300; // ms
 
 	// 3. Map Frames to Points (Raw curve from audio)
 	const rawCurve = sampledFrames.map((frame, index) => {
@@ -122,52 +127,25 @@ export function generateLathe(
 		if (controlMode === 'melodic') {
 			// DIRECTIVE 1: Virtuoso / Melodic Mode
 			// Pitch -> Radius (Low=Wide, High=Narrow)
-			// This makes intuitive sense: bass = big/wide, treble = small/narrow
-
-			// Map Pitch to Radius using actual pitch range from constants
-			// FIX: Was using hardcoded 720, now uses (MAX_PITCH_HZ - MIN_PITCH_HZ)
+			// B1: Exaggerate Audio-to-Form Mapping
+			// More dramatic: Low pitch = much wider, High pitch = much narrower
+			
 			const pitch = frame.pitch || 220; // Default to A3 (middle of range) if no pitch
 			const pitchRange = MAX_PITCH_HZ - MIN_PITCH_HZ; // 600 - 80 = 520Hz
 			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / pitchRange));
 
-			// Low pitch (0) = MAX_RADIUS (wide base), High pitch (1) = MIN_RADIUS (narrow neck)
-			const targetRadius = MAX_RADIUS - normalizedPitch * (MAX_RADIUS - MIN_RADIUS);
-			radius = Math.max(MIN_RADIUS, targetRadius);
-
-			// Map Volume to Twist (Rotation)
-			// Accumulate rotation: Loud = Spiral, Quiet = Straight
-			// This modifies the X coordinate later in applyDeformation, but we store it here if needed
-			// Actually, generateLathe returns 2D points (Radius, Height).
-			// Twist is a 3D deformation.
-			// To support this in generateLathe, we need to either:
-			// A) Return 3D points (complex refactor)
-			// B) Store rotation data in a separate array (complex plumbing)
-			// C) Cheat: Use 'twist' parameter in applyDeformation, but that's global.
-
-			// DECISION: For the prototype, we will map Volume to *Radius Jitter* or *Bulge*
-			// AND we will export a `virtuosoData` array if we could, but we can't change the signature too much.
-
-			// RE-READING DIRECTIVE: "Volume -> Twist (The Tension)".
-			// Since LatheGeometry is 2D profile rotated, "Twist" usually means rotating the profile along Y.
-			// BUT standard LatheGeometry is symmetric.
-			// To get a spiral, we need `applyVertexTwist` in Sculpture.svelte.
-			// `generateLathe` produces the *profile*.
-
-			// ALTERNATIVE INTERPRETATION:
-			// Maybe "Twist" here means "Radius Variance" (wobble)?
-			// No, directive says "Accumulate rotation per ring".
-
-			// STRATEGY: We cannot implement per-ring rotation in `generateLathe` which returns `LathePoint[]` (x,y).
-			// However, we CAN map Volume to something visible in the profile, like "Roughness" or "Bulge".
-			// OR, we change `LathePoint` to include `rot`?
-			// No, `LathePoint` is `{x, y}`.
-
-			// COMPROMISE: In Melodic Mode, Volume controls *Texture/Noise* amplitude on the radius.
-			// "Twist" is strictly a post-process in `Sculpture.svelte`.
-			// We will map Pitch -> Radius here perfectly.
-
-			// Let's stick to the Directive 1 Logic for Radius:
-			// Radius is driven by Pitch.
+			// B1: Exaggerated Range
+			// Low pitch (0) = MAX_RADIUS * 1.3 (Very wide base)
+			// High pitch (1) = MIN_RADIUS * 0.5 (Very narrow neck)
+			const exaggeratedMax = MAX_RADIUS * 1.3;
+			const exaggeratedMin = MIN_RADIUS * 0.5;
+			
+			// Non-linear mapping for drama (quadratic)
+			// const targetRadius = exaggeratedMax - (normalizedPitch * normalizedPitch) * (exaggeratedMax - exaggeratedMin);
+			// Linear is safer for predictability
+			const targetRadius = exaggeratedMax - normalizedPitch * (exaggeratedMax - exaggeratedMin);
+			
+			radius = Math.max(exaggeratedMin, targetRadius);
 		} else {
 			// Standard Mode (Volume -> Radius)
 			if (mode === 'subtractive') {
@@ -179,46 +157,35 @@ export function generateLathe(
 			} else {
 				// Additive: Build up from base
 				// High energy = more material = larger radius
-				radius = BASE_RADIUS + energy * SENSITIVITY;
+				// B1: Volume -> Ridge Depth (more sensitivity)
+				radius = BASE_RADIUS + energy * (SENSITIVITY * 1.5);
 			}
 		}
 
-		// Timbre Normalization: Use calibrated range to normalize spectral centroid
-		// Clamp noise floor so background hiss = 0 roughness
+		// Timbre Normalization
 		let normalizedRoughness = 0;
 		if (profile?.timbreRange && frame.timbre?.spectralCentroid) {
 			const tMin = profile.timbreRange.min;
 			const tMax = profile.timbreRange.max;
 			const rawCentroid = frame.timbre.spectralCentroid;
-
-			// Normalize 0 to 1, clamping to prevent negative values
 			if (tMax > tMin) {
 				normalizedRoughness = Math.max(0, Math.min(1, (rawCentroid - tMin) / (tMax - tMin)));
 			}
 		}
 
-		// FIX 4: DETERMINISTIC texture based on actual voice features
-		// Instead of random jitter, use voice characteristics to create repeatable texture
-		// This ensures the same voice input produces the same sculpture every time
-		
 		// Deterministic hash function using voice features
 		const voiceHash = (seed: number) => {
-			// Simple deterministic hash that looks pseudo-random but is repeatable
 			const x = Math.sin(seed * 12.9898) * 43758.5453;
 			return x - Math.floor(x); // Returns 0-1
 		};
 		
-		// Create seed from voice features (deterministic based on frame data)
 		const timbreSeed = (frame.timbre?.spectralCentroid ?? 1000) * 0.001;
 		const pitchSeed = (frame.pitch ?? 220) * 0.01;
-		const energySeed = (frame.energy ?? 0.5) * 10;
 		const indexSeed = index * 0.1;
 		
-		// Timbre-driven texture: higher spectral centroid = more textured surface
-		// FIX 4: Uses actual centroid value, not random
 		const timbreTexture = (voiceHash(timbreSeed + indexSeed) - 0.5) * normalizedRoughness * 0.3;
 
-		// Dynamic Attack Detection: Detect sharp energy spikes (chisel effect)
+		// Dynamic Attack Detection (B1: Attacks -> Notches)
 		let attackJitter = 0;
 		const previousFrame = index > 0 ? sampledFrames[index - 1] : null;
 		if (previousFrame && profile?.attackThreshold) {
@@ -227,14 +194,13 @@ export function generateLathe(
 			const isAttack = deltaEnergy > threshold;
 
 			if (isAttack) {
-				// FIX 4: Deterministic attack jitter based on energy delta magnitude
-				const attackSeed = deltaEnergy * 100 + indexSeed;
-				attackJitter = (voiceHash(attackSeed) - 0.5) * deltaEnergy * 2.0; // Scaled by attack strength
+				// Create visible notch/indentation at attack
+				// Negative value digs in
+				attackJitter = -0.05 * (deltaEnergy * 5.0);
 			}
 		}
 
-		// Pitch-driven modulation: creates ripples based on pitch changes
-		// FIX 4: Uses actual pitch, not random
+		// Pitch-driven modulation
 		let pitchModulation = 0;
 		if (frame.pitch > 0 && profile?.pitchRange) {
 			const pitchMin = profile.pitchRange.min || 80;
@@ -243,47 +209,46 @@ export function generateLathe(
 
 			if (pitchRange > 0) {
 				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
-				// FIX 4: Pitch creates subtle wave pattern, amplitude scaled by pitch position
-				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4); // Creates ~2 wave cycles
+				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4); 
 				pitchModulation = pitchWave * normalizedPitch * 0.15;
 			}
-		} else if (frame.pitch > 400) {
-			// High pitch creates slight texture
-			pitchModulation = (voiceHash(pitchSeed + indexSeed * 2) - 0.5) * 0.1;
 		}
 
-		// Combine all voice-driven texture sources (FIX 4: all deterministic now)
 		const totalJitter = timbreTexture + attackJitter + pitchModulation;
 
-		// GENERATIVE PERFORMANCE: Apply beat-driven deformation
-		// Different behavior based on baseShape
+		// B3: Beat-Driven Sculptural Features
 		let beatDeformation = 0;
-		if (isBeat && beatMultiplier > 1.0) {
-			if (baseShape === 'lathe') {
-				// For lathe: Create wider ribs/rings at beat points
-				beatDeformation = (beatMultiplier - 1.0) * 0.5; // Scale to 0-0.1 range
-			} else if (baseShape === 'sphere' || baseShape === 'cube') {
-				// For primitives: Apply global scale multiplier (handled externally)
-				// Just add local ripple effect here
-				beatDeformation = (beatMultiplier - 1.0) * 0.3;
-			}
+		if (isBeat) {
+			// Create distinct ridge for beat
+			// B3: Subtle ridge/bump
+			beatDeformation = 0.08; // Visible bump
+		} else if (beatMultiplier > 1.0) {
+			// Decay
+			beatDeformation = (beatMultiplier - 1.0) * 0.2;
 		}
 
+		// B2: Musical Ring Structure (Phrase detection)
+		let phraseRing = 0;
+		if (frame.time - lastFrameTime > PHRASE_GAP_THRESHOLD) {
+			// Gap detected - start of new phrase
+			// Create a "growth ring" bump
+			phraseRing = 0.12; 
+		}
+		lastFrameTime = frame.time;
+
 		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
-		// If zone is specified, map frames to that height range instead of full 0-1
 		let normalizedHeight: number;
 		if (zone && (zone.min > 0 || zone.max < 1)) {
-			// Map index to zone range: min to max instead of 0 to 1
 			const zoneHeight = zone.max - zone.min;
 			const indexNormalized = index / (sampledFrames.length - 1 || 1);
 			normalizedHeight = zone.min + indexNormalized * zoneHeight;
 		} else {
-			// Full height (default behavior)
 			normalizedHeight = index / (sampledFrames.length - 1 || 1);
 		}
 
-		// DIRECTIVE 1: NaN Guard - Sanitize all values before returning
-		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter + beatDeformation);
+		// Combine all deformations
+		// B1: Volume -> Ridge Depth is handled by energy sensitivity in radius calc
+		const rawRadius = Math.max(MIN_RADIUS, radius + totalJitter + beatDeformation + phraseRing);
 		const safeRadius = Number.isNaN(rawRadius) ? 0.5 : Math.max(0.1, rawRadius);
 
 		return {
@@ -292,31 +257,25 @@ export function generateLathe(
 		};
 	});
 
-	// NON-DESTRUCTIVE CONSTRAINTS:
-	// Constraints are NO LONGER applied here during recording.
-	// Raw data is stored, and constraints are applied at RENDER TIME in Sculpture.svelte
-	// This allows users to toggle between Digital/Ceramic/3D Print modes without re-recording.
-	
-	// DIRECTIVE 1: Final sanitization pass - remove any invalid points (but NOT constraint application)
+	// DIRECTIVE 1: Final sanitization pass
 	const sanitizedCurve = rawCurve.filter((p) => {
 		const safeX = Number.isFinite(p.x) && !Number.isNaN(p.x) && p.x > 0;
 		const safeY = Number.isFinite(p.y) && !Number.isNaN(p.y) && p.y >= 0;
 		return safeX && safeY;
 	});
 
-	// Safety: If resulting array is empty, return default cylinder so user always sees something
 	if (sanitizedCurve.length === 0) {
 		return createDefaultCylinder();
 	}
 
-	// DEBUG: Log Y range to verify height is correct (rate-limited, constraints applied later at render)
+	// DEBUG: Log Y range
 	const now = Date.now();
 	if (sanitizedCurve.length > 0 && now - lastLatheLogTime > LOG_INTERVAL_MS) {
 		lastLatheLogTime = now;
 		const minY = Math.min(...sanitizedCurve.map(p => p.y));
 		const maxY = Math.max(...sanitizedCurve.map(p => p.y));
 		const avgX = sanitizedCurve.reduce((sum, p) => sum + p.x, 0) / sanitizedCurve.length;
-		console.log(`📏 [LATHE] RAW Profile: ${sanitizedCurve.length} points, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)} (constraints applied at render)`);
+		console.log(`📏 [LATHE] RAW Profile: ${sanitizedCurve.length} points, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)} (EXAGGERATED MODE)`);
 	}
 
 	return sanitizedCurve;
@@ -437,7 +396,8 @@ export function deriveSurfaceParameters(
 		// Fallback: Raw normalization
 		const avgTimbre =
 			frames.reduce((sum, f) => sum + (f.timbre?.spectralCentroid || 0), 0) / frames.length;
-		normalizedTimbre = Math.min(1, Math.max(0, avgTimbre / 5000));
+		const normalizedRoughness = Math.min(1, Math.max(0, avgTimbre / 5000));
+		normalizedTimbre = normalizedRoughness;
 	}
 
 	// Energy variance influences glaze
@@ -551,24 +511,37 @@ export function createSculptureFromFrames(
 	resolution: number = 128, // Option B: Song Mode uses higher resolution
 	controlMode: 'standard' | 'melodic' = 'melodic' // FIX: Default to melodic (pitch->radius)
 ): SculptureDefinition {
+	// A2: Eliminate All Resampling
+	// If resolution is set to 0 (or implied high), use 0 to tell generateLathe "no limit"
+	// However, we also want to store the FULL resolution data.
+	// Since we updated constants, 'resolution' passed here might be 2048.
+	
+	// Calculate effective resolution for storage
+	// If frames length is small (short recording), use frames length.
+	// If frames length is large, clamp to max resolution.
+	const effectiveResolution = Math.min(frames.length, Math.max(resolution, GEOMETRY_MAX_POINTS));
+
 	const radiusCurve = generateLathe(
 		frames,
 		profile,
 		mode,
 		zone,
 		constraintMode,
-		controlMode, // FIX: Use actual control mode instead of hardcoded 'standard'
-		baseShape
+		controlMode, 
+		baseShape,
+		effectiveResolution // Pass through the desired resolution limit (or 2048)
 	);
-	// Surface parameters are now handled via uiStore, not sculpture
 
 	// Resample geometry to compositor resolution
-	// Compositor expects layer.data to be 1D array of radius values, not [x, y] pairs
-	const layerData = new Float32Array(resolution);
+	// Compositor expects layer.data to be 1D array of radius values
+	// NOTE: If radiusCurve.length === effectiveResolution, this loop is effectively a copy, which is good.
+	// We prefer NOT to interpolate if we can help it.
+	
+	const layerData = new Float32Array(effectiveResolution);
 
 	// Resample: map radiusCurve points to resolution points
-	for (let i = 0; i < resolution; i++) {
-		const normalizedY = i / (resolution - 1); // 0 to 1
+	for (let i = 0; i < effectiveResolution; i++) {
+		const normalizedY = i / (effectiveResolution - 1); // 0 to 1
 		// Find corresponding point in radiusCurve
 		const targetIndex = Math.round(normalizedY * (radiusCurve.length - 1));
 		const clampedIndex = Math.min(targetIndex, radiusCurve.length - 1);
@@ -586,8 +559,10 @@ export function createSculptureFromFrames(
 		locked: false,
 		blendMode: 'overwrite',
 		opacity: 1.0,
-		data: layerData, // 1D array of radius values (128 elements)
-		mask: new Float32Array(resolution).fill(1.0) // Mask matches resolution
+		data: layerData, // 1D array of radius values
+		mask: new Float32Array(effectiveResolution).fill(1.0), // Mask matches resolution
+		sourceFrames: frames, // Store raw frames for lossless quality
+		sourceFrameCount: frames.length
 	};
 
 	return {

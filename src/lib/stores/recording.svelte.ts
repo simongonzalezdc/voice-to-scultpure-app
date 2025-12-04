@@ -22,6 +22,7 @@ import {
 } from '$lib/config/constants';
 import type { SculptureLayer } from '$lib/types';
 import { addToGallery } from './galleryStore.svelte';
+import { addHistoryEntry, setActiveSculpture } from './sessionHistoryStore.svelte';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -376,11 +377,26 @@ export async function stopRecording(): Promise<void> {
 					opacity: 1.0,
 					data: layerData,
 					mask: layerMask,
-					sourceFrameCount: capturedFrames.length
+					sourceFrameCount: capturedFrames.length,
+					sourceFrames: capturedFrames // Store raw frames for lossless quality
 				};
 
 				// Add layer using the store function (already imported at top)
 				addLayer(newLayer);
+
+				// P1: Add to session history for undo/redo
+				const sculptureId = sculptureStore.currentSculpture?.id ?? 'unknown';
+				const durationSec = capturedFrames.length / 30;
+				addHistoryEntry(
+					'recording',
+					newLayer.name,
+					newLayer,
+					sculptureId,
+					{
+						duration: durationSec,
+						frameCount: capturedFrames.length
+					}
+				);
 
 				console.log(
 					`🎨 [RECORDING] Added layer "${newLayer.name}" (${mode} mode, ${capturedFrames.length} frames)`
@@ -398,6 +414,9 @@ export async function stopRecording(): Promise<void> {
 				undefined, // Auto-generate name
 				durationSec
 			);
+			
+			// P1: Track active sculpture for history
+			setActiveSculpture(sculptureStore.currentSculpture.id);
 		}
 	} catch (err) {
 		console.error('❌ [RECORDING] Processing failed:', err);

@@ -37,12 +37,12 @@ export const SCULPTURE_SENSITIVITY = 3.0; // Energy to radius multiplier (was 5.
 // FIX 2: Increased resolutions for more detailed sculptures
 export const GEOMETRY_MIN_SEGMENTS = 6; // Low poly (hexagonal/blocky)
 export const GEOMETRY_MAX_SEGMENTS = 96; // High poly (was 64 - smoother curves)
-export const GEOMETRY_MAX_POINTS = 400; // Maximum points in lathe curve (was 200 - more detail)
+export const GEOMETRY_MAX_POINTS = 2048; // Maximum points in lathe curve (was 400 - now matches Song Mode)
 
 // Recording Mode Resolution (Option B: Song Mode)
-// FIX 2: Doubled resolutions for better preview-to-final consistency
-export const STANDARD_MODE_RESOLUTION = 256; // Standard mode: 10-30 second recordings (was 128)
-export const SONG_MODE_RESOLUTION = 768; // Song mode: 1-5 minute recordings (was 512)
+// FIX 2: High resolution to preserve recording details (striations/rings)
+export const STANDARD_MODE_RESOLUTION = 1024; // Standard mode: 10-30 second recordings (was 256)
+export const SONG_MODE_RESOLUTION = 2048; // Song mode: 1-5 minute recordings (was 768)
 export const COIL_MODE_RESOLUTION = 384; // Coil mode: Each coil layer (was 256)
 
 // Timbre Range (Spectral Centroid)
@@ -95,9 +95,9 @@ export const CALIBRATION_ATTACK_THRESHOLD_MAX = 0.5; // Maximum attack threshold
 export const CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER = 2; // Multiplier for std dev in attack threshold
 
 // Geometry Creation Constants (from Sculpture.svelte)
-// FIX 2: Increased segments for smoother sculptures
-export const GEOMETRY_LATHE_SEGMENTS = 96; // Default segments for LatheGeometry (was 64)
-export const GEOMETRY_RESOLUTION_COMPOSITOR = 256; // Resolution used by compositor (was 128)
+// FIX 2: Lower segments for faceted/crystalline look, higher resolution for detailed profile
+export const GEOMETRY_LATHE_SEGMENTS = 32; // Lower segments for faceted aesthetic (was 96)
+export const GEOMETRY_RESOLUTION_COMPOSITOR = 2048; // Resolution used by compositor (was 256)
 export const SYMMETRY_DISTORTION_AMPLITUDE = 0.2; // Max distortion amplitude for symmetry effect
 export const HEATMAP_STRESS_COLOR_AMPLITUDE = 1.0; // Amplitude scaling for stress colors
 

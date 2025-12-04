@@ -9,7 +9,14 @@
 	import Gallery from '$lib/components/panels/Gallery.svelte';
 	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
 	import { galleryStore } from '$lib/stores/galleryStore.svelte';
-	import { Music, Image, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { Music, Image, ChevronDown, ChevronRight, History, Activity } from 'lucide-svelte';
+	
+	// P0/P1: Human Compatibility Components
+	import LivePreview from '$lib/components/controls/LivePreview.svelte';
+	import FeedbackModeSelector from '$lib/components/controls/FeedbackModeSelector.svelte';
+	import SessionHistory from '$lib/components/controls/SessionHistory.svelte';
+	import { sessionHistoryStore } from '$lib/stores/sessionHistoryStore.svelte';
+	import { recordingStore } from '$lib/stores/recording.svelte';
 
 	// NEW ARCHITECTURE:
 	// - ObjectProperties: Always visible (single source of truth)
@@ -33,6 +40,15 @@
 
 	// Gallery state
 	let isGalleryExpanded = $state(true); // Default expanded so users see their sculptures
+	
+	// P1: Session History state
+	let isHistoryExpanded = $state(false);
+	
+	// P1: Feedback Mode state  
+	let isFeedbackExpanded = $state(true); // Default expanded for discoverability
+	
+	// Show live preview when recording
+	let isRecording = $derived(recordingStore.state === 'recording');
 
 	// Auto-expand Song Mode panel when recording mode is 'song'
 	$effect(() => {
@@ -51,14 +67,53 @@
 	function toggleGalleryPanel() {
 		isGalleryExpanded = !isGalleryExpanded;
 	}
+	
+	function toggleHistoryPanel() {
+		isHistoryExpanded = !isHistoryExpanded;
+	}
+	
+	function toggleFeedbackPanel() {
+		isFeedbackExpanded = !isFeedbackExpanded;
+	}
 </script>
 
 <!-- FIXED: Entire sidebar scrolls as one unit -->
 <!-- ENHANCED: Added glassmorphism and slide-in animation -->
 <div class="inspector-container h-full overflow-y-auto custom-scrollbar slide-in-right">
+	<!-- P0: Live Preview - Shows when recording or has audio input -->
+	{#if isRecording || uiStore.workspace === 'sculpt' || uiStore.workspace === 'glaze'}
+		<div class="p-3 border-b border-subtle">
+			<LivePreview compact={false} />
+		</div>
+	{/if}
+
 	<!-- ObjectProperties: Always Visible (Single Source of Truth) -->
 	<div class="border-b border-subtle">
 		<ObjectProperties />
+	</div>
+	
+	<!-- P1: Real-time Feedback Mode Collapsible Panel -->
+	<div class="border-b border-subtle">
+		<button
+			class="w-full p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+			onclick={toggleFeedbackPanel}
+		>
+			<div class="flex items-center gap-2">
+				<Activity size={16} class="text-indigo-400" />
+				<span class="text-sm font-medium text-secondary">Real-time Feedback</span>
+			</div>
+			{#if isFeedbackExpanded}
+				<ChevronDown size={16} class="text-secondary" />
+			{:else}
+				<ChevronRight size={16} class="text-secondary" />
+			{/if}
+		</button>
+
+		{#if isFeedbackExpanded}
+			<div class="feedback-content border-t border-subtle/50 p-3">
+				<FeedbackModeSelector compact={true} />
+			</div>
+		{/if}
 	</div>
 
 	<!-- Gallery Collapsible Panel -->
@@ -86,6 +141,35 @@
 		{#if isGalleryExpanded}
 			<div class="gallery-content border-t border-subtle/50">
 				<Gallery />
+			</div>
+		{/if}
+	</div>
+	
+	<!-- P1: Session History Collapsible Panel -->
+	<div class="border-b border-subtle">
+		<button
+			class="w-full p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+			onclick={toggleHistoryPanel}
+		>
+			<div class="flex items-center gap-2">
+				<History size={16} class="text-amber-400" />
+				<span class="text-sm font-medium text-secondary">Session History</span>
+				{#if sessionHistoryStore.entries.length > 0}
+					<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-400">
+						{sessionHistoryStore.entries.length}
+					</span>
+				{/if}
+			</div>
+			{#if isHistoryExpanded}
+				<ChevronDown size={16} class="text-secondary" />
+			{:else}
+				<ChevronRight size={16} class="text-secondary" />
+			{/if}
+		</button>
+
+		{#if isHistoryExpanded}
+			<div class="history-content border-t border-subtle/50">
+				<SessionHistory compact={true} />
 			</div>
 		{/if}
 	</div>
@@ -183,7 +267,9 @@
 
 	/* Collapsible panels */
 	.song-mode-content,
-	.gallery-content {
+	.gallery-content,
+	.history-content,
+	.feedback-content {
 		max-height: 400px;
 		overflow-y: auto;
 		animation: slide-down 0.2s ease-out;
