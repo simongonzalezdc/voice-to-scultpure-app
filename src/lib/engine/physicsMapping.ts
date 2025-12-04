@@ -372,8 +372,10 @@ export function applyProfileStyle(
 ): LathePoint[] {
 	const effectiveStyle = style ?? uiStore.profileStyle ?? 'natural';
 	
-	if (effectiveStyle === 'natural' || curve.length === 0) {
-		return curve; // No transformation
+	// Guard: No transformation needed for empty, single-point, or natural curves
+	// Single-point would cause division by zero: index / (curve.length - 1)
+	if (effectiveStyle === 'natural' || curve.length <= 1) {
+		return curve;
 	}
 	
 	switch (effectiveStyle) {
@@ -393,6 +395,8 @@ export function applyProfileStyle(
  * Each "terrace" represents a note/pitch band
  */
 function applyTerracedStyle(curve: LathePoint[]): LathePoint[] {
+	if (curve.length <= 1) return curve; // Guard: nothing to terrace
+	
 	// Determine number of terraces based on curve length
 	const numTerraces = Math.min(12, Math.max(4, Math.floor(curve.length / 20)));
 	
@@ -424,11 +428,14 @@ function applyTerracedStyle(curve: LathePoint[]): LathePoint[] {
  * Creates a nautilus/shell-like aesthetic
  */
 function applySpiralStyle(curve: LathePoint[]): LathePoint[] {
+	if (curve.length <= 1) return curve; // Guard: prevent division by zero
+	
 	// Find center radius for reference
 	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
+	const lengthMinusOne = curve.length - 1; // Cache to avoid repeated calculation
 	
 	return curve.map((point, index) => {
-		const normalizedHeight = index / (curve.length - 1);
+		const normalizedHeight = index / lengthMinusOne;
 		
 		// Spiral wave: oscillates more at top than bottom
 		// This creates a subtle spiral bulge pattern
@@ -449,14 +456,17 @@ function applySpiralStyle(curve: LathePoint[]): LathePoint[] {
  * Creates organic, water-like ripple patterns
  */
 function applyRippledStyle(curve: LathePoint[]): LathePoint[] {
+	if (curve.length <= 1) return curve; // Guard: prevent division by zero
+	
 	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
+	const lengthMinusOne = curve.length - 1; // Cache to avoid repeated calculation
 	
 	// Musical detail intensity affects ripple prominence
 	const intensity = uiStore.musicalDetailIntensity ?? 0.5;
 	const rippleAmplitude = 0.08 * (0.5 + intensity); // 0.04 to 0.12 range
 	
 	return curve.map((point, index) => {
-		const normalizedHeight = index / (curve.length - 1);
+		const normalizedHeight = index / lengthMinusOne;
 		
 		// Multiple overlapping ripple frequencies for organic feel
 		const ripple1 = Math.sin(normalizedHeight * Math.PI * 16) * rippleAmplitude;
