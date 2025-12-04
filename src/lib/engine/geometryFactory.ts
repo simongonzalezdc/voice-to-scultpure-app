@@ -16,8 +16,10 @@ import { applyConstraints, type ConstraintMode } from './constraints';
 import {
 	DEFAULT_CYLINDER_RADIUS,
 	DEFAULT_CYLINDER_SEGMENTS,
-	GEOMETRY_MIN_SEGMENTS
+	GEOMETRY_MIN_SEGMENTS,
+	getSegmentsForFacetStyle
 } from '$lib/config/constants';
+import { uiStore } from '$lib/stores/uiStore.svelte';
 
 /**
  * Creates a BufferGeometry from a profile curve.
@@ -58,15 +60,15 @@ export function createGeometryFromProfile(profile: LathePoint[]): {
 			})
 			.filter((v): v is Vector2 => v !== undefined);
 
-		// 3. Create LatheGeometry with appropriate segment count
-		// Use GEOMETRY_MIN_SEGMENTS as baseline, scale up if we have more profile points
+		// 3. Create LatheGeometry with segment count from FACET STYLE
+		// This ensures all geometry (preview, final, and export) uses the same faceted aesthetic
 		if (vectors.length === 0) {
 			return createFallbackGeometry();
 		}
-		// FIX 5: Increased max segments from 64 to 96 for smoother curves
-		const segments = Math.max(GEOMETRY_MIN_SEGMENTS, Math.min(96, vectors.length));
+		// CRITICAL: Use the SAME segment count as DynamicGeometryManager
+		// This ensures the faceted "fins" aesthetic is preserved in the final sculpture
+		const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
 		
-		// FIX 5: Removed excessive logging (was logging every geometry creation)
 		const geometry = new LatheGeometry(vectors, segments);
 
 		// Compute normals for proper lighting
@@ -261,11 +263,13 @@ export function createFallbackGeometry(): {
 	vectors: Vector2[];
 } {
 	try {
+		// Use facet style segments for consistent aesthetic even in fallback
+		const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
 		const geometry = new CylinderGeometry(
 			DEFAULT_CYLINDER_RADIUS,
 			DEFAULT_CYLINDER_RADIUS,
 			1,
-			DEFAULT_CYLINDER_SEGMENTS
+			segments
 		);
 		geometry.computeVertexNormals();
 
@@ -280,9 +284,9 @@ export function createFallbackGeometry(): {
 		return { geometry, vectors };
 	} catch (err) {
 		console.error('❌ [GEOMETRY] Fallback creation failed - CRITICAL:', err);
-		// Last resort: return minimal valid geometry
+		// Last resort: return minimal valid geometry (use default segments as last resort)
 		return {
-			geometry: new CylinderGeometry(0.5, 0.5, 1, 32),
+			geometry: new CylinderGeometry(0.5, 0.5, 1, DEFAULT_CYLINDER_SEGMENTS),
 			vectors: [new Vector2(0.5, 0), new Vector2(0.5, 1)]
 		};
 	}

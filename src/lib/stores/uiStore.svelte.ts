@@ -7,6 +7,9 @@ export type OnboardingStep =
 
 export type Workspace = 'sculpt' | 'glaze' | 'force' | 'export';
 
+// FACET STYLE: Controls the angular/smooth aesthetic of the sculpture
+export type FacetStyle = 'smooth' | 'crystalline' | 'angular' | 'minimal';
+
 export const uiStore = $state<{
 	panels: {
 		aiPanel: boolean;
@@ -72,6 +75,10 @@ export const uiStore = $state<{
 	};
 	constraintMode: 'digital' | 'ceramic' | '3d_print';
 	autoFixGeometry: boolean;
+	// Print volume for 3D printer (mm)
+	printVolumeMm: number;
+	// FACET STYLE: Angular aesthetic control
+	facetStyle: FacetStyle;
 	// GENERATIVE PERFORMANCE: Wizard mode
 	performanceWizardActive: boolean;
 }>({
@@ -136,6 +143,8 @@ export const uiStore = $state<{
 	},
 	constraintMode: 'digital', // Default: no constraints for maximum creative freedom
 	autoFixGeometry: true, // Default: Auto-fix enabled
+	printVolumeMm: 245, // Default 245mm cube (common 3D printer size)
+	facetStyle: 'crystalline', // Default: crystalline (the "fins" aesthetic users love)
 	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
 });
 
@@ -375,6 +384,12 @@ export function setSculptZone(min: number, max: number): void {
 export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): void {
 	console.log(`🔧 [UI STORE] setConstraintMode called: "${uiStore.constraintMode}" → "${mode}"`);
 	uiStore.constraintMode = mode;
+}
+
+// FACET STYLE: Set the angular aesthetic
+export function setFacetStyle(style: FacetStyle): void {
+	console.log(`💎 [UI STORE] setFacetStyle: "${uiStore.facetStyle}" → "${style}"`);
+	uiStore.facetStyle = style;
 }
 
 // ============================================================================

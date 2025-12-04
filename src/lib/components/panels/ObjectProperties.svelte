@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setConstraintMode } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setConstraintMode, setFacetStyle, type FacetStyle } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import type { BaseShape } from '$lib/types';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-	import { Cylinder, Circle, Box, FileText } from 'lucide-svelte';
+	import { Cylinder, Circle, Box, FileText, Ruler, AlertTriangle, Check, Diamond, Gem, Hexagon, Octagon } from 'lucide-svelte';
+	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
 	// Reactive state from current sculpture
 	const currentSculpture = $derived(sculptureStore.currentSculpture);
@@ -69,6 +70,59 @@
 
 	function toggleAutoFix() {
 		uiStore.autoFixGeometry = !autoFixGeometry;
+	}
+
+	// Calculate real-world dimensions in mm
+	const sculptureHeightMm = $derived(() => {
+		if (!currentSculpture) return DEFAULT_HEIGHT_MM;
+		return currentSculpture.physical?.height ?? DEFAULT_HEIGHT_MM;
+	});
+
+	const sculptureMaxWidthMm = $derived(() => {
+		if (!currentSculpture || !currentSculpture.radiusCurve?.length) return 0;
+		const maxRadius = Math.max(...currentSculpture.radiusCurve.map(p => p.x));
+		// Width = diameter = 2 * radius * height ratio
+		return Math.round(maxRadius * 2 * sculptureHeightMm());
+	});
+
+	const sculptureBaseWidthMm = $derived(() => {
+		if (!currentSculpture || !currentSculpture.radiusCurve?.length) return 0;
+		const baseRadius = currentSculpture.radiusCurve[0]?.x ?? 0;
+		return Math.round(baseRadius * 2 * sculptureHeightMm());
+	});
+
+	// Check if sculpture fits in print volume
+	const fitsInPrintVolume = $derived(() => {
+		const volume = uiStore.printVolumeMm;
+		const height = sculptureHeightMm();
+		const width = sculptureMaxWidthMm();
+		return height <= volume && width <= volume;
+	});
+
+	// Facet style - current value from uiStore
+	const facetStyle = $derived(uiStore.facetStyle);
+
+	// Facet style descriptions
+	function getFacetStyleDescription(style: FacetStyle): string {
+		switch (style) {
+			case 'smooth':
+				return 'Traditional ceramic curves, organic and fluid. Best for classic pottery aesthetics.';
+			case 'crystalline':
+				return 'Gem-like facets that catch light beautifully. Creates striking angular fins.';
+			case 'angular':
+				return 'Bold architectural cuts with dramatic edges. Modern and sculptural.';
+			case 'minimal':
+				return 'Dramatic octagonal cross-section. Maximum geometric impact.';
+		}
+	}
+
+	function getFacetStyleSegments(style: FacetStyle): number {
+		switch (style) {
+			case 'smooth': return 96;
+			case 'crystalline': return 32;
+			case 'angular': return 16;
+			case 'minimal': return 8;
+		}
 	}
 </script>
 
@@ -138,8 +192,105 @@
 			</div>
 		</div>
 
-		<!-- NOTE: Physical Dimensions (Height) moved to Export panel -->
-		<!-- Height is set at export time to not limit creative freedom -->
+		<!-- Facet Style (Aesthetic) -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+				<Gem size={14} />
+				Facet Style
+			</h3>
+			<p class="text-xs text-secondary opacity-75 mb-3">
+				Controls angular vs. smooth aesthetic
+			</p>
+			
+			<div class="grid grid-cols-2 gap-2 mb-2">
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'smooth'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setFacetStyle('smooth')}
+					title={getFacetStyleDescription('smooth')}
+				>
+					<Circle size={14} />
+					<span>Smooth</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'crystalline'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setFacetStyle('crystalline')}
+					title={getFacetStyleDescription('crystalline')}
+				>
+					<Gem size={14} />
+					<span>Crystalline</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'angular'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setFacetStyle('angular')}
+					title={getFacetStyleDescription('angular')}
+				>
+					<Hexagon size={14} />
+					<span>Angular</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'minimal'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setFacetStyle('minimal')}
+					title={getFacetStyleDescription('minimal')}
+				>
+					<Octagon size={14} />
+					<span>Minimal</span>
+				</button>
+			</div>
+			
+			<div class="bg-surface-alt p-2 rounded text-xs text-secondary">
+				<span class="font-mono text-primary">{getFacetStyleSegments(facetStyle)}</span> facets · {getFacetStyleDescription(facetStyle)}
+			</div>
+		</div>
+
+		<!-- Real-World Dimensions -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+				<Ruler size={14} />
+				Dimensions (mm)
+			</h3>
+			<div class="grid grid-cols-2 gap-3 text-sm">
+				<div class="bg-surface-alt rounded p-2">
+					<span class="text-xs text-secondary block">Height</span>
+					<span class="text-white font-mono">{sculptureHeightMm().toFixed(0)} mm</span>
+				</div>
+				<div class="bg-surface-alt rounded p-2">
+					<span class="text-xs text-secondary block">Max Width</span>
+					<span class="text-white font-mono">{sculptureMaxWidthMm()} mm</span>
+				</div>
+				<div class="bg-surface-alt rounded p-2">
+					<span class="text-xs text-secondary block">Base Width</span>
+					<span class="text-white font-mono">{sculptureBaseWidthMm()} mm</span>
+				</div>
+				<div class="bg-surface-alt rounded p-2">
+					<span class="text-xs text-secondary block">Print Volume</span>
+					<span class="text-white font-mono">{uiStore.printVolumeMm} mm³</span>
+				</div>
+			</div>
+			
+			{#if uiStore.constraintMode === '3d_print'}
+				<div class="mt-2 p-2 rounded text-xs flex items-center gap-2 {fitsInPrintVolume() ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}">
+					{#if fitsInPrintVolume()}
+						<Check size={14} />
+						<span>Fits in print volume</span>
+					{:else}
+						<AlertTriangle size={14} />
+						<span>Exceeds print volume - scale down in slicer</span>
+					{/if}
+				</div>
+			{/if}
+		</div>
 
 		<!-- Material -->
 		<div class="border-t border-subtle pt-4">

@@ -72,6 +72,43 @@ export class DynamicGeometryManager {
 	}
 
 	/**
+	 * Change the radial segment count (facet style)
+	 * This requires recreating buffers, so it's expensive - call sparingly
+	 * @returns true if segments changed, false if already at this count
+	 */
+	setRadialSegments(segments: number): boolean {
+		if (segments === this.radialSegments) return false;
+		
+		console.log(`💎 [DYNAMIC-GEO] Changing segments: ${this.radialSegments} → ${segments}`);
+		this.radialSegments = segments;
+		
+		// Reallocate buffers for new segment count
+		const maxVertexCount = this.calculateVertexCount(this.maxProfileResolution);
+		this.positionBuffer = new Float32Array(maxVertexCount * 3);
+		this.normalBuffer = new Float32Array(maxVertexCount * 3);
+		this.uvBuffer = new Float32Array(maxVertexCount * 2);
+		
+		// Recreate geometry with new buffers
+		this.geometry.dispose();
+		this.geometry = new BufferGeometry();
+		this.initializeAttributes();
+		this.geometry.setIndex(null); // Clear old indices
+		this.generateIndices(); // Regenerate indices for new segment count
+		
+		// Clear hash to force re-render
+		this.lastProfileHash = '';
+		
+		return true;
+	}
+
+	/**
+	 * Get current radial segment count
+	 */
+	getRadialSegments(): number {
+		return this.radialSegments;
+	}
+
+	/**
 	 * Calculate total vertex count for lathe geometry
 	 * LatheGeometry creates (radialSegments + 1) * profilePoints vertices
 	 */

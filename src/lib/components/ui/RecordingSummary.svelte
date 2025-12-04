@@ -9,7 +9,7 @@
 	import { uiStore, setWorkspace } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
-	import { ChevronRight } from 'lucide-svelte';
+	import { ChevronRight, X } from 'lucide-svelte';
 
 	interface SummaryStats {
 		height: number;
@@ -35,17 +35,25 @@
 		return { height, duration, beats, phrases };
 	});
 
+	function dismissSummary() {
+		// Set state to idle to hide this overlay
+		recordingStore.state = 'idle';
+	}
+
 	function handleAddLayer() {
+		dismissSummary();
 		// Reset for next layer
 		recordingStore.resetRecording?.();
 	}
 
 	function handleColor() {
+		dismissSummary();
 		setWorkspace('glaze');
-		// Could auto-apply glaze colors here
 	}
 
 	function handleExport() {
+		console.log('🚀 [EXPORT] Switching to export workspace...');
+		dismissSummary();
 		setWorkspace('export');
 	}
 
@@ -57,10 +65,17 @@
 	<div class="fixed inset-0 z-50 flex items-end justify-center p-4 pointer-events-none">
 		<div class="pointer-events-auto max-w-md w-full bg-gradient-to-b from-surface-panel to-surface-panel/95 border border-brand-primary/30 rounded-t-2xl shadow-2xl overflow-hidden">
 			<!-- Header -->
-			<div class="bg-gradient-to-r from-brand-primary/20 to-brand-primary/10 border-b border-brand-primary/30 px-6 py-4">
+			<div class="bg-gradient-to-r from-brand-primary/20 to-brand-primary/10 border-b border-brand-primary/30 px-6 py-4 flex justify-between items-center">
 				<h3 class="text-lg font-semibold text-brand-primary flex items-center gap-2">
 					✨ Sculpture Created
 				</h3>
+				<button 
+					class="p-1 rounded hover:bg-white/10 text-secondary hover:text-primary transition-colors"
+					onclick={dismissSummary}
+					title="Dismiss"
+				>
+					<X size={20} />
+				</button>
 			</div>
 
 			<!-- Stats Grid -->

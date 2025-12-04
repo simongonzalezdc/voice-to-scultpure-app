@@ -10,6 +10,7 @@
 	import GhostMachines from './GhostMachines.svelte';
 	import BlueprintOverlay from './BlueprintOverlay.svelte';
 	import PostProcessing from './PostProcessing.svelte';
+	import PrintVolumeBounds from './PrintVolumeBounds.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -103,6 +104,9 @@
 {#if uiStore.workspace !== 'force'}
 	<GhostMachines />
 {/if}
+
+<!-- Print Volume Bounds: Shows 3D printer volume (only in 3d_print mode) -->
+<PrintVolumeBounds />
 
 <!-- Axis Labels for Debugging - Colored lines with labels -->
 <T.Group position={[-3, 0, -3]}>

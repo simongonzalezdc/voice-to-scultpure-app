@@ -28,25 +28,30 @@ export interface ExportOptions {
 /**
  * Generates the final profile for export by applying the same transformation
  * pipeline as the live renderer:
- * 1. Compose layers (if multiple layers exist)
+ * 1. Compose layers using computeProfile (SAME as app view)
  * 2. Apply deformations (twist, compression, taper)
  * 3. Apply fabrication constraints (if auto-fix is on)
  * 4. Apply modifiers (quantize, symmetry)
  *
- * This ensures exports match what the user sees in the viewport.
+ * CRITICAL: Uses computeProfile() to ensure export EXACTLY matches app view.
  */
 export function generateFinalProfile(
 	sculpture: SculptureDefinition,
 	options: ExportOptions
 ): LathePoint[] {
-	// Step 1: Compose layers or use legacy radiusCurve
+	// Step 1: Get profile using SAME method as app view
+	// CRITICAL: The app uses computeProfile(layers) after recording stops.
+	// We MUST use the same function to ensure the export matches exactly.
 	let profile: LathePoint[];
 
 	if (sculpture?.layers && sculpture.layers.length > 0) {
-		// New layer-based system: compose all visible layers
+		// PRIMARY: Use computeProfile - SAME as the app's Sculpture.svelte
+		// This ensures the export matches what the user sees on screen
+		console.log(`📦 [EXPORT] Using computeProfile (${sculpture.layers.length} layers) - matches app view`);
 		profile = computeProfile(sculpture.layers);
 	} else if (sculpture?.radiusCurve && sculpture.radiusCurve.length > 0) {
-		// Legacy system: use radiusCurve directly
+		// Fallback: Use stored radiusCurve for legacy sculptures
+		console.log(`📦 [EXPORT] Using radiusCurve (${sculpture.radiusCurve.length} points)`);
 		profile = sculpture.radiusCurve;
 	} else {
 		throw new Error('Sculpture has no geometry data to export');
@@ -67,25 +72,31 @@ export function generateFinalProfile(
 	// Note: Symmetry is applied as geometry distortion in the renderer,
 	// but for exports we keep the base lathe profile and let the export
 	// format handle radial geometry
-	if (options.modifiers) {
-		const heightScale = sculpture.physical.height / DEFAULT_HEIGHT_MM;
-		profile = applyModifiers(profile, heightScale, options.modifiers);
+	// CRITICAL: Pass heightScale=1.0 to avoid double-scaling Y
+	// (applyModifiers scales Y by heightScale, but we do mm scaling separately below)
+	if (options.modifiers?.quantize) {
+		profile = applyModifiers(profile, 1.0, options.modifiers);
 	}
 
 	// AUDIT FIX: Step 5: Scale to real-world millimeters for 3D printing
 	// Profile points are in normalized units (Y: 0-1, X: radius ratio)
 	// For STL export, we need actual millimeters
+	// 
+	// CRITICAL: In the live render:
+	//   - Y is scaled by heightScale (sculpture.height / DEFAULT_HEIGHT_MM)
+	//   - X (radius) is NOT scaled - stays at normalized values
+	// 
+	// To preserve the same aspect ratio in the export:
+	//   - Y scales to sculpture.height (mm)
+	//   - X scales to DEFAULT_HEIGHT_MM (mm) - matching the unscaled render
 	if (options.scaleToMillimeters) {
 		const heightMM = sculpture.physical.height || DEFAULT_HEIGHT_MM;
-		// For a vase/mug, width is typically ~60% of height (aesthetic ratio)
-		// But we use the actual profile radius scaled to height
-		const baseRadiusMM = heightMM * 0.4; // Max radius ~40% of height
 		
 		profile = profile.map(point => ({
-			// Scale radius: normalized radius (0-1.5) to millimeters
-			// A radius of 0.5 (default) becomes baseRadiusMM
-			x: point.x * baseRadiusMM * 2,
-			// Scale height: normalized Y (0-1) to millimeters
+			// Scale radius: multiply by DEFAULT_HEIGHT_MM to match live render aspect ratio
+			// In live render, radius is NOT scaled by heightScale, only Y is
+			x: point.x * DEFAULT_HEIGHT_MM,
+			// Scale height: normalized Y (0-1) to actual millimeters
 			y: point.y * heightMM
 		}));
 	}

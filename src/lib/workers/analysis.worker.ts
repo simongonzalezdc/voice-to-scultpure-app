@@ -227,9 +227,13 @@ function detectBeat(energy: number): boolean {
 	// Calculate moving average
 	const average = energyHistory.reduce((sum, e) => sum + e, 0) / energyHistory.length;
 
-	// Detect beat: instant energy is significantly higher than average
-	const threshold = average * 1.5; // 50% higher than average
-	const isBeat = energy > threshold && energy > 0.1; // Minimum energy gate
+	// PERCEPTUAL FIX: Use dB thresholds instead of linear ratios
+	// Convert to dB for perceptual comparison (hearing is logarithmic)
+	const toDb = (amp: number) => 20 * Math.log10(Math.max(amp, 0.0001));
+	const currentDb = toDb(energy);
+	const avgDb = toDb(average);
+	const BEAT_THRESHOLD_DB = 6; // 6dB louder = clearly perceived accent (perceived as ~2x louder)
+	const isBeat = currentDb > avgDb + BEAT_THRESHOLD_DB && energy > 0.05; // Minimum energy gate
 
 	// Apply cooldown to prevent double-triggering
 	if (isBeat && now - lastBeatTime > BEAT_COOLDOWN_MS) {
@@ -238,7 +242,7 @@ function detectBeat(energy: number): boolean {
 		if (Math.random() < 0.3) {
 			// 30% of the time
 			console.log(
-				`🥁 [BEAT] Detected! Energy: ${energy.toFixed(3)} vs Avg: ${average.toFixed(3)} (threshold: ${threshold.toFixed(3)})`
+				`🥁 [BEAT] Detected! Energy: ${currentDb.toFixed(1)}dB vs Avg: ${avgDb.toFixed(1)}dB (threshold: ${(avgDb + BEAT_THRESHOLD_DB).toFixed(1)}dB)`
 			);
 		}
 		return true;

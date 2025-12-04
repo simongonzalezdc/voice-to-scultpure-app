@@ -16,9 +16,7 @@ import {
 	CERAMIC_CRITICAL_MIN_RADIUS,
 	CERAMIC_SMOOTH_WINDOW,
 	CERAMIC_BASE_HEIGHT_THRESHOLD,
-	PRINT_3D_MAX_OVERHANG_ANGLE,
 	PRINT_3D_MIN_RADIUS,
-	PRINT_3D_STEEP_INWARD_ANGLE,
 	PRINT_3D_FIRST_LAYER_MIN_RADIUS
 } from '$lib/config/constants';
 
@@ -256,47 +254,14 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 }
 
 /**
- * 3D Print Mode: FDM slicer logic
- * Prevents excessive overhangs, ensures contiguous geometry
+ * 3D Print Mode: Minimal FDM constraints
+ * Only enforces wall thickness and bed adhesion
+ * Overhangs are handled by slicer-generated supports
  */
 function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 
-	// RULE A: Overhang Constraints
-	// Limit how fast radius can grow relative to layer height
-	for (let i = 1; i < constrained.length; i++) {
-		const prevPoint = safeArrayAccess(constrained, i - 1);
-		const currPoint = safeArrayAccess(constrained, i);
-
-		// Skip if either point is undefined
-		if (!prevPoint || !currPoint) continue;
-
-		const dy = Math.abs(currPoint.y - prevPoint.y);
-		const dx = currPoint.x - prevPoint.x;
-
-		// If growing outward, check overhang angle
-		if (dx > 0 && dy > 0) {
-			// Calculate angle from vertical
-			const angle = Math.atan(dx / dy) * (180 / Math.PI);
-
-			if (angle > PRINT_3D_MAX_OVERHANG_ANGLE) {
-				// Clamp to max printable overhang
-				const maxDx = dy * Math.tan((PRINT_3D_MAX_OVERHANG_ANGLE * Math.PI) / 180);
-				currPoint.x = prevPoint.x + maxDx;
-			}
-		}
-
-		// Inward slopes are fine (no support needed when printing)
-		// But we smooth sharp inward transitions to avoid bridging issues
-		if (dx < 0) {
-			const maxNegativeDx = -dy * Math.tan((PRINT_3D_STEEP_INWARD_ANGLE * Math.PI) / 180);
-			if (dx < maxNegativeDx) {
-				currPoint.x = prevPoint.x + maxNegativeDx;
-			}
-		}
-	}
-
-	// RULE B: No Floating Islands - Ensure contiguous geometry
+	// RULE A: No Floating Islands - Ensure contiguous geometry
 	// Enforce minimum radius to prevent zero-width sections
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
@@ -307,8 +272,8 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 		}
 	}
 
-	// Additional: Smooth bottom layer for bed adhesion
-	// First point should have good contact area
+	// RULE B: First Layer Adhesion
+	// Bottom should have good contact area
 	if (constrained.length > 0) {
 		const firstPoint = safeArrayAccess(constrained, 0);
 		if (firstPoint) {
@@ -334,7 +299,7 @@ export function getConstraintDescription(mode: ConstraintMode): string {
 			// DIRECTIVE 3: Enhanced description with actual constraints
 			return 'Pottery wheel physics: Hand Access 70mm (Min Width), Clay Smoothing (SMA), Prevents Collapse (45° max), Stable Base.';
 		case '3d_print':
-			return 'FDM printer constraints: limits overhangs to 60°, prevents floating geometry, ensures bed adhesion.';
+			return 'Minimal FDM constraints: ensures wall thickness and bed adhesion. Add supports in slicer for overhangs.';
 		default:
 			return 'Unknown constraint mode';
 	}

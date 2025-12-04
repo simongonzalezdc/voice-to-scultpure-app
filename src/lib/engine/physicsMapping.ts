@@ -7,6 +7,7 @@ import type {
 	BaseShape
 } from '$lib/types';
 import { Color } from 'three';
+import { pitchToColor, hexToRgb } from './colorMapping';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
 	SCULPTURE_BASE_RADIUS,
@@ -127,38 +128,46 @@ export function generateLathe(
 		if (controlMode === 'melodic') {
 			// DIRECTIVE 1: Virtuoso / Melodic Mode
 			// Pitch -> Radius (Low=Wide, High=Narrow)
-			// B1: Exaggerate Audio-to-Form Mapping
-			// More dramatic: Low pitch = much wider, High pitch = much narrower
+			// PERCEPTUAL FIX: Use logarithmic (semitone) scaling
+			// One octave up = same radius change, regardless of starting note
 			
 			const pitch = frame.pitch || 220; // Default to A3 (middle of range) if no pitch
-			const pitchRange = MAX_PITCH_HZ - MIN_PITCH_HZ; // 600 - 80 = 520Hz
-			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / pitchRange));
+			
+			// Convert Hz to semitones (perceptually linear)
+			// A4 (440 Hz) = 0 semitones
+			const hzToSemitones = (hz: number) => 12 * Math.log2(hz / 440);
+			const minSemitones = hzToSemitones(MIN_PITCH_HZ); // ~-29 for 80Hz
+			const maxSemitones = hzToSemitones(MAX_PITCH_HZ); // ~+5 for 600Hz
+			const semitones = hzToSemitones(pitch);
+			const normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
 
-			// B1: Exaggerated Range
+			// Exaggerated Range for drama
 			// Low pitch (0) = MAX_RADIUS * 1.3 (Very wide base)
 			// High pitch (1) = MIN_RADIUS * 0.5 (Very narrow neck)
 			const exaggeratedMax = MAX_RADIUS * 1.3;
 			const exaggeratedMin = MIN_RADIUS * 0.5;
 			
-			// Non-linear mapping for drama (quadratic)
-			// const targetRadius = exaggeratedMax - (normalizedPitch * normalizedPitch) * (exaggeratedMax - exaggeratedMin);
-			// Linear is safer for predictability
+			// Linear mapping in perceptual space (semitones are already linear in perception)
 			const targetRadius = exaggeratedMax - normalizedPitch * (exaggeratedMax - exaggeratedMin);
 			
 			radius = Math.max(exaggeratedMin, targetRadius);
 		} else {
 			// Standard Mode (Volume -> Radius)
+			// PERCEPTUAL FIX: Use power-law (Stevens' Law)
+			// Perceived loudness ∝ amplitude^0.6
+			const perceivedEnergy = Math.pow(Math.max(0, energy), 0.6);
+			
 			if (mode === 'subtractive') {
 				// Subtractive: Carve into the block
 				// High energy = more carving = smaller radius
-				radius = MAX_RADIUS - energy * SENSITIVITY;
+				radius = MAX_RADIUS - perceivedEnergy * SENSITIVITY;
 				// Ensure radius never goes below minimum
 				radius = Math.max(MIN_RADIUS, radius);
 			} else {
 				// Additive: Build up from base
 				// High energy = more material = larger radius
-				// B1: Volume -> Ridge Depth (more sensitivity)
-				radius = BASE_RADIUS + energy * (SENSITIVITY * 1.5);
+				// B1: Volume -> Ridge Depth (more sensitivity with power-law)
+				radius = BASE_RADIUS + perceivedEnergy * (SENSITIVITY * 1.5);
 			}
 		}
 
@@ -216,24 +225,24 @@ export function generateLathe(
 
 		const totalJitter = timbreTexture + attackJitter + pitchModulation;
 
-		// B3: Beat-Driven Sculptural Features
-		let beatDeformation = 0;
-		if (isBeat) {
-			// Create distinct ridge for beat
-			// B3: Subtle ridge/bump
-			beatDeformation = 0.08; // Visible bump
-		} else if (beatMultiplier > 1.0) {
-			// Decay
-			beatDeformation = (beatMultiplier - 1.0) * 0.2;
-		}
+	// B3: Beat-Driven Sculptural Features
+	let beatDeformation = 0;
+	if (isBeat) {
+		// Create distinct ridge for beat
+		// EXAGGERATED: More prominent ridges for unmistakeable rhythm
+		beatDeformation = 0.25; // 3x more prominent than before (was 0.08)
+	} else if (beatMultiplier > 1.0) {
+		// Decay
+		beatDeformation = (beatMultiplier - 1.0) * 0.5; // Also increased decay multiplier
+	}
 
-		// B2: Musical Ring Structure (Phrase detection)
-		let phraseRing = 0;
-		if (frame.time - lastFrameTime > PHRASE_GAP_THRESHOLD) {
-			// Gap detected - start of new phrase
-			// Create a "growth ring" bump
-			phraseRing = 0.12; 
-		}
+	// B2: Musical Ring Structure (Phrase detection)
+	let phraseRing = 0;
+	if (frame.time - lastFrameTime > PHRASE_GAP_THRESHOLD) {
+		// Gap detected - start of new phrase
+		// EXAGGERATED: Clear rings at phrase boundaries
+		phraseRing = 0.35; // Much more visible rings (was 0.12)
+	}
 		lastFrameTime = frame.time;
 
 		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
@@ -444,33 +453,26 @@ export function generateGlaze(
 	const colors: number[] = [];
 
 	for (const frame of sampledFrames) {
-		// DIRECTIVE 4: Map pitch to hue using human vocal range
-		// 80Hz = Red (0°), 600Hz = Purple (280°)
+		// PERCEPTUAL FIX: Use OKLCH color space for perceptually uniform pitch-to-color mapping
+		// OKLCH is better because colors appear equally spaced across the spectrum
+		// Convert pitch to normalized value (0-1) using semitones
 		const pitch = frame.pitch || 0;
-		const t = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / (MAX_PITCH_HZ - MIN_PITCH_HZ)));
-		const hue = t * 280; // 0° (red) to 280° (purple)
-
-		// DIRECTIVE 4: Map energy to saturation & lightness (NOT opacity)
-		const energy = frame.energy || 0;
-		const saturation = 0.5 + energy * 0.5; // 50% to 100% (0.5 to 1.0)
-		const lightness = 0.3 + energy * 0.4; // 30% to 70% (0.3 to 0.7)
-
-		// Create color from HSL
-		// If no pitch detected, use base glaze color
-		let finalColor: Color;
+		
+		let normalizedPitch = 0;
 		if (pitch > 0) {
-			// Voice-driven color
-			finalColor = new Color().setHSL(hue / 360, saturation, lightness);
-		} else {
-			// No pitch: use base glaze color with energy-driven brightness
-			const baseColor = new Color(activeGlaze.color);
-			const hsl = { h: 0, s: 0, l: 0 };
-			baseColor.getHSL(hsl);
-			// Keep base hue/saturation, but modulate lightness with energy
-			finalColor = new Color().setHSL(hsl.h, hsl.s, 0.3 + energy * 0.4);
+			// Use logarithmic pitch mapping for perceptual linearity
+			const hzToSemitones = (hz: number) => 12 * Math.log2(hz / 440);
+			const minSemitones = hzToSemitones(MIN_PITCH_HZ);
+			const maxSemitones = hzToSemitones(MAX_PITCH_HZ);
+			const semitones = hzToSemitones(pitch);
+			normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
 		}
 
-		colors.push(finalColor.r, finalColor.g, finalColor.b);
+		// Get OKLCH-based color (Red for low → Blue for high)
+		const hexColor = pitchToColor(normalizedPitch);
+		const [r, g, b] = hexToRgb(hexColor);
+
+		colors.push(r, g, b);
 	}
 
 	return new Float32Array(colors);

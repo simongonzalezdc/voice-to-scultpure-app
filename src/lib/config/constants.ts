@@ -28,9 +28,9 @@ export const SIGNAL_THRESHOLD = 0.02; // Minimum RMS for pitch detection (was 0.
 // Sculpture Geometry Constants
 // FIX: Proper proportions for vase-like shapes (taller than wide)
 // With height normalized to 1.0, radius should be smaller for proper aspect ratio
-export const SCULPTURE_BASE_RADIUS = 0.25; // Base/default radius (was 0.15)
-export const SCULPTURE_MAX_RADIUS = 0.5; // Maximum radius - diameter 1.0 = same as height (was 2.0!)
-export const SCULPTURE_MIN_RADIUS = 0.1; // Minimum radius for narrow necks (was 0.03 - too extreme)
+export const SCULPTURE_BASE_RADIUS = 0.3; // Base/default radius
+export const SCULPTURE_MAX_RADIUS = 0.8; // Low pitch = very wide (was 0.5)
+export const SCULPTURE_MIN_RADIUS = 0.05; // High pitch = very narrow (was 0.1 - more dramatic)
 export const SCULPTURE_SENSITIVITY = 3.0; // Energy to radius multiplier (was 5.0 - too aggressive)
 
 // Geometry Resolution
@@ -59,6 +59,13 @@ export const PITCH_MAX_DEFAULT = 400;
 
 // Default Physical Dimensions
 export const DEFAULT_HEIGHT_MM = 150; // Default 150mm for mug/small vase
+
+// Print Volume & Scale (3D Printer)
+export const DEFAULT_PRINT_VOLUME_MM = 245; // Default 245mm cube (common printer size)
+export const SCENE_UNIT_TO_MM = DEFAULT_HEIGHT_MM; // 1 scene unit = DEFAULT_HEIGHT_MM in real world
+// Scene uses normalized coordinates where height=1.0, so:
+// - Real height (mm) = scene height * SCENE_UNIT_TO_MM
+// - Real width (mm) = scene radius * 2 * SCENE_UNIT_TO_MM
 
 // Visual Feedback Constants
 export const LIVE_BRIDGE_AMPLIFICATION = 5.0; // Amplification factor for live breathing effect
@@ -95,8 +102,25 @@ export const CALIBRATION_ATTACK_THRESHOLD_MAX = 0.5; // Maximum attack threshold
 export const CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER = 2; // Multiplier for std dev in attack threshold
 
 // Geometry Creation Constants (from Sculpture.svelte)
-// FIX 2: Lower segments for faceted/crystalline look, higher resolution for detailed profile
-export const GEOMETRY_LATHE_SEGMENTS = 32; // Lower segments for faceted aesthetic (was 96)
+// FACET STYLE: Segment counts for different aesthetic looks
+export const FACET_STYLE_SMOOTH = 96; // Traditional ceramic, organic curves
+export const FACET_STYLE_CRYSTALLINE = 32; // Gem-like facets (default - the "fins" aesthetic)
+export const FACET_STYLE_ANGULAR = 16; // Bold, architectural cuts
+export const FACET_STYLE_MINIMAL = 8; // Dramatic octagonal cross-section
+
+// Default segment count (use crystalline for the fins aesthetic)
+export const GEOMETRY_LATHE_SEGMENTS = FACET_STYLE_CRYSTALLINE;
+
+// Helper: Get segment count for a facet style
+export function getSegmentsForFacetStyle(style: 'smooth' | 'crystalline' | 'angular' | 'minimal'): number {
+	switch (style) {
+		case 'smooth': return FACET_STYLE_SMOOTH;
+		case 'crystalline': return FACET_STYLE_CRYSTALLINE;
+		case 'angular': return FACET_STYLE_ANGULAR;
+		case 'minimal': return FACET_STYLE_MINIMAL;
+		default: return FACET_STYLE_CRYSTALLINE;
+	}
+}
 export const GEOMETRY_RESOLUTION_COMPOSITOR = 2048; // Resolution used by compositor (was 256)
 export const SYMMETRY_DISTORTION_AMPLITUDE = 0.2; // Max distortion amplitude for symmetry effect
 export const HEATMAP_STRESS_COLOR_AMPLITUDE = 1.0; // Amplitude scaling for stress colors
@@ -167,10 +191,9 @@ export const CERAMIC_SMOOTH_WINDOW = 11; // Larger SMA window = more smoothing (
 export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.15; // Bottom 15% is base zone (larger base)
 
 // 3D Print Constraint Constants
-export const PRINT_3D_MAX_OVERHANG_ANGLE = 50; // FDM typical max overhang - stricter for visible effect
-export const PRINT_3D_MIN_RADIUS = 0.08; // 8% minimum radius to prevent thin walls (more visible)
-export const PRINT_3D_STEEP_INWARD_ANGLE = 60; // Stricter inward slopes for printability
-export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.15; // 15% minimum first layer for bed adhesion
+// 3D Print Constants (Minimal approach - slicer handles supports)
+export const PRINT_3D_MIN_RADIUS = 0.08; // 8% minimum radius to prevent thin walls
+export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.10; // 10% minimum first layer for bed adhesion (less aggressive)
 
 // Compositor Constants
 export const COMPOSITOR_MIN_RADIUS = 0.01; // Minimum radius constraint in compositor

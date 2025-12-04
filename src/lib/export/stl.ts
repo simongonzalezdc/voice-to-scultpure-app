@@ -1,8 +1,79 @@
 import type { SculptureDefinition } from '$lib/types';
 import { generateFinalProfile, type ExportOptions } from './exportUtils';
+import { uiStore } from '$lib/stores/uiStore.svelte';
+import { getSegmentsForFacetStyle, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
+import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { Mesh, BufferGeometry, Matrix4 } from 'three';
 
 // ============================================================================
-// LATHE EXPORT
+// DIRECT MESH EXPORT (Guaranteed to match app view)
+// ============================================================================
+
+/**
+ * Export the ACTUAL rendered mesh to STL format.
+ * This guarantees 100% match with what the user sees because we export
+ * the exact same geometry that Three.js is rendering.
+ * 
+ * @param sculpture - The sculpture definition (for height/scaling info)
+ * @returns STL content as string
+ */
+export function exportMeshToSTL(sculpture: SculptureDefinition): string {
+	const mesh = sculptureStore.meshReference;
+	
+	if (!mesh || !mesh.geometry) {
+		throw new Error('No mesh reference available. Please ensure a sculpture is rendered.');
+	}
+	
+	console.log(`📦 [STL DIRECT] Exporting actual rendered mesh geometry`);
+	
+	// Clone the geometry to avoid modifying the original
+	const geometry = mesh.geometry.clone();
+	
+	// Apply the mesh's world matrix to bake in all transforms (including heightScale)
+	mesh.updateMatrixWorld(true);
+	geometry.applyMatrix4(mesh.matrixWorld);
+	
+	// Get the sculpture's target height in mm
+	const targetHeightMM = sculpture.physical?.height || DEFAULT_HEIGHT_MM;
+	
+	// Compute current bounding box to determine scale
+	geometry.computeBoundingBox();
+	const bbox = geometry.boundingBox;
+	if (!bbox) {
+		throw new Error('Could not compute bounding box');
+	}
+	
+	const currentHeight = bbox.max.y - bbox.min.y;
+	
+	// Scale to target height in mm
+	// The mesh is in normalized units (height ~1.0 * heightScale)
+	// We need to scale to actual millimeters
+	const scaleFactor = targetHeightMM / currentHeight;
+	
+	console.log(`📦 [STL DIRECT] Current height: ${currentHeight.toFixed(3)}, Target: ${targetHeightMM}mm, Scale: ${scaleFactor.toFixed(2)}x`);
+	
+	// Apply scaling to convert to millimeters
+	const scaleMatrix = new Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
+	geometry.applyMatrix4(scaleMatrix);
+	
+	// Create a temporary mesh for the exporter
+	const exportMesh = new Mesh(geometry);
+	
+	// Use Three.js STLExporter
+	const exporter = new STLExporter();
+	const stlContent = exporter.parse(exportMesh, { binary: false }) as string;
+	
+	// Cleanup
+	geometry.dispose();
+	
+	console.log(`📦 [STL DIRECT] Export complete - geometry matches app view exactly`);
+	
+	return stlContent;
+}
+
+// ============================================================================
+// LATHE EXPORT (Legacy - generates from data)
 // ============================================================================
 
 export function lathePointsToSTL(
@@ -13,10 +84,18 @@ export function lathePointsToSTL(
 	// Now includes scaling to real millimeters for 3D printing
 	const exportOptions: ExportOptions = {
 		autoFixGeometry: options?.autoFixGeometry ?? true,
-		constraintMode: options?.constraintMode ?? 'ceramic',
+		constraintMode: options?.constraintMode ?? 'digital', // FIX: Default to digital (no constraints)
 		modifiers: options?.modifiers,
+		deformation: options?.deformation,
 		scaleToMillimeters: options?.scaleToMillimeters ?? true // Default ON for STL
 	};
+	
+	console.log(`📦 [STL EXPORT] Options:`, {
+		autoFix: exportOptions.autoFixGeometry,
+		constraints: exportOptions.constraintMode,
+		scaleToMM: exportOptions.scaleToMillimeters,
+		sculptureHeight: sculpture.physical?.height
+	});
 
 	const points = generateFinalProfile(sculpture, exportOptions);
 
@@ -24,8 +103,22 @@ export function lathePointsToSTL(
 		throw new Error('Not enough points for STL export');
 	}
 
+	// DEBUG: Log export profile stats
+	const minY = Math.min(...points.map(p => p.y));
+	const maxY = Math.max(...points.map(p => p.y));
+	const minX = Math.min(...points.map(p => p.x));
+	const maxX = Math.max(...points.map(p => p.x));
+	console.log(`📦 [STL EXPORT] Profile: ${points.length} points`);
+	console.log(`📦 [STL EXPORT] Y range: ${minY.toFixed(1)} - ${maxY.toFixed(1)} (height in mm)`);
+	console.log(`📦 [STL EXPORT] X range: ${minX.toFixed(1)} - ${maxX.toFixed(1)} (radius in mm)`);
+	console.log(`📦 [STL EXPORT] First 3 points:`, points.slice(0, 3).map(p => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`));
+	console.log(`📦 [STL EXPORT] Last 3 points:`, points.slice(-3).map(p => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`));
+
 	const triangles: string[] = [];
-	const segments = 64; // Number of segments around the lathe (match renderer)
+	// CRITICAL: Use the SAME segment count as the renderer (facet style)
+	// This ensures the STL matches the app view exactly (including the "fins" aesthetic)
+	const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
+	console.log(`📦 [STL EXPORT] Using ${segments} segments for "${uiStore.facetStyle}" facet style`);
 
 	// Generate triangles for each ring
 	for (let i = 0; i < points.length - 1; i++) {

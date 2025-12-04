@@ -4,7 +4,7 @@
 	import { toastStore } from '$lib/stores/toastStore.svelte';
 	import { pushHistory } from '$lib/stores/historyStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
-	import { lathePointsToSTL, downloadSTL } from '$lib/export/stl';
+	import { exportMeshToSTL, lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
 	import type { ExportOptions } from '$lib/export/exportUtils';
@@ -80,15 +80,28 @@
 		}
 
 		try {
-			toastStore.info('Exporting STL', 'Generating geometry...');
-			const options = getExportOptions();
-			const stlContent = lathePointsToSTL(sculpture, options);
+			toastStore.info('Exporting STL', 'Exporting rendered mesh...');
+			
+			// CRITICAL: Use direct mesh export to guarantee match with app view
+			// This exports the ACTUAL Three.js geometry being displayed
+			const stlContent = exportMeshToSTL(sculpture);
+			
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
 			downloadSTL(stlContent, filename);
 			toastStore.success('Export Complete', `${filename} saved to Downloads`);
 		} catch (error) {
 			console.error('Export failed:', error);
-			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
+			// Fallback to legacy export if direct export fails
+			console.log('⚠️ Falling back to legacy STL export...');
+			try {
+				const options = getExportOptions();
+				const stlContent = lathePointsToSTL(sculpture, options);
+				const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
+				downloadSTL(stlContent, filename);
+				toastStore.success('Export Complete (Fallback)', `${filename} saved to Downloads`);
+			} catch (fallbackError) {
+				toastStore.error('Export Failed', fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
+			}
 		}
 	}
 

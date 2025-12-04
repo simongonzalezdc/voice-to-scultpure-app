@@ -53,7 +53,8 @@
 		FORCE_MODE_PITCH_MIN_HZ,
 		FORCE_MODE_PITCH_MAX_HZ,
 		FORCE_MODE_MIC_LEVEL_THRESHOLD,
-		FORCE_MODE_FALLBACK_RADIUS
+		FORCE_MODE_FALLBACK_RADIUS,
+		getSegmentsForFacetStyle
 	} from '$lib/config/constants';
 	import {
 		createGeometryFromProfile,
@@ -101,13 +102,15 @@ import {
 	// Pre-allocate for max expected resolution to avoid runtime buffer resizing
 	$effect(() => {
 		if (!dynamicGeoManager && useDynamicGeometry) {
+			// Get initial segment count from current facet style
+			const initialSegments = getSegmentsForFacetStyle(uiStore.facetStyle);
 			// Pre-allocate 512 points max (covers both standard and song mode)
 			dynamicGeoManager = new DynamicGeometryManager({
-				radialSegments: GEOMETRY_LATHE_SEGMENTS,
+				radialSegments: initialSegments,
 				profileResolution: 512, // Pre-allocate for max - drawRange limits active portion
 				dynamic: true
 			});
-			console.log('🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts pre-allocated)');
+			console.log(`🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts, ${initialSegments} segments for "${uiStore.facetStyle}" style)`);
 		}
 
 		// AUDIT FIX: Comprehensive cleanup to prevent memory leaks
@@ -126,6 +129,21 @@ import {
 			heatmapBuffer = null;
 			console.log('🧹 [SCULPTURE] Cleanup: disposed geometry and cleared buffers');
 		};
+	});
+
+	// FACET STYLE: Update geometry manager when facet style changes
+	// This recreates buffers with the new segment count
+	$effect(() => {
+		if (!dynamicGeoManager) return;
+		
+		const targetSegments = getSegmentsForFacetStyle(uiStore.facetStyle);
+		const changed = dynamicGeoManager.setRadialSegments(targetSegments);
+		
+		if (changed) {
+			// Force geometry to re-render with new segment count
+			sculptureStore.geometryDirty = true;
+			console.log(`💎 [SCULPTURE] Facet style changed to "${uiStore.facetStyle}" (${targetSegments} segments)`);
+		}
 	});
 
 	// Set mesh reference in store for color capture
@@ -438,11 +456,12 @@ import {
 			if (geometry) return geometry;
 		}
 
+		// Use facet style segments for consistent aesthetic even in fallback
 		return new CylinderGeometry(
 			DEFAULT_CYLINDER_RADIUS,
 			DEFAULT_CYLINDER_RADIUS,
 			1,
-			DEFAULT_CYLINDER_SEGMENTS
+			getSegmentsForFacetStyle(uiStore.facetStyle)
 		);
 	});
 
