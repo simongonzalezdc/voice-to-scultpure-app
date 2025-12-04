@@ -21,6 +21,7 @@ import {
 	MAX_PITCH_HZ,
 	DEFAULT_HEIGHT_MM
 } from '$lib/config/constants';
+import { uiStore, type ProfileStyle } from '$lib/stores/uiStore.svelte';
 
 // ============================================================================
 // GENERATIVE PERFORMANCE: BEAT-DRIVEN DEFORMATION
@@ -192,7 +193,11 @@ export function generateLathe(
 		const pitchSeed = (frame.pitch ?? 220) * 0.01;
 		const indexSeed = index * 0.1;
 		
-		const timbreTexture = (voiceHash(timbreSeed + indexSeed) - 0.5) * normalizedRoughness * 0.3;
+		// MUSICAL DETAIL INTENSITY: Amplifies texture features
+		const musicalIntensityLocal = uiStore.musicalDetailIntensity ?? 0.5;
+		const textureMultiplier = 0.25 + (musicalIntensityLocal * 1.75); // Range: 0.25x to 2x
+		
+		const timbreTexture = (voiceHash(timbreSeed + indexSeed) - 0.5) * normalizedRoughness * 0.3 * textureMultiplier;
 
 		// Dynamic Attack Detection (B1: Attacks -> Notches)
 		let attackJitter = 0;
@@ -204,8 +209,8 @@ export function generateLathe(
 
 			if (isAttack) {
 				// Create visible notch/indentation at attack
-				// Negative value digs in
-				attackJitter = -0.05 * (deltaEnergy * 5.0);
+				// Scaled by musical detail intensity
+				attackJitter = -0.05 * (deltaEnergy * 5.0) * textureMultiplier;
 			}
 		}
 
@@ -219,29 +224,34 @@ export function generateLathe(
 			if (pitchRange > 0) {
 				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
 				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4); 
-				pitchModulation = pitchWave * normalizedPitch * 0.15;
+				pitchModulation = pitchWave * normalizedPitch * 0.15 * textureMultiplier;
 			}
 		}
 
 		const totalJitter = timbreTexture + attackJitter + pitchModulation;
 
+	// MUSICAL DETAIL INTENSITY: Amplifies how much musical features affect geometry
+	// 0 = subtle (0.25x), 0.5 = balanced (1x), 1.0 = dramatic (2x)
+	const musicalIntensity = uiStore.musicalDetailIntensity ?? 0.5;
+	const intensityMultiplier = 0.25 + (musicalIntensity * 1.75); // Range: 0.25x to 2x
+
 	// B3: Beat-Driven Sculptural Features
 	let beatDeformation = 0;
 	if (isBeat) {
 		// Create distinct ridge for beat
-		// EXAGGERATED: More prominent ridges for unmistakeable rhythm
-		beatDeformation = 0.25; // 3x more prominent than before (was 0.08)
+		// Scaled by musical detail intensity
+		beatDeformation = 0.25 * intensityMultiplier;
 	} else if (beatMultiplier > 1.0) {
 		// Decay
-		beatDeformation = (beatMultiplier - 1.0) * 0.5; // Also increased decay multiplier
+		beatDeformation = (beatMultiplier - 1.0) * 0.5 * intensityMultiplier;
 	}
 
 	// B2: Musical Ring Structure (Phrase detection)
 	let phraseRing = 0;
 	if (frame.time - lastFrameTime > PHRASE_GAP_THRESHOLD) {
 		// Gap detected - start of new phrase
-		// EXAGGERATED: Clear rings at phrase boundaries
-		phraseRing = 0.35; // Much more visible rings (was 0.12)
+		// Scaled by musical detail intensity
+		phraseRing = 0.35 * intensityMultiplier;
 	}
 		lastFrameTime = frame.time;
 
@@ -343,6 +353,123 @@ export function applyModifiers(
 	}
 	
 	return result;
+}
+
+// ============================================================================
+// PROFILE STYLE TRANSFORMATIONS
+// Applies aesthetic transformations to the profile shape
+// ============================================================================
+
+/**
+ * Apply profile style transformation to a curve
+ * @param curve - Input LathePoint array
+ * @param style - Profile style to apply
+ * @returns Transformed curve
+ */
+export function applyProfileStyle(
+	curve: LathePoint[],
+	style?: ProfileStyle
+): LathePoint[] {
+	const effectiveStyle = style ?? uiStore.profileStyle ?? 'natural';
+	
+	if (effectiveStyle === 'natural' || curve.length === 0) {
+		return curve; // No transformation
+	}
+	
+	switch (effectiveStyle) {
+		case 'terraced':
+			return applyTerracedStyle(curve);
+		case 'spiral':
+			return applySpiralStyle(curve);
+		case 'rippled':
+			return applyRippledStyle(curve);
+		default:
+			return curve;
+	}
+}
+
+/**
+ * TERRACED: Quantize radius to create stepped shelves like a ziggurat
+ * Each "terrace" represents a note/pitch band
+ */
+function applyTerracedStyle(curve: LathePoint[]): LathePoint[] {
+	// Determine number of terraces based on curve length
+	const numTerraces = Math.min(12, Math.max(4, Math.floor(curve.length / 20)));
+	
+	// Find radius range
+	const radii = curve.map(p => p.x);
+	const minRadius = Math.min(...radii);
+	const maxRadius = Math.max(...radii);
+	const radiusRange = maxRadius - minRadius;
+	
+	if (radiusRange < 0.01) return curve; // No variation to terrace
+	
+	const terraceHeight = radiusRange / numTerraces;
+	
+	return curve.map(point => {
+		// Quantize radius to nearest terrace level
+		const normalizedRadius = (point.x - minRadius) / radiusRange;
+		const terraceLevel = Math.round(normalizedRadius * numTerraces);
+		const terracedRadius = minRadius + (terraceLevel / numTerraces) * radiusRange;
+		
+		return {
+			x: terracedRadius,
+			y: point.y
+		};
+	});
+}
+
+/**
+ * SPIRAL: Apply helical twist that increases with height
+ * Creates a nautilus/shell-like aesthetic
+ */
+function applySpiralStyle(curve: LathePoint[]): LathePoint[] {
+	// Find center radius for reference
+	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
+	
+	return curve.map((point, index) => {
+		const normalizedHeight = index / (curve.length - 1);
+		
+		// Spiral wave: oscillates more at top than bottom
+		// This creates a subtle spiral bulge pattern
+		const spiralFrequency = 3; // Number of spiral turns
+		const spiralAmplitude = 0.15 * normalizedHeight; // Stronger at top
+		const spiralPhase = normalizedHeight * spiralFrequency * Math.PI * 2;
+		const spiralOffset = Math.sin(spiralPhase) * spiralAmplitude * avgRadius;
+		
+		return {
+			x: Math.max(0.05, point.x + spiralOffset),
+			y: point.y
+		};
+	});
+}
+
+/**
+ * RIPPLED: Add sinusoidal waves to the surface
+ * Creates organic, water-like ripple patterns
+ */
+function applyRippledStyle(curve: LathePoint[]): LathePoint[] {
+	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
+	
+	// Musical detail intensity affects ripple prominence
+	const intensity = uiStore.musicalDetailIntensity ?? 0.5;
+	const rippleAmplitude = 0.08 * (0.5 + intensity); // 0.04 to 0.12 range
+	
+	return curve.map((point, index) => {
+		const normalizedHeight = index / (curve.length - 1);
+		
+		// Multiple overlapping ripple frequencies for organic feel
+		const ripple1 = Math.sin(normalizedHeight * Math.PI * 16) * rippleAmplitude;
+		const ripple2 = Math.sin(normalizedHeight * Math.PI * 7) * (rippleAmplitude * 0.5);
+		const ripple3 = Math.sin(normalizedHeight * Math.PI * 23) * (rippleAmplitude * 0.25);
+		
+		const totalRipple = (ripple1 + ripple2 + ripple3) * avgRadius;
+		
+		return {
+			x: Math.max(0.05, point.x + totalRipple),
+			y: point.y
+		};
+	});
 }
 
 export function applyDeformation(

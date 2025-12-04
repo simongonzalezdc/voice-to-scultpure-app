@@ -25,7 +25,7 @@
 	import { useTask } from '@threlte/core';
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
-	import { generateLathe, generateGlaze, applyModifiers } from '$lib/engine/physicsMapping';
+	import { generateLathe, generateGlaze, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
@@ -222,6 +222,8 @@ import {
 	let lastConstraintMode = $state<string>(uiStore.constraintMode);
 	let lastAutoFixGeometry = $state<boolean>(uiStore.autoFixGeometry);
 	let lastQuantize = $state<boolean>(uiStore.modifiers?.quantize ?? false);
+	let lastProfileStyle = $state<string>(uiStore.profileStyle ?? 'natural');
+	let lastMusicalDetail = $state<number>(uiStore.musicalDetailIntensity ?? 0.5);
 
 	// COMPOSITOR LOOP
 	// Directive 3.2: Call computeProfile in useTask
@@ -243,7 +245,9 @@ import {
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		const constraintChanged = uiStore.constraintMode !== lastConstraintMode || uiStore.autoFixGeometry !== lastAutoFixGeometry;
 		const modifierChanged = (uiStore.modifiers?.quantize ?? false) !== lastQuantize;
-		const needsUpdate = isRecording || sculptureStore.geometryDirty || constraintChanged || modifierChanged;
+		const profileStyleChanged = (uiStore.profileStyle ?? 'natural') !== lastProfileStyle;
+		const musicalDetailChanged = Math.abs((uiStore.musicalDetailIntensity ?? 0.5) - lastMusicalDetail) > 0.01;
+		const needsUpdate = isRecording || sculptureStore.geometryDirty || constraintChanged || modifierChanged || profileStyleChanged || musicalDetailChanged;
 
 		if (!needsUpdate) return;
 		
@@ -256,6 +260,14 @@ import {
 		if (modifierChanged) {
 			console.log(`🔢 [RENDER] Modifier changed: quantize ${lastQuantize}→${uiStore.modifiers?.quantize}`);
 			lastQuantize = uiStore.modifiers?.quantize ?? false;
+		}
+		if (profileStyleChanged) {
+			console.log(`🌀 [RENDER] Profile style changed: ${lastProfileStyle}→${uiStore.profileStyle}`);
+			lastProfileStyle = uiStore.profileStyle ?? 'natural';
+		}
+		if (musicalDetailChanged) {
+			console.log(`🎵 [RENDER] Musical detail changed: ${(lastMusicalDetail * 100).toFixed(0)}%→${((uiStore.musicalDetailIntensity ?? 0.5) * 100).toFixed(0)}%`);
+			lastMusicalDetail = uiStore.musicalDetailIntensity ?? 0.5;
 		}
 
 		try {
@@ -343,6 +355,10 @@ import {
 			if (effectiveConstraint !== 'digital') {
 				profile = applyConstraints(profile, effectiveConstraint);
 			}
+
+			// PROFILE STYLE: Apply aesthetic transformation (terraced, spiral, rippled)
+			// Applied after constraints so the artistic effect is visible
+			profile = applyProfileStyle(profile);
 
 			// OPTIMIZATION: Use DynamicGeometryManager for ALL geometry updates
 			// This ensures the final sculpture looks identical to the preview

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setConstraintMode, setFacetStyle, type FacetStyle } from '$lib/stores/uiStore.svelte';
+	import { uiStore, setConstraintMode, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, type FacetStyle, type ProfileStyle } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import type { BaseShape } from '$lib/types';
 	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-	import { Cylinder, Circle, Box, FileText, Ruler, AlertTriangle, Check, Diamond, Gem, Hexagon, Octagon } from 'lucide-svelte';
+	import { Cylinder, Circle, Box, FileText, Ruler, AlertTriangle, Check, Diamond, Gem, Hexagon, Octagon, Layers, Waves, Music, Shell } from 'lucide-svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
 	// Reactive state from current sculpture
@@ -123,6 +123,44 @@
 			case 'angular': return 16;
 			case 'minimal': return 8;
 		}
+	}
+
+	// Profile style - current value from uiStore
+	const profileStyle = $derived(uiStore.profileStyle ?? 'natural');
+
+	// Profile style descriptions
+	function getProfileStyleDescription(style: ProfileStyle): string {
+		switch (style) {
+			case 'natural':
+				return 'Direct voice-to-form mapping. Your singing shapes the silhouette naturally.';
+			case 'terraced':
+				return 'Stepped shelves like a ziggurat. Each terrace represents a pitch band.';
+			case 'spiral':
+				return 'Nautilus-like twist. Creates a dynamic helical bulge pattern.';
+			case 'rippled':
+				return 'Organic water-like ripples. Multiple overlapping wave frequencies.';
+		}
+	}
+
+	// Musical detail intensity - current value from uiStore
+	const musicalDetail = $derived(uiStore.musicalDetailIntensity ?? 0.5);
+	let localMusicalDetail = $state(0.5);
+	
+	// Sync local state with store
+	$effect(() => {
+		localMusicalDetail = uiStore.musicalDetailIntensity ?? 0.5;
+	});
+
+	function handleMusicalDetailChange(e: Event) {
+		const value = parseFloat((e.target as HTMLInputElement).value);
+		setMusicalDetailIntensity(value);
+	}
+
+	function getMusicalDetailLabel(value: number): string {
+		if (value < 0.25) return 'Subtle';
+		if (value < 0.5) return 'Gentle';
+		if (value < 0.75) return 'Expressive';
+		return 'Dramatic';
 	}
 </script>
 
@@ -251,6 +289,103 @@
 			
 			<div class="bg-surface-alt p-2 rounded text-xs text-secondary">
 				<span class="font-mono text-primary">{getFacetStyleSegments(facetStyle)}</span> facets · {getFacetStyleDescription(facetStyle)}
+			</div>
+		</div>
+
+		<!-- Musical Detail Intensity -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+				<Music size={14} />
+				Musical Detail
+			</h3>
+			<p class="text-xs text-secondary opacity-75 mb-3">
+				How much musical features affect the shape
+			</p>
+			
+			<div class="space-y-2">
+				<div class="flex justify-between text-xs">
+					<span class="text-secondary">Subtle</span>
+					<span class="text-primary font-semibold">{getMusicalDetailLabel(localMusicalDetail)}</span>
+					<span class="text-secondary">Dramatic</span>
+				</div>
+				<input
+					type="range"
+					min="0"
+					max="1"
+					step="0.05"
+					bind:value={localMusicalDetail}
+					oninput={handleMusicalDetailChange}
+					class="w-full h-2 bg-surface-alt rounded-lg appearance-none cursor-pointer accent-brand-primary"
+				/>
+				<div class="text-center text-xs text-secondary">
+					<span class="font-mono text-primary">{(localMusicalDetail * 100).toFixed(0)}%</span> intensity
+				</div>
+			</div>
+			
+			<div class="bg-surface-alt p-2 rounded text-xs text-secondary mt-2">
+				Beat ridges, phrase markers, and pitch contours scale with this setting.
+			</div>
+		</div>
+
+		<!-- Profile Style (Silhouette) -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+				<Waves size={14} />
+				Profile Style
+			</h3>
+			<p class="text-xs text-secondary opacity-75 mb-3">
+				Silhouette shape transformation
+			</p>
+			
+			<div class="grid grid-cols-2 gap-2 mb-2">
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'natural'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setProfileStyle('natural')}
+					title={getProfileStyleDescription('natural')}
+				>
+					<Circle size={14} />
+					<span>Natural</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'terraced'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setProfileStyle('terraced')}
+					title={getProfileStyleDescription('terraced')}
+				>
+					<Layers size={14} />
+					<span>Terraced</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'spiral'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setProfileStyle('spiral')}
+					title={getProfileStyleDescription('spiral')}
+				>
+					<Shell size={14} />
+					<span>Spiral</span>
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'rippled'
+						? 'bg-brand-primary text-white'
+						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
+					onclick={() => setProfileStyle('rippled')}
+					title={getProfileStyleDescription('rippled')}
+				>
+					<Waves size={14} />
+					<span>Rippled</span>
+				</button>
+			</div>
+			
+			<div class="bg-surface-alt p-2 rounded text-xs text-secondary">
+				{getProfileStyleDescription(profileStyle)}
 			</div>
 		</div>
 

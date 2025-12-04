@@ -10,6 +10,9 @@ export type Workspace = 'sculpt' | 'glaze' | 'force' | 'export';
 // FACET STYLE: Controls the angular/smooth aesthetic of the sculpture
 export type FacetStyle = 'smooth' | 'crystalline' | 'angular' | 'minimal';
 
+// PROFILE STYLE: Controls the silhouette shape aesthetic
+export type ProfileStyle = 'natural' | 'terraced' | 'spiral' | 'rippled';
+
 export const uiStore = $state<{
 	panels: {
 		aiPanel: boolean;
@@ -79,6 +82,10 @@ export const uiStore = $state<{
 	printVolumeMm: number;
 	// FACET STYLE: Angular aesthetic control
 	facetStyle: FacetStyle;
+	// PROFILE STYLE: Silhouette shape aesthetic
+	profileStyle: ProfileStyle;
+	// MUSICAL DETAIL: How much musical features affect geometry (0-1)
+	musicalDetailIntensity: number;
 	// GENERATIVE PERFORMANCE: Wizard mode
 	performanceWizardActive: boolean;
 }>({
@@ -145,6 +152,8 @@ export const uiStore = $state<{
 	autoFixGeometry: true, // Default: Auto-fix enabled
 	printVolumeMm: 245, // Default 245mm cube (common 3D printer size)
 	facetStyle: 'crystalline', // Default: crystalline (the "fins" aesthetic users love)
+	profileStyle: 'natural', // Default: natural (no additional transformations)
+	musicalDetailIntensity: 0.5, // Default: 50% musical detail (balanced)
 	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
 });
 
@@ -390,6 +399,19 @@ export function setConstraintMode(mode: 'digital' | 'ceramic' | '3d_print'): voi
 export function setFacetStyle(style: FacetStyle): void {
 	console.log(`💎 [UI STORE] setFacetStyle: "${uiStore.facetStyle}" → "${style}"`);
 	uiStore.facetStyle = style;
+}
+
+// PROFILE STYLE: Set the silhouette shape aesthetic
+export function setProfileStyle(style: ProfileStyle): void {
+	console.log(`🌀 [UI STORE] setProfileStyle: "${uiStore.profileStyle}" → "${style}"`);
+	uiStore.profileStyle = style;
+}
+
+// MUSICAL DETAIL: Set how much musical features affect geometry
+export function setMusicalDetailIntensity(intensity: number): void {
+	const clamped = Math.max(0, Math.min(1, intensity));
+	console.log(`🎵 [UI STORE] setMusicalDetailIntensity: ${(uiStore.musicalDetailIntensity * 100).toFixed(0)}% → ${(clamped * 100).toFixed(0)}%`);
+	uiStore.musicalDetailIntensity = clamped;
 }
 
 // ============================================================================
