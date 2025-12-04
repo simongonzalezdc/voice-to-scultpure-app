@@ -96,18 +96,22 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
  * - Structural smoothing via SMA to turn audio jitter into clay flow
  * - Topological safe mode: if too narrow overall, boost entire shape
  *
- * UNITS: Sculpture uses normalized units where:
- * - Height Y goes from 0 to 1 (bottom to top)
- * - Radius X typically ranges 0.05 to 1.5
- * - For a 150mm tall sculpture, radius 0.2 ≈ 30mm
+ * AUDIT FIX: Real-world units calculation
+ * - Human hand width: ~80-100mm, minimum opening for hand: 70mm
+ * - For a 150mm tall sculpture, 70mm diameter = 35mm radius
+ * - Normalized: 35mm / 150mm height ≈ 0.23 radius ratio
+ * - But sculpture width is scaled differently, so we use ~0.35 (70mm on typical vase)
  */
 function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 
-	// FIXED: Use normalized units that match sculpture geometry
-	// A reasonable minimum radius for hand access (~35mm on 150mm tall pot = ~0.23 normalized)
-	// But we use a smaller value to allow more creative freedom
-	const MIN_HAND_RADIUS = 0.1; // Minimum radius for hand access (allows finger entry)
+	// AUDIT FIX: Real-world minimum for hand access
+	// A human hand needs ~70mm diameter opening (35mm radius)
+	// In normalized units relative to typical 150mm height:
+	// 35mm / (150mm * 0.4 baseRadiusRatio) ≈ 0.58 normalized radius
+	// But we're more lenient to allow artistic freedom, requiring ~0.2 minimum
+	// which translates to ~24mm radius on a 150mm tall vase (finger access)
+	const MIN_HAND_RADIUS = 0.2; // ~24mm radius - allows finger access, warns for hand access
 
 	const MAX_OVERHANG_ANGLE = 45; // degrees
 	const BASE_STABILITY_RATIO = 1.2; // Base should be 1.2x wider than average (reduced from 1.5)

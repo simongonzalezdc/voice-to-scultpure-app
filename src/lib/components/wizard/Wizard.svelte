@@ -8,7 +8,7 @@
 	} from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { Mic, Check, ChevronRight, Wand2, Activity } from 'lucide-svelte';
+	import { Mic, Check, ChevronRight, ChevronLeft, Wand2, Activity } from 'lucide-svelte';
 	import LayerPanel from './LayerPanel.svelte';
 	import { generateLathe } from '$lib/engine/physicsMapping';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
@@ -90,8 +90,20 @@
 		}
 	}
 
+	// AUDIT FIX: Implement back navigation for Wizard
 	function prevStep() {
-		// Logic to go back? For now just forward flow as requested.
+		const stepOrder: Array<'shape' | 'detail' | 'glaze' | 'export'> = ['shape', 'detail', 'glaze', 'export'];
+		const currentIndex = stepOrder.indexOf(currentStep);
+		if (currentIndex > 0) {
+			const prevStepValue = stepOrder[currentIndex - 1];
+			if (prevStepValue) {
+				currentStep = prevStepValue;
+				// Reset workspace if leaving glaze mode
+				if (currentStep !== 'glaze' && uiStore.workspace === 'glaze') {
+					uiStore.workspace = 'sculpt';
+				}
+			}
+		}
 	}
 
 	// Auto-initialize: Create sculpture if none exists
@@ -222,6 +234,17 @@
 			<!-- Recording Controls -->
 			{#if currentStep !== 'export'}
 				<div class="mt-2 flex items-center gap-3">
+					<!-- AUDIT FIX: Back button for navigation -->
+					{#if currentStep !== 'shape' && !isRecording}
+						<button
+							class="flex items-center gap-2 px-4 py-3 rounded-full border border-white/20 text-sm text-white hover:bg-white/10 hover:border-white/40 transition-colors"
+							onclick={prevStep}
+						>
+							<ChevronLeft size={16} />
+							<span>BACK</span>
+						</button>
+					{/if}
+					
 					<button
 						class="flex items-center gap-2 px-6 py-3 rounded-full font-bold text-base transition-all hover:scale-105 active:scale-95
 						{isRecording

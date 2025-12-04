@@ -1,16 +1,40 @@
 # Voice-to-Sculpture Studio
 
-Transform your voice into beautiful 3D sculptures using real-time audio analysis and AI-powered modifications.
+Transform your voice into beautiful 3D ceramic sculptures using real-time audio analysis. Sing, hum, or speak to shape pottery - your voice becomes the potter's hands.
 
 **📖 [Testing Guide](./TESTING_GUIDE.md) | [Test Implementation Summary](./TEST_IMPLEMENTATION_SUMMARY.md)**
 
 ## Features
 
-- 🎤 Real-time voice capture and analysis
-- 🎨 3D sculpture generation from audio features
-- 🤖 AI-powered sculpture modifications (Cloud & Local)
-- 💾 Project persistence with OPFS
-- 📤 Export to PNG, SVG, and WAV
+### Core Voice-to-Shape
+- 🎤 **Real-time Voice Analysis** - Pitch, volume, timbre, and beat detection drive sculpture geometry
+- 🏺 **Layer System** - Non-destructive stacking of base shapes, deformations, and glazes
+- 🎨 **Workspaces** - Sculpt (shape), Glaze (color), Force (deformation), Export
+
+### Recording Modes
+- 🎵 **Standard Mode** - 10-30 second recordings for quick shapes
+- 🎶 **Song Mode** - 1-5 minute recordings with 512-point resolution
+- 🌀 **Coil Mode** - Build spiral pottery layer by layer (traditional coiling technique)
+
+### Fabrication & Export
+- 🏺 **Ceramic Constraints** - Pottery physics: hand access (70mm min), clay smoothing, stable bases
+- 🖨️ **3D Print Constraints** - FDM rules: 60° max overhang, contiguous geometry
+- 📦 **Export Formats** - STL (real millimeters), GLTF/GLB (with PBR materials), High-res PNG renders
+
+### Visual Features
+- ✨ **PBR Ceramic Materials** - Clearcoat glaze, sheen, subsurface scattering simulation
+- 💡 **Professional 3-Point Lighting** - Key, fill, and rim lights with hemisphere ambient
+- 🌈 **Dazzler Effect** - Voice-reactive emissive materials that glow with your voice
+- 🎯 **Heatmap View** - Stress visualization for fabrication analysis
+
+### AI & Automation
+- 🤖 **AI Sculpture Modifications** - Cloud (OpenAI) and Local (WebLLM) AI assistants
+- 🎭 **Performance Wizard** - Guided workflow: Shape → Detail → Glaze → Export
+- 🔗 **Voice Links** - Map pitch to twist, timbre to roughness (hands-free control)
+
+### Persistence
+- 💾 **Project Management** - Save/load sculptures with OPFS
+- 📤 **Multi-format Export** - PNG, SVG, WAV, STL, GLTF
 
 ## Tech Stack
 

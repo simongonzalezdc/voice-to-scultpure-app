@@ -1,0 +1,217 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e7]: ○
+    - generic [ref=e8]:
+      - generic [ref=e9]: DISCONNECTED
+      - generic [ref=e10]: No Audio Context
+  - region "Notifications"
+  - generic [ref=e11]:
+    - banner [ref=e12]:
+      - generic [ref=e13]:
+        - heading "Voice-to-Sculpture" [level=1] [ref=e14]
+        - generic [ref=e15]:
+          - tab "Sculpt" [ref=e16] [cursor=pointer]:
+            - img [ref=e17]
+            - generic [ref=e18]: Sculpt
+          - tab "Force" [ref=e19] [cursor=pointer]:
+            - img [ref=e20]
+            - generic [ref=e21]: Force
+          - tab "Glaze" [ref=e22] [cursor=pointer]:
+            - img [ref=e23]
+            - generic [ref=e24]: Glaze
+          - tab "Export" [active] [selected] [ref=e25] [cursor=pointer]:
+            - img [ref=e26]
+            - generic [ref=e27]: Export
+      - generic [ref=e28]:
+        - button "Performance" [ref=e29] [cursor=pointer]:
+          - img [ref=e30]
+          - generic [ref=e31]: Performance
+        - button "Test" [ref=e32] [cursor=pointer]
+    - complementary [ref=e33]:
+      - generic [ref=e34]:
+        - img [ref=e36]
+        - generic [ref=e37]:
+          - button "Library" [ref=e38] [cursor=pointer]:
+            - img [ref=e39]
+          - button "AI Assistant" [ref=e40] [cursor=pointer]:
+            - img [ref=e41]
+          - button "Pottery" [ref=e42] [cursor=pointer]:
+            - img [ref=e43]
+          - button "Settings" [ref=e44] [cursor=pointer]:
+            - img [ref=e45]
+        - button "Keyboard Shortcuts (Shift+?)" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+    - generic [ref=e48]:
+      - region "3D Sculpture Canvas" [ref=e49]
+      - generic [ref=e53]:
+        - button "View Settings" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+        - button "💡" [ref=e56] [cursor=pointer]
+        - generic [ref=e57]:
+          - button "+" [ref=e58] [cursor=pointer]
+          - button "-" [ref=e59] [cursor=pointer]
+        - button "Reset View" [ref=e60] [cursor=pointer]:
+          - img [ref=e61]
+          - text: Reset View
+        - generic [ref=e62]:
+          - button "Undo" [disabled] [ref=e63]:
+            - img [ref=e64]
+            - text: Undo
+          - button "Redo" [disabled] [ref=e65]:
+            - img [ref=e66]
+            - text: Redo
+      - generic [ref=e67]:
+        - generic [ref=e68]: Φ
+        - generic [ref=e69]:
+          - generic [ref=e70]: Golden Ratio Lock
+          - generic [ref=e71]: "69.77"
+    - complementary [ref=e72]:
+      - generic [ref=e73]:
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "Object Properties" [level=2] [ref=e77]
+            - paragraph [ref=e78]: Single source of truth
+          - generic [ref=e79]:
+            - group "Base Shape" [ref=e80]:
+              - generic [ref=e81]: Base Shape
+              - generic [ref=e82]:
+                - button "Vase" [ref=e83] [cursor=pointer]:
+                  - img [ref=e84]
+                  - generic [ref=e85]: Vase
+                - button "Sphere" [ref=e86] [cursor=pointer]:
+                  - img [ref=e87]
+                  - generic [ref=e88]: Sphere
+                - button "Block" [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
+                  - generic [ref=e91]: Block
+                - button "Plane" [ref=e92] [cursor=pointer]:
+                  - img [ref=e93]
+                  - generic [ref=e94]: Plane
+            - generic [ref=e95]:
+              - heading "Material" [level=3] [ref=e96]
+              - generic [ref=e97]:
+                - button "🏺 Ceramic" [ref=e98] [cursor=pointer]
+                - button "💠 Plastic" [ref=e99] [cursor=pointer]
+              - generic [ref=e100]: Base Color
+              - generic [ref=e101]:
+                - textbox "Base Color" [ref=e102] [cursor=pointer]: "#ffffff"
+                - generic [ref=e103]: "#FFFFFF"
+                - button "Reset" [ref=e104] [cursor=pointer]
+            - generic [ref=e105]:
+              - heading "Fabrication" [level=3] [ref=e106]
+              - paragraph [ref=e107]: Physical constraints applied to all geometry
+              - generic [ref=e108]:
+                - button "🪄 Digital" [ref=e109] [cursor=pointer]:
+                  - generic [ref=e110]: 🪄 Digital
+                - button "🏺 Ceramic" [ref=e111] [cursor=pointer]:
+                  - generic [ref=e112]: 🏺 Ceramic
+                - button "🖨️ 3D Print" [ref=e113] [cursor=pointer]:
+                  - generic [ref=e114]: 🖨️ 3D Print
+              - generic [ref=e115] [cursor=pointer]:
+                - checkbox "Auto-Fix Geometry Automatically adjust shape to meet physical limits" [checked] [ref=e116]
+                - generic [ref=e117]:
+                  - generic [ref=e118]: Auto-Fix Geometry
+                  - generic [ref=e119]: Automatically adjust shape to meet physical limits
+              - paragraph [ref=e121]: "Pottery wheel physics: Hand Access 70mm (Min Width), Clay Smoothing (SMA), Prevents Collapse (45° max), Stable Base."
+        - heading "📦 EXPORT & FABRICATION" [level=2] [ref=e123]:
+          - generic [ref=e124]: 📦
+          - text: EXPORT & FABRICATION
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - heading "Export Options" [level=3] [ref=e129]
+            - generic [ref=e130]:
+              - generic [ref=e131]: Wall Thickness (mm)
+              - spinbutton "Wall Thickness (mm)" [ref=e132]: "3"
+              - paragraph [ref=e133]: "For 3D printing: 2-5mm typical. Leave 0 for solid ceramic."
+          - generic [ref=e134]:
+            - heading "Export Formats" [level=3] [ref=e135]
+            - generic [ref=e136]:
+              - button "Export GLB (Universal 3D + Colors)" [ref=e137] [cursor=pointer]
+              - button "Export PLY (3D Print + Colors)" [ref=e138] [cursor=pointer]
+              - button "Export STL (3D Print, No Colors)" [ref=e139] [cursor=pointer]
+              - button "Export Blueprint SVG (Ceramic Template)" [ref=e140] [cursor=pointer]
+            - paragraph [ref=e142]:
+              - strong [ref=e143]: "GLB:"
+              - text: Universal 3D format with vertex colors. Works in Blender, Unity, web viewers.
+              - strong [ref=e144]: "PLY:"
+              - text: For colored 3D printing. Includes vertex colors from glaze painting.
+              - strong [ref=e145]: "STL:"
+              - text: Standard 3D printing format (no colors). Includes wall thickness if specified.
+              - strong [ref=e146]: "Blueprint:"
+              - text: Print at 1:1 scale, cut out, use as pottery wheel profile rib.
+    - contentinfo [ref=e147]:
+      - generic [ref=e148]:
+        - generic [ref=e149]:
+          - button "Record" [ref=e150] [cursor=pointer]:
+            - img [ref=e151]
+            - text: Record
+          - generic [ref=e152]:
+            - generic [ref=e153]: Mic
+            - progressbar "Mic" [ref=e154]
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - generic [ref=e157]: History
+              - generic [ref=e158]: 100%
+            - slider [disabled] [ref=e159]: "1"
+        - generic [ref=e161]:
+          - tab "Sculpt" [ref=e162] [cursor=pointer]:
+            - img [ref=e163]
+            - generic [ref=e164]: Sculpt
+          - tab "Force" [ref=e165] [cursor=pointer]:
+            - img [ref=e166]
+            - generic [ref=e167]: Force
+          - tab "Glaze" [ref=e168] [cursor=pointer]:
+            - img [ref=e169]
+            - generic [ref=e170]: Glaze
+          - tab "Export" [selected] [ref=e171] [cursor=pointer]:
+            - img [ref=e172]
+            - generic [ref=e173]: Export
+        - generic [ref=e174]:
+          - generic [ref=e175]:
+            - generic [ref=e176]: Mic
+            - generic [ref=e178]: 0%
+          - generic [ref=e179]:
+            - generic [ref=e180]: State
+            - generic [ref=e181]: idle
+        - generic [ref=e186]:
+          - generic [ref=e187]: —
+          - generic [ref=e188]: Speak or sing...
+  - generic:
+    - generic:
+      - img
+      - generic: SYSTEM HEALTH
+    - generic:
+      - generic:
+        - generic:
+          - img
+          - generic: AUDIO INPUT
+        - generic: SILENT
+      - generic:
+        - generic:
+          - img
+          - generic: WORKER BRAIN
+        - generic: ACTIVE
+      - generic:
+        - generic:
+          - img
+          - generic: RENDERER
+        - generic: READY
+      - generic:
+        - generic:
+          - img
+          - generic: GEOMETRY
+        - generic: VALID
+      - generic:
+        - generic:
+          - img
+          - generic: GLAZE
+        - generic: EMPTY
+      - generic:
+        - generic:
+          - img
+          - generic: STORAGE
+        - generic: SAVED
+```

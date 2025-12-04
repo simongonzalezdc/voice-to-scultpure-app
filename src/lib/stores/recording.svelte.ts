@@ -29,6 +29,15 @@ import type { SculptureLayer } from '$lib/types';
 
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'complete';
 
+// CRITICAL FIX: Plain boolean flag for frame capture
+// Svelte's $state proxy may not work correctly when read from non-reactive callbacks
+// This flag is set/read synchronously and bypasses any reactivity issues
+let _isCapturing = false;
+
+export function isCapturing(): boolean {
+	return _isCapturing;
+}
+
 /**
  * Get the resolution based on the current recording mode
  * Option B: Song Mode uses higher resolution for longer recordings
@@ -108,11 +117,14 @@ export function startRecording(): void {
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
 	recordingStore.historyPosition = 1;
+	
+	// CRITICAL FIX: Set plain boolean flag for non-reactive callback contexts
+	_isCapturing = true;
 
 	if (isGlazeMode) {
 		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
 	} else {
-		console.log('🎙️ [RECORDING] Started - frames reset to 0');
+		console.log('🎙️ [RECORDING] Started - frames reset to 0, _isCapturing = true');
 	}
 }
 
@@ -122,6 +134,9 @@ export function startRecording(): void {
  */
 export async function stopRecording(): Promise<void> {
 	console.log('🔴🔴🔴 [RECORDING] stopRecording() CALLED, state:', recordingStore.state, 'frames:', capturedFrames.length);
+	
+	// CRITICAL FIX: Immediately stop frame capture via plain boolean
+	_isCapturing = false;
 	
 	if (recordingStore.state !== 'recording') {
 		console.warn('⚠️ [RECORDING] Stop called but not in recording state');
@@ -133,7 +148,7 @@ export async function stopRecording(): Promise<void> {
 	recordingStateSetTimings(null, duration);
 	setRecordingState('processing');
 	console.log('🔴🔴🔴 [RECORDING] Processing... duration:', duration, 'ms');
-	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}`);
+	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}, _isCapturing = false`);
 
 	// RESCUE PATH: Worker failed or frames empty -> generate minimal fallback
 	if (capturedFrames.length === 0) {
@@ -242,7 +257,7 @@ export async function stopRecording(): Promise<void> {
 				console.log(`🗿 [RECORDING] Sculpture created with ${pointCount} points (resolution: ${resolution})`);
 			} else {
 				// Subsequent recordings - add as new layer ON TOP of user's base
-				const mode = sculptureStore.currentSculpture.physical.sculptMode ?? 'additive';
+				const mode = sculptureStore.currentSculpture?.physical.sculptMode ?? 'additive';
 				const zone =
 					uiStore.sculptZone.min > 0 || uiStore.sculptZone.max < 1 ? uiStore.sculptZone : undefined;
 
@@ -397,13 +412,14 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 
 export function resetRecording(): void {
 	console.log(`🔄 [RECORDING] Resetting from state: ${recordingStore.state}`);
+	_isCapturing = false; // CRITICAL FIX: Clear capture flag
 	capturedFrames = [];
 	recordingStateSetTimings(null, 0);
 	setRecordingState('idle');
 	recordingStore.historyPosition = 1;
 	resetAnalysis();
 	// Don't nullify sculpture, just reset recording state
-	console.log(`✅ [RECORDING] Reset complete, new state: ${recordingStore.state}`);
+	console.log(`✅ [RECORDING] Reset complete, new state: ${recordingStore.state}, _isCapturing = false`);
 }
 
 function triggerResonanceFeedback(): void {

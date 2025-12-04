@@ -19,6 +19,7 @@ import {
 
 /**
  * Material property configuration interface
+ * AUDIT FIX: Enhanced with full PBR properties for ceramic/glaze materials
  */
 export interface MaterialProps {
 	color: string;
@@ -31,6 +32,17 @@ export interface MaterialProps {
 	wireframe?: boolean;
 	vertexColors?: boolean;
 	transmission?: number;
+	// AUDIT FIX: PBR enhancements for ceramic/glaze look
+	clearcoat?: number;
+	clearcoatRoughness?: number;
+	sheen?: number;
+	sheenRoughness?: number;
+	sheenColor?: string;
+	envMapIntensity?: number;
+	ior?: number;
+	thickness?: number;
+	attenuationColor?: string;
+	attenuationDistance?: number;
 }
 
 /**
@@ -110,6 +122,52 @@ export function createBaseMaterialProps(
 		wireframe: false,
 		vertexColors: false,
 		transmission: 0
+	};
+}
+
+/**
+ * AUDIT FIX: Creates ceramic/glaze material properties with full PBR settings
+ * Eliminates the "plastic look" with proper clearcoat, sheen, and subsurface properties
+ *
+ * @param baseColor - Base ceramic body color
+ * @param glazeRoughness - Surface roughness (0 = glossy glaze, 1 = matte bisque)
+ * @param glazeTransmission - Glaze translucency (0 = opaque, 0.3 = translucent glaze)
+ * @returns MaterialProps with professional ceramic appearance
+ */
+export function createCeramicMaterialProps(
+	baseColor: string,
+	glazeRoughness: number = 0.35,
+	glazeTransmission: number = 0
+): MaterialProps {
+	// Adjust clearcoat based on roughness - glossy glazes have more clearcoat
+	const clearcoatAmount = Math.max(0, 0.9 - glazeRoughness * 0.8);
+	
+	return {
+		color: baseColor,
+		roughness: glazeRoughness,
+		metalness: 0.0, // Ceramic is non-metallic
+		emissive: '#000000',
+		emissiveIntensity: 0,
+		transparent: glazeTransmission > 0,
+		opacity: 1.0,
+		wireframe: false,
+		vertexColors: false,
+		// Glaze layer (clearcoat simulates the glassy coating)
+		clearcoat: clearcoatAmount,
+		clearcoatRoughness: 0.15,
+		// Ceramic body sheen (subtle light scattering)
+		sheen: 0.3,
+		sheenRoughness: 0.4,
+		sheenColor: '#E8DCC8', // Warm ceramic undertone
+		// Environment reflections
+		envMapIntensity: 1.2,
+		// Glaze refraction (glass-like IOR for glaze)
+		ior: 1.52,
+		// Translucent glaze properties
+		transmission: glazeTransmission,
+		thickness: 0.5, // Subsurface scatter distance
+		attenuationColor: '#D4C4A8', // Warm clay shows through translucent glaze
+		attenuationDistance: 0.5
 	};
 }
 

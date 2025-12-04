@@ -16,7 +16,7 @@
 		connectMicrophoneToWorklet
 	} from '$lib/audio/audioContext';
 	import { createAnalysisWorkerClient } from '$lib/audio/analysisWorkerClient';
-	import { addAnalysisFrame } from '$lib/stores/recording.svelte';
+	import { addAnalysisFrame, isCapturing } from '$lib/stores/recording.svelte';
 	import { updateAnalysisFrame } from '$lib/stores/analysisStore.svelte';
 	import { analysisStore as analysis } from '$lib/stores/analysisStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -148,18 +148,19 @@
 						}
 						// DIRECTIVE 2: Always update analysis store for live monitoring (GlazeMixer)
 						updateAnalysisFrame(frame);
-						// Only add to recording store when actually recording
-						const isRecording = recordingStore.state === 'recording';
-						if (isRecording) {
+						// CRITICAL FIX: Use isCapturing() instead of recordingStore.state
+						// The $state proxy may not work correctly when read from non-reactive callbacks
+						const capturing = isCapturing();
+						if (capturing) {
 							addAnalysisFrame(frame);
 							if (frameCallbackCount % 30 === 0) {
 								console.log(
-									`📊 [TRANSPORT] Recording: ${frameCallbackCount} frames captured (state: ${recordingStore.state})`
+									`📊 [TRANSPORT] Recording: ${frameCallbackCount} frames captured (isCapturing: ${capturing})`
 								);
 							}
 						} else if (frameCallbackCount % 60 === 0) {
 							console.log(
-								`👁️ [TRANSPORT] Monitoring: ${frameCallbackCount} frames processed (not recording, state: ${recordingStore.state})`
+								`👁️ [TRANSPORT] Monitoring: ${frameCallbackCount} frames processed (isCapturing: ${capturing})`
 							);
 						}
 					});
@@ -422,7 +423,7 @@
 		{getButtonText()}
 	</button>
 	<div class="flex-1 min-w-[80px]">
-		<div class="text-[10px] text-[#888] mb-0.5" id="mic-level-label">Mic</div>
+		<div class="text-[10px] text-[#aaa] mb-0.5" id="mic-level-label">Mic</div>
 		<div
 			class="h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden border border-[#4a4a4a]"
 			role="progressbar"
@@ -438,7 +439,7 @@
 		</div>
 	</div>
 	<div class="w-32">
-		<div class="flex items-center justify-between text-[10px] text-[#888] mb-0.5">
+		<div class="flex items-center justify-between text-[10px] text-[#aaa] mb-0.5">
 			<span>History</span>
 			<span>{Math.round(recordingStore.historyPosition * 100)}%</span>
 		</div>

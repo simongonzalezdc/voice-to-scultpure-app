@@ -146,7 +146,7 @@ function resampleData(source: Float32Array, targetLength: number): Float32Array 
 	}
 	
 	if (sourceLength === 1) {
-		result.fill(source[0]);
+		result.fill(source[0] ?? 0.5);
 		return result;
 	}
 	
@@ -158,7 +158,9 @@ function resampleData(source: Float32Array, targetLength: number): Float32Array 
 		const t = sourcePos - sourceLow;
 		
 		// Linear interpolation
-		result[i] = source[sourceLow] * (1 - t) + source[sourceHigh] * t;
+		const valLow = source[sourceLow] ?? 0;
+		const valHigh = source[sourceHigh] ?? 0;
+		result[i] = valLow * (1 - t) + valHigh * t;
 	}
 	
 	return result;

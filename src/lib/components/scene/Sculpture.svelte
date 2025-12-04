@@ -73,6 +73,7 @@ import {
 		deriveMaterialColor,
 		deriveGhostMaterialColor,
 		createBaseMaterialProps,
+		createCeramicMaterialProps,
 		createEnergyMaterialProps,
 		updateMaterialForViewMode,
 		updateMaterialForGlazeMode,
@@ -111,11 +112,21 @@ import {
 			console.log('🚀 [SCULPTURE] Dynamic geometry manager initialized');
 		}
 
+		// AUDIT FIX: Comprehensive cleanup to prevent memory leaks
 		return () => {
 			if (dynamicGeoManager) {
 				dynamicGeoManager.dispose();
 				dynamicGeoManager = null;
 			}
+			// Dispose live geometry if it exists
+			if (liveGeometry) {
+				liveGeometry.dispose();
+				liveGeometry = null;
+			}
+			// Clear buffer pools
+			colorBuffer = null;
+			heatmapBuffer = null;
+			console.log('🧹 [SCULPTURE] Cleanup: disposed geometry and cleared buffers');
 		};
 	});
 
@@ -557,18 +568,27 @@ import {
 		};
 	});
 
+	// AUDIT FIX: Use ceramic material with full PBR properties
 	let materialProps = $state<MaterialProps>(
-		createBaseMaterialProps(
+		createCeramicMaterialProps(
 			DEFAULT_MATERIAL_CERAMIC,
-			uiStore.activeGlaze.color,
-			uiStore.activeGlaze.roughness ?? 0.5
+			uiStore.activeGlaze.roughness ?? 0.35,
+			0 // Default no transmission
 		)
 	);
 
 	$effect(() => {
-		// Update base properties
-		materialProps.color = materialColor;
-		materialProps.roughness = uiStore.activeGlaze.roughness ?? 0.5;
+		// AUDIT FIX: Get ceramic material base with PBR properties
+		const ceramicBase = createCeramicMaterialProps(
+			materialColor,
+			uiStore.activeGlaze.roughness ?? 0.35,
+			uiStore.activeGlaze.transmission ?? 0
+		);
+		
+		// Apply ceramic base
+		Object.assign(materialProps, ceramicBase);
+		
+		// Set emissive from glaze
 		materialProps.emissive = uiStore.activeGlaze.color;
 
 		// Apply view mode transformations
@@ -805,12 +825,24 @@ import {
 				receiveShadow
 				frustumCulled={false}
 			>
+				<!-- AUDIT FIX: Full PBR material with ceramic/glaze properties -->
 				<T.MeshPhysicalMaterial
 					{...materialProps}
-					transparent={uiStore.view.mode === 'xray'}
+					transparent={uiStore.view.mode === 'xray' || (materialProps.transmission ?? 0) > 0}
 					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
 					wireframe={uiStore.view.mode === 'wireframe'}
 					vertexColors={uiStore.view.mode === 'heatmap' || uiStore.workspace === 'glaze'}
+					clearcoat={materialProps.clearcoat ?? 0}
+					clearcoatRoughness={materialProps.clearcoatRoughness ?? 0}
+					sheen={materialProps.sheen ?? 0}
+					sheenRoughness={materialProps.sheenRoughness ?? 0}
+					sheenColor={materialProps.sheenColor ?? '#ffffff'}
+					envMapIntensity={materialProps.envMapIntensity ?? 1}
+					ior={materialProps.ior ?? 1.5}
+					transmission={materialProps.transmission ?? 0}
+					thickness={materialProps.thickness ?? 0}
+					attenuationColor={materialProps.attenuationColor ?? '#ffffff'}
+					attenuationDistance={materialProps.attenuationDistance ?? 0}
 				/>
 			</T.Mesh>
 		{/if}

@@ -17,7 +17,6 @@
 	import type { SculptureDefinition, BaseShape } from '$lib/types';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import { getConstraintDescription } from '$lib/engine/constraints';
-	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
 	import {
 		Info,
@@ -29,15 +28,13 @@
 		Mic,
 		Lock,
 		Sparkles,
-		Wand,
-		Printer,
 		BarChart,
 		Music
 	} from 'lucide-svelte';
 
 	let height = $state(150); // Height in mm (default 150mm)
 	let twist = $state(0);
-	let verticalStretch = $state(0); // Range: -0.5 (stretch) to 0.5 (squash) - RENAMED: was "compression" to avoid audio confusion
+	// REMOVED: verticalStretch - confusing during singing, hard to tell what's happening
 	let roughness = $state(0.5);
 	let glaze = $state(0.3);
 	let materialType = $state<'ceramic' | 'plastic'>('ceramic');
@@ -74,7 +71,7 @@
 		if (sculpture && !isDragging) {
 			height = sculpture.physical.height;
 			twist = uiStore.deformation.twist;
-			verticalStretch = uiStore.deformation.compression;
+			// REMOVED: verticalStretch sync
 			roughness = uiStore.activeGlaze.roughness;
 			glaze = 0.3; // Default glaze transmission (removed from sculpture)
 			materialType = 'ceramic'; // Default to ceramic
@@ -110,7 +107,7 @@
 
 		const deformed = applyDeformation(radiusCurve, {
 			twist: twist,
-			compression: verticalStretch,
+			compression: 0, // REMOVED: verticalStretch feature
 			taper: 0
 		});
 		setGhostSculpture({
@@ -151,7 +148,7 @@
 		// Access slider values to create reactive dependencies
 		const currentHeight = height;
 		const currentTwist = twist;
-		const currentVerticalStretch = verticalStretch;
+		// REMOVED: currentVerticalStretch
 		const currentRoughness = roughness;
 		const currentGlaze = glaze;
 
@@ -165,7 +162,7 @@
 
 		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
-			compression: currentVerticalStretch,
+			compression: 0, // REMOVED: verticalStretch feature
 			taper: 0
 		});
 
@@ -183,13 +180,6 @@
 	function handleMaterialChange() {
 		// Material type is now handled via uiStore, not sculpture
 		// No need to update sculpture for material type changes
-	}
-
-	// DIRECTIVE: Handle constraint mode changes in Design tab
-	// Constraints apply immediately and persist through all subsequent deformations
-	function handleConstraintModeChange(mode: ConstraintMode) {
-		uiStore.constraintMode = mode;
-		console.log(`🏺 [CONSTRAINT] Mode changed to "${mode}" - constraints now apply to all shapes!`);
 	}
 
 	function handleColorChange() {
@@ -444,32 +434,7 @@
 			</div>
 		</div>
 
-		<!-- Compression Slider -->
-		<div>
-			<label
-				for="compression-slider"
-				class="text-sm text-secondary block mb-1 flex items-center gap-2"
-				title="Squash or stretch the sculpture vertically. -0.5 = Super Stretch | 0 = Normal | 0.5 = Pancake"
-			>
-				Vertical Stretch: {verticalStretch.toFixed(2)}
-				<span class="text-subtle opacity-50"><Info size={12} /></span>
-			</label>
-			<input
-				id="compression-slider"
-				type="range"
-				min="-2.0"
-				max="0.95"
-				step="0.01"
-				bind:value={verticalStretch}
-				class="w-full"
-				onpointerdown={handlePointerDown}
-				onpointerup={handlePointerUp}
-			/>
-			<div class="flex justify-between text-xs text-secondary mt-1">
-				<span>Super Stretch</span>
-				<span>Pancake</span>
-			</div>
-		</div>
+		<!-- REMOVED: Compression/Vertical Stretch slider - confusing during singing -->
 
 		<!-- Resolution Slider (Formerly Roughness) - DIRECTIVE 1: With Voice Link -->
 		<div>
@@ -552,66 +517,22 @@
 			/>
 		</div>
 
-		<!-- DIRECTIVE: Fabrication Constraints (Persistent) -->
-		<!-- These constraints apply immediately and persist through ALL deformations -->
+		<!-- AUDIT FIX: Fabrication Constraints Badge (Read-Only) -->
+		<!-- Full constraint controls are in FabricationPanel - this is just a status indicator -->
 		<div class="border-t border-subtle pt-4">
-			<h3 class="text-sm font-semibold mb-2 text-secondary">Fabrication Constraints</h3>
-			<p class="text-xs text-secondary opacity-75 mb-3">
-				Physical constraints that persist through all slider adjustments. Ensures manufacturable
-				shapes.
-			</p>
-
-			<div class="flex gap-2 mb-4">
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode ===
-					'digital'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintModeChange('digital')}
-					title="Full creative freedom - may produce impossible shapes"
-				>
-					<span class="flex items-center justify-center gap-2"><Wand size={16} /> Digital</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode ===
-					'ceramic'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintModeChange('ceramic')}
-					title="Pottery wheel physics: hand access, smooth clay, stable base"
-				>
-					<span class="flex items-center justify-center gap-2"><Cylinder size={16} /> Ceramic</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-sm rounded border transition-colors {constraintMode ===
-					'3d_print'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintModeChange('3d_print')}
-					title="FDM printer constraints: 60° overhangs, solid contiguous geometry"
-				>
-					<span class="flex items-center justify-center gap-2"><Printer size={16} /> 3D Print</span>
-				</button>
+			<div class="flex items-center justify-between mb-2">
+				<h3 class="text-sm font-semibold text-secondary">Fabrication Mode</h3>
+				<span class="px-2 py-1 text-xs rounded-full {constraintMode === 'digital'
+					? 'bg-purple-500/20 text-purple-400'
+					: constraintMode === 'ceramic'
+						? 'bg-orange-500/20 text-orange-400'
+						: 'bg-blue-500/20 text-blue-400'}">
+					{constraintMode === 'digital' ? 'Digital' : constraintMode === 'ceramic' ? 'Ceramic' : '3D Print'}
+				</span>
 			</div>
-
-			<!-- Constraint Info -->
-			<div class="surface-panel-alt p-2 rounded text-xs text-secondary mb-3">
+			<p class="text-xs text-secondary opacity-75">
 				{getConstraintDescription(constraintMode)}
-			</div>
-
-			<!-- Ceramic-specific info -->
-			{#if constraintMode === 'ceramic'}
-				<div class="p-2 rounded bg-[#2a1a1a] border border-[#8f3e48] text-xs">
-					<p class="text-[#e0a090] font-medium mb-1 flex items-center gap-1">
-						<Cylinder size={12} /> Persistent Constraints:
-					</p>
-					<ul class="text-[#d0908a] space-y-0.5 list-disc list-inside text-xs">
-						<li>Min Width: 70mm (hand access)</li>
-						<li>Clay Smoothing: Audio jitter → smooth flow</li>
-						<li>Apply on EVERY slide change - guaranteed viable vessels!</li>
-					</ul>
-				</div>
-			{/if}
+			</p>
 		</div>
 
 		<!-- Sculpt Mode Selection -->

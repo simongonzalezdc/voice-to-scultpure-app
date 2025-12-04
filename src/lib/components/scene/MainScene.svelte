@@ -38,18 +38,43 @@
 <!-- Pure Scene Component - Canvas wrapper is in parent -->
 <T.PerspectiveCamera makeDefault position={[0, 2, 5]} fov={cameraFOV} />
 
-<!-- Main Light - Rotatable -->
+<!-- AUDIT FIX: Professional 3-Point Lighting Setup -->
+<!-- Hemisphere Light: Sky/Ground ambient for natural fill -->
+<T.HemisphereLight 
+	skyColor="#FDFBF7"
+	groundColor="#4A4A6A" 
+	intensity={0.4} 
+/>
+
+<!-- Key Light - Main directional, rotatable -->
 <T.Group rotation.y={lightAngle}>
 	<T.DirectionalLight
-		position={[5, 10, 5]}
-		intensity={1}
+		position={[5, 8, 4]}
+		intensity={1.2}
 		castShadow
 		shadow-mapSize-width={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
 		shadow-mapSize-height={appSettings.graphicsQuality === 'high' ? 2048 : 1024}
+		shadow-bias={-0.0001}
+		shadow-normalBias={0.02}
 	/>
 </T.Group>
 
-<T.AmbientLight intensity={0.3} />
+<!-- Fill Light - Softer, opposite side -->
+<T.DirectionalLight 
+	position={[-3, 4, -2]} 
+	intensity={0.4}
+	color="#E8E4E0"
+/>
+
+<!-- Rim/Back Light - Creates edge definition -->
+<T.DirectionalLight 
+	position={[0, 2, -5]} 
+	intensity={0.25}
+	color="#D4E5F7"
+/>
+
+<!-- Subtle ambient for shadow fill -->
+<T.AmbientLight intensity={0.15} />
 
 {#if currentEnv.map}
 	<Environment files={currentEnv.map} intensity={currentEnv.intensity} />

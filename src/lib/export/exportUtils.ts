@@ -21,6 +21,8 @@ export interface ExportOptions {
 		compression: number;
 		taper: number;
 	};
+	/** AUDIT FIX: Whether to scale output to real-world millimeters (for STL/3D printing) */
+	scaleToMillimeters?: boolean;
 }
 
 /**
@@ -68,6 +70,24 @@ export function generateFinalProfile(
 	if (options.modifiers) {
 		const heightScale = sculpture.physical.height / DEFAULT_HEIGHT_MM;
 		profile = applyModifiers(profile, heightScale, options.modifiers);
+	}
+
+	// AUDIT FIX: Step 5: Scale to real-world millimeters for 3D printing
+	// Profile points are in normalized units (Y: 0-1, X: radius ratio)
+	// For STL export, we need actual millimeters
+	if (options.scaleToMillimeters) {
+		const heightMM = sculpture.physical.height || DEFAULT_HEIGHT_MM;
+		// For a vase/mug, width is typically ~60% of height (aesthetic ratio)
+		// But we use the actual profile radius scaled to height
+		const baseRadiusMM = heightMM * 0.4; // Max radius ~40% of height
+		
+		profile = profile.map(point => ({
+			// Scale radius: normalized radius (0-1.5) to millimeters
+			// A radius of 0.5 (default) becomes baseRadiusMM
+			x: point.x * baseRadiusMM * 2,
+			// Scale height: normalized Y (0-1) to millimeters
+			y: point.y * heightMM
+		}));
 	}
 
 	return profile;

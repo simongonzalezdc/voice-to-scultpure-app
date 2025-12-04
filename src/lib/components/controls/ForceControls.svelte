@@ -180,7 +180,7 @@
 			step="0.01"
 			bind:value={radius}
 			disabled={isLanceMode}
-			class="w-full accent-brand-primary {isLanceMode ? 'cursor-not-allowed' : ''}"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode ? 'cursor-not-allowed' : ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Pinpoint</span>
@@ -200,7 +200,7 @@
 			max="1"
 			step="0.01"
 			bind:value={strength}
-			class="w-full accent-brand-primary"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Gentle</span>
@@ -224,7 +224,7 @@
 			step="0.01"
 			bind:value={hardness}
 			disabled={isLanceMode}
-			class="w-full accent-brand-primary {isLanceMode ? 'cursor-not-allowed' : ''}"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode ? 'cursor-not-allowed' : ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Soft</span>
@@ -248,7 +248,7 @@
 			max="0.9"
 			step="0.01"
 			bind:value={damping}
-			class="w-full accent-brand-primary"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Responsive</span>
@@ -256,12 +256,3 @@
 		</div>
 	</div>
 </div>
-
-<style>
-	input[type='range'] {
-		@apply h-1 rounded-lg appearance-none cursor-pointer;
-		background-color: var(--bg-panel-alt);
-	}
-
-	/* Custom Range Slider Styling would go here or via Tailwind plugins */
-</style>
