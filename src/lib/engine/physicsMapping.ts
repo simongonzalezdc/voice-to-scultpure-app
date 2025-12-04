@@ -122,15 +122,15 @@ export function generateLathe(
 		if (controlMode === 'melodic') {
 			// DIRECTIVE 1: Virtuoso / Melodic Mode
 			// Pitch -> Radius (Low=Wide, High=Narrow)
-			// Volume -> Twist (Accumulated)
+			// This makes intuitive sense: bass = big/wide, treble = small/narrow
 
-			// Map Pitch to Radius
-			// Range: 80Hz (Wide) to 800Hz (Narrow)
-			const pitch = frame.pitch || 440; // Default to A4 if no pitch
-			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / 720));
+			// Map Pitch to Radius using actual pitch range from constants
+			// FIX: Was using hardcoded 720, now uses (MAX_PITCH_HZ - MIN_PITCH_HZ)
+			const pitch = frame.pitch || 220; // Default to A3 (middle of range) if no pitch
+			const pitchRange = MAX_PITCH_HZ - MIN_PITCH_HZ; // 600 - 80 = 520Hz
+			const normalizedPitch = Math.max(0, Math.min(1, (pitch - MIN_PITCH_HZ) / pitchRange));
 
-			// Invert: Low pitch = Large radius (Base), High pitch = Small radius (Neck)
-			// Lerp factor 0.1 handled by useTask smoothing in real-time, here we map directly
+			// Low pitch (0) = MAX_RADIUS (wide base), High pitch (1) = MIN_RADIUS (narrow neck)
 			const targetRadius = MAX_RADIUS - normalizedPitch * (MAX_RADIUS - MIN_RADIUS);
 			radius = Math.max(MIN_RADIUS, targetRadius);
 
@@ -197,48 +197,63 @@ export function generateLathe(
 			}
 		}
 
-		// Use normalized roughness for noise modifier (jitter)
-		// DIRECTIVE 3: AMPLIFIED timbre noise (was 0.15, now 0.3)
-		const noiseMod = (Math.random() - 0.5) * normalizedRoughness * 0.3;
+		// FIX 4: DETERMINISTIC texture based on actual voice features
+		// Instead of random jitter, use voice characteristics to create repeatable texture
+		// This ensures the same voice input produces the same sculpture every time
+		
+		// Deterministic hash function using voice features
+		const voiceHash = (seed: number) => {
+			// Simple deterministic hash that looks pseudo-random but is repeatable
+			const x = Math.sin(seed * 12.9898) * 43758.5453;
+			return x - Math.floor(x); // Returns 0-1
+		};
+		
+		// Create seed from voice features (deterministic based on frame data)
+		const timbreSeed = (frame.timbre?.spectralCentroid ?? 1000) * 0.001;
+		const pitchSeed = (frame.pitch ?? 220) * 0.01;
+		const energySeed = (frame.energy ?? 0.5) * 10;
+		const indexSeed = index * 0.1;
+		
+		// Timbre-driven texture: higher spectral centroid = more textured surface
+		// FIX 4: Uses actual centroid value, not random
+		const timbreTexture = (voiceHash(timbreSeed + indexSeed) - 0.5) * normalizedRoughness * 0.3;
 
 		// Dynamic Attack Detection: Detect sharp energy spikes (chisel effect)
 		let attackJitter = 0;
 		const previousFrame = index > 0 ? sampledFrames[index - 1] : null;
 		if (previousFrame && profile?.attackThreshold) {
-			const threshold = profile.attackThreshold || 0.15; // Fallback if missing
+			const threshold = profile.attackThreshold || 0.15;
 			const deltaEnergy = Math.abs(frame.energy - previousFrame.energy);
 			const isAttack = deltaEnergy > threshold;
 
 			if (isAttack) {
-				// Sharp attack creates jagged edges (chisel effect)
-				// DIRECTIVE 3: AMPLIFIED attack cut (was 0.2, now 0.5 for 50% deeper indentation)
-				attackJitter = (Math.random() - 0.5) * 0.5;
+				// FIX 4: Deterministic attack jitter based on energy delta magnitude
+				const attackSeed = deltaEnergy * 100 + indexSeed;
+				attackJitter = (voiceHash(attackSeed) - 0.5) * deltaEnergy * 2.0; // Scaled by attack strength
 			}
 		}
 
-		// Pitch Scaling: Normalize pitch to user's range for consistent visibility
-		let pitchJitter = 0;
+		// Pitch-driven modulation: creates ripples based on pitch changes
+		// FIX 4: Uses actual pitch, not random
+		let pitchModulation = 0;
 		if (frame.pitch > 0 && profile?.pitchRange) {
 			const pitchMin = profile.pitchRange.min || 80;
 			const pitchMax = profile.pitchRange.max || 400;
 			const pitchRange = pitchMax - pitchMin;
 
 			if (pitchRange > 0) {
-				// Normalize pitch to 0-1, then scale jitter
 				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
-				// Higher pitches get more jitter, but scale so low notes are still visible
-				const pitchMultiplier = 0.3 + normalizedPitch * 0.7; // 0.3 to 1.0 range
-				// DIRECTIVE 3: AMPLIFIED pitch ripple (was 0.1, now 0.25)
-				pitchJitter = (Math.random() - 0.5) * pitchMultiplier * 0.25;
+				// FIX 4: Pitch creates subtle wave pattern, amplitude scaled by pitch position
+				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4); // Creates ~2 wave cycles
+				pitchModulation = pitchWave * normalizedPitch * 0.15;
 			}
 		} else if (frame.pitch > 400) {
-			// Fallback: If no profile, use simple threshold
-			// DIRECTIVE 3: AMPLIFIED (was 0.1, now 0.25)
-			pitchJitter = (Math.random() - 0.5) * 0.25;
+			// High pitch creates slight texture
+			pitchModulation = (voiceHash(pitchSeed + indexSeed * 2) - 0.5) * 0.1;
 		}
 
-		// Combine all jitter sources
-		const totalJitter = noiseMod + attackJitter + pitchJitter;
+		// Combine all voice-driven texture sources (FIX 4: all deterministic now)
+		const totalJitter = timbreTexture + attackJitter + pitchModulation;
 
 		// GENERATIVE PERFORMANCE: Apply beat-driven deformation
 		// Different behavior based on baseShape
@@ -342,9 +357,14 @@ export function applyModifiers(
 			radius = Math.round(radius / step) * step;
 		}
 
+		// FIX: Actually apply heightScale to Y coordinate!
+		// Without this, sculptures are always Y=0-1 regardless of heightScale
+		const scaledY = (point.y ?? 0) * safeHeightScale;
+
 		return {
 			...point,
-			x: radius
+			x: radius,
+			y: scaledY
 		};
 	});
 	
@@ -528,7 +548,8 @@ export function createSculptureFromFrames(
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone parameter
 	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
 	baseShape: BaseShape = 'lathe', // GENERATIVE PERFORMANCE: Shape type
-	resolution: number = 128 // Option B: Song Mode uses higher resolution
+	resolution: number = 128, // Option B: Song Mode uses higher resolution
+	controlMode: 'standard' | 'melodic' = 'melodic' // FIX: Default to melodic (pitch->radius)
 ): SculptureDefinition {
 	const radiusCurve = generateLathe(
 		frames,
@@ -536,7 +557,7 @@ export function createSculptureFromFrames(
 		mode,
 		zone,
 		constraintMode,
-		'standard',
+		controlMode, // FIX: Use actual control mode instead of hardcoded 'standard'
 		baseShape
 	);
 	// Surface parameters are now handled via uiStore, not sculpture

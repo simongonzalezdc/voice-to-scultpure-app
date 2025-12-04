@@ -101,15 +101,16 @@ import {
 	let useDynamicGeometry = $state(true); // Enable by default for recording
 
 	// Initialize dynamic geometry manager on mount
+	// Pre-allocate for max expected resolution to avoid runtime buffer resizing
 	$effect(() => {
 		if (!dynamicGeoManager && useDynamicGeometry) {
+			// Pre-allocate 512 points max (covers both standard and song mode)
 			dynamicGeoManager = new DynamicGeometryManager({
 				radialSegments: GEOMETRY_LATHE_SEGMENTS,
-				profileResolution: GEOMETRY_RESOLUTION_COMPOSITOR,
+				profileResolution: 512, // Pre-allocate for max - drawRange limits active portion
 				dynamic: true
 			});
-			dynamicGeoManager.generateIndices(); // Enable indexed rendering
-			console.log('🚀 [SCULPTURE] Dynamic geometry manager initialized');
+			console.log('🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts pre-allocated)');
 		}
 
 		// AUDIT FIX: Comprehensive cleanup to prevent memory leaks
@@ -156,50 +157,40 @@ import {
 	let ghostMaterialColor = $derived(deriveGhostMaterialColor(!!sculptureStore.ghostSculpture));
 
 	// Parent Rig Transform Values
-	// During recording: Height grows dynamically as you capture more frames (visual feedback)
-	// After recording: Height is based on physical dimension setting
-	const MIN_RECORDING_HEIGHT = 0.5; // Start at half height
-	const MAX_RECORDING_HEIGHT = 3.0; // Cap at 3x normal for visual feedback (more dramatic growth)
-	const FRAMES_FOR_FULL_HEIGHT = 300; // Reach max height faster (~6 seconds at 50fps)
+	// Height grows with recording duration - longer recordings = taller sculptures
+	// DRAMATIC growth for obvious visual feedback
+	const MIN_HEIGHT_RATIO = 0.3; // Start at 30% height - makes growth more visible
+	
+	// Mode-specific settings - AGGRESSIVE rates for obvious feedback
+	const getHeightParams = () => {
+		if (uiStore.recordingMode === 'song') {
+			return { growthRate: 0.25, maxRatio: 10.0 }; // 25%/sec = 2x in 4 sec, 10x in ~40 sec
+		}
+		return { growthRate: 0.50, maxRatio: 6.0 }; // 50%/sec = 2x in 2 sec, 6x in ~12 sec
+	};
 	
 	let heightScale = $derived.by(() => {
-		// RECORDING MODE: Dynamic height growth as you sing
-		// Gives visual feedback that the sculpture is "building" with your voice
+		// RECORDING: Height grows with duration (longer singing = taller sculpture)
 		if (recordingStore.state === 'recording') {
-			const frames = getCapturedFrames();
-			const frameCount = frames?.length ?? 0;
-			
-			if (frameCount === 0) {
-				const scale = MIN_RECORDING_HEIGHT;
-				console.log(`📐 [HEIGHT] Recording start: scale=${scale.toFixed(2)} (0 frames)`);
-				return scale;
+			// Use reactive frameCount from store (getCapturedFrames() doesn't trigger reactivity)
+			const frameCount = recordingStore.frameCount;
+			const seconds = frameCount / 30; // ~30 fps
+			const { growthRate, maxRatio } = getHeightParams();
+			const growthRatio = MIN_HEIGHT_RATIO + (seconds * growthRate);
+			const result = Math.min(maxRatio, growthRatio);
+			// Log every 2 seconds (60 frames)
+			if (frameCount > 0 && frameCount % 60 === 0) {
+				console.log(`📐 [HEIGHT SCALE] ${seconds.toFixed(1)}s → ${result.toFixed(2)}x (${((result-1)*100).toFixed(0)}% growth)`);
 			}
-			
-			// Grow from MIN to MAX based on frame count
-			const growthProgress = Math.min(1, frameCount / FRAMES_FOR_FULL_HEIGHT);
-			const dynamicHeight = MIN_RECORDING_HEIGHT + (MAX_RECORDING_HEIGHT - MIN_RECORDING_HEIGHT) * growthProgress;
-			
-			// Apply physical height scaling on top
-			const physHeight = sculpture?.physical.height ?? DEFAULT_HEIGHT_MM;
-			const baseScale = physHeight / DEFAULT_HEIGHT_MM;
-			
-			const finalScale = dynamicHeight * baseScale;
-			
-			// Log periodically (every 50 frames) to avoid spam
-			if (frameCount % 50 === 0) {
-				console.log(`📐 [HEIGHT] Recording: scale=${finalScale.toFixed(2)} (${frameCount} frames, growth=${(growthProgress * 100).toFixed(0)}%)`);
-			}
-			
-			return finalScale;
+			return result;
 		}
-
-		// NOT RECORDING: Use physical height setting
+		
+		// NOT RECORDING: Use stored physical height ratio
 		const height = sculpture?.physical.height;
 		if (!height || height <= 0 || !Number.isFinite(height) || Number.isNaN(height)) {
-			return 1.0;
+			return MIN_HEIGHT_RATIO;
 		}
-		const scale = height / DEFAULT_HEIGHT_MM;
-		return scale;
+		return height / DEFAULT_HEIGHT_MM;
 	});
 
 	// PHASE 2.2: RESTORE ORIENTATION ANIMATION
@@ -285,67 +276,28 @@ import {
 			else if (isRecording) {
 				const frames = getCapturedFrames();
 				if (frames && frames.length > 5) {
-					// Need at least a few frames
-					// Pass maxPoints = 0 to use EVERY frame without compression
-					// This makes the sculpture grow vertically as you sing longer
-					// NON-DESTRUCTIVE: Constraints are applied at RENDER time, not here
-					// (rate-limited logging is done via heightScale $derived)
+					// FIX 1: Use the SAME resolution for preview as will be used for final storage
+					// This ensures what you see during recording matches what you get after
+					const effectiveResolution = sculpture?.layers && sculpture.layers.length > 0
+						? getEffectiveResolution(sculpture.layers)
+						: GEOMETRY_RESOLUTION_COMPOSITOR;
 					
+					// Generate lathe with limited resolution to match final output
+					// This prevents the "looks different after recording" problem
 					const radiusCurve = generateLathe(
 						frames,
 						appSettings.userProfile,
 						uiStore.sculptMode || 'additive',
 						undefined,
 						'digital', // Raw data - constraints applied at render time
-						'standard',
+						uiStore.controlMode, // FIX: Use actual control mode (melodic = pitch->radius)
 						'lathe',
-						0 // <-- UNLIMITED RESOLUTION: No downsampling during live recording
+						effectiveResolution // FIX 1: Use same resolution as storage (was 0/unlimited)
 					);
 
-					// Get the effective resolution from existing layers or use default
-					const effectiveResolution = sculpture?.layers && sculpture.layers.length > 0
-						? getEffectiveResolution(sculpture.layers)
-						: GEOMETRY_RESOLUTION_COMPOSITOR;
-
-					// Convert to layer data
-					// CRITICAL: Store DELTA values (deviation from 0.5 baseline) for 'add' blend mode
-					// Otherwise compositor will double-count: base 0.5 + full 0.3 = 0.8 (wrong!)
-					// Should be: base 0.5 + delta (0.3-0.5) = base 0.5 + (-0.2) = 0.3 (correct!)
-					const BASELINE_RADIUS = 0.5;
-					const tempLayerData = new Float32Array(effectiveResolution);
-					for (let i = 0; i < effectiveResolution; i++) {
-						const normalizedY = i / (effectiveResolution - 1);
-						const curveLen = radiusCurve?.length ?? 1;
-						const targetIndex = Math.round(normalizedY * (curveLen - 1));
-						const clampedIndex = Math.min(targetIndex, curveLen - 1);
-						const point = radiusCurve?.[clampedIndex];
-						const fullRadius = point?.x ?? 0.5;
-						// Store delta from baseline for additive blend
-						tempLayerData[i] = fullRadius - BASELINE_RADIUS;
-					}
-
-				// LIVE PREVIEW STRATEGY:
-				// During recording, show the CURRENT recording directly without additive blending
-				// This gives clearer visual feedback of what you're creating RIGHT NOW
-				// The compositor/layer system is used AFTER recording stops
-				
-				// Check if this is effectively the first meaningful recording
-				// (Default sculpture creates a "Base Layer" that we can replace)
-				const existingLayers = sculpture?.layers ?? [];
-				const hasOnlyDefaultBase = existingLayers.length === 1 && existingLayers[0]?.name === 'Base Layer';
-				
-				if (existingLayers.length === 0 || hasOnlyDefaultBase) {
-					// First recording OR only default template - show raw recording directly
+					// FIX 1: Preview now uses the SAME profile that will be stored
+					// No more mismatch between preview and final result
 					profile = radiusCurve;
-				} else {
-					// Multiple recordings exist - show current recording overlaid
-					// Use 'overwrite' blend to preview what THIS recording looks like
-					// (user can see existing layers separately in the layer panel)
-					
-					// For now, show the raw recording directly so user sees their current input
-					// The compositor will blend properly when recording stops
-					profile = radiusCurve;
-				}
 				} else if (sculpture?.layers && sculpture.layers.length > 0) {
 					// Not enough frames yet, use existing layers
 					profile = computeProfile(sculpture.layers);
@@ -579,20 +531,18 @@ import {
 
 	$effect(() => {
 		// AUDIT FIX: Get ceramic material base with PBR properties
+		// NOTE: Build new object without reading materialProps to avoid infinite loop
 		const ceramicBase = createCeramicMaterialProps(
 			materialColor,
 			uiStore.activeGlaze.roughness ?? 0.35,
 			uiStore.activeGlaze.transmission ?? 0
 		);
 		
-		// Apply ceramic base
-		Object.assign(materialProps, ceramicBase);
-		
-		// Set emissive from glaze
-		materialProps.emissive = uiStore.activeGlaze.color;
+		// Set emissive from glaze (spread to avoid reading materialProps)
+		const withEmissive = { ...ceramicBase, emissive: uiStore.activeGlaze.color };
 
 		// Apply view mode transformations
-		const viewUpdated = updateMaterialForViewMode(materialProps, uiStore.view.mode);
+		const viewUpdated = updateMaterialForViewMode(withEmissive, uiStore.view.mode);
 
 		// Apply glaze mode transformations
 		// Check if current geometry has vertex colors
@@ -604,7 +554,8 @@ import {
 			hasVertexColors
 		);
 
-		Object.assign(materialProps, glazeUpdated);
+		// Single assignment - doesn't read materialProps, avoids infinite loop
+		materialProps = glazeUpdated;
 	});
 
 	// Voice-reactive emission (bioluminescence) with smoothing
@@ -815,7 +766,7 @@ import {
 
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
-	<T.Group rotation={[0, 0, orientationRotation]} scale={[1, heightScale, 1]} position={[0, 0, 0]}>
+	<T.Group rotation={[0, 0, orientationRotation]} scale.x={1} scale.y={heightScale} scale.z={1} position={[0, 0, 0]}>
 		<!-- LATHE MODE: Pottery wheel sculpture -->
 		{#if currentGeometry}
 			<T.Mesh
@@ -866,8 +817,8 @@ import {
 			</T.Mesh>
 		{/if}
 
-		<!-- COIL MODE: Visual band indicators -->
-		{#if uiStore.recordingMode === 'coil' && sculpture?.layers}
+		<!-- COIL MODE: DISABLED - needs fixing (layers don't stack correctly) -->
+		{#if false && uiStore.recordingMode === 'coil' && sculpture?.layers}
 			{@const layerCount = sculpture.layers.filter((l: import('$lib/types').SculptureLayer) => l.type === 'distortion').length}
 			{@const nextBandStart = layerCount / (layerCount + 1)}
 			{@const nextBandEnd = (layerCount + 1) / (layerCount + 2)}

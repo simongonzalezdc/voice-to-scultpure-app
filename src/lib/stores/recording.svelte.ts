@@ -21,6 +21,7 @@ import {
 	COIL_MODE_RESOLUTION
 } from '$lib/config/constants';
 import type { SculptureLayer } from '$lib/types';
+import { addToGallery } from './galleryStore.svelte';
 
 // ============================================================================
 // CONSOLIDATED RECORDING STATE (Single Source of Truth)
@@ -59,11 +60,13 @@ export const recordingStore = $state<{
 	startTime: number | null;
 	duration: number;
 	historyPosition: number; // 0-1 slider for time travel
+	frameCount: number; // Reactive frame count for height scaling
 }>({
 	state: 'idle',
 	startTime: null,
 	duration: 0,
-	historyPosition: 1
+	historyPosition: 1,
+	frameCount: 0
 });
 
 // Low-level state setters (internal use)
@@ -114,6 +117,7 @@ export function startRecording(): void {
 
 	// Clear frames array (prepare for new recording)
 	capturedFrames = [];
+	recordingStore.frameCount = 0;
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
 	recordingStore.historyPosition = 1;
@@ -249,8 +253,18 @@ export async function stopRecording(): Promise<void> {
 					zone,
 					'digital', // Always store raw data - constraints applied at render time
 					'lathe', // baseShape
-					resolution // Pass recording mode resolution
+					resolution, // Pass recording mode resolution
+					uiStore.controlMode // FIX: Use actual control mode (melodic = pitch->radius)
 				);
+
+				// FIX: Store height based on recording duration so final matches preview
+				// Growth rate depends on mode: Song Mode (5%/sec), Standard (15%/sec)
+				const seconds = capturedFrames.length / 30; // ~30 fps
+				const isSongMode = uiStore.recordingMode === 'song';
+				const growthRate = isSongMode ? 0.05 : 0.15; // 5%/sec vs 15%/sec
+				const maxRatio = isSongMode ? 8.0 : 4.0; // 800% vs 400%
+				const heightRatio = Math.min(maxRatio, 1.0 + seconds * growthRate);
+				sculpture.physical.height = DEFAULT_HEIGHT_MM * heightRatio;
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
@@ -270,7 +284,9 @@ export async function stopRecording(): Promise<void> {
 					appSettings.userProfile,
 					mode,
 					zone,
-					'digital' // Always raw - constraints at render time
+					'digital', // Always raw - constraints at render time
+					uiStore.controlMode, // FIX: Use actual control mode (melodic = pitch->radius)
+					'lathe'
 				);
 
 				// Convert to layer data (radius values)
@@ -373,6 +389,16 @@ export async function stopRecording(): Promise<void> {
 		}
 
 		triggerResonanceFeedback();
+
+		// AUTO-SAVE to gallery
+		if (sculptureStore.currentSculpture) {
+			const durationSec = capturedFrames.length / 30; // ~30 fps
+			addToGallery(
+				sculptureStore.currentSculpture,
+				undefined, // Auto-generate name
+				durationSec
+			);
+		}
 	} catch (err) {
 		console.error('❌ [RECORDING] Processing failed:', err);
 	} finally {
@@ -393,6 +419,7 @@ export function addAnalysisFrame(frame: import('$lib/types').AnalysisFrame): voi
 	}
 
 	capturedFrames.push(frame);
+	recordingStore.frameCount = capturedFrames.length; // Reactive for height scaling
 	recordingStore.historyPosition = 1;
 
 	// Mark geometry as dirty to trigger live preview update
@@ -414,6 +441,7 @@ export function resetRecording(): void {
 	console.log(`🔄 [RECORDING] Resetting from state: ${recordingStore.state}`);
 	_isCapturing = false; // CRITICAL FIX: Clear capture flag
 	capturedFrames = [];
+	recordingStore.frameCount = 0;
 	recordingStateSetTimings(null, 0);
 	setRecordingState('idle');
 	recordingStore.historyPosition = 1;

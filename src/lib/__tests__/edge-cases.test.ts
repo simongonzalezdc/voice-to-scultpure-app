@@ -309,7 +309,7 @@ describe('Edge Cases and Error Handling', () => {
 
 			expect(curve).toBeDefined();
 			expect(curve.length).toBeGreaterThan(0);
-			expect(curve.length).toBeLessThanOrEqual(200); // Should be limited by max points
+			expect(curve.length).toBeLessThanOrEqual(400); // Should be limited by GEOMETRY_MAX_POINTS (was 200, now 400)
 
 			// Should complete in reasonable time (less than 1 second)
 			expect(endTime - startTime).toBeLessThan(1000);

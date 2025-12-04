@@ -2,30 +2,20 @@
 	import {
 		songModeStore,
 		enableSongMode,
-		disableSongMode,
-		toggleSongModeLayer,
-		sentimentToColor,
-		hslToHex,
-		CINEMATIC_PRESETS
+		disableSongMode
 	} from '$lib/stores/songModeStore.svelte';
-	import { Music, Mic, Palette, Sparkles, FlaskConical, Layers, Volume2 } from 'lucide-svelte';
+	import { Music, Mic } from 'lucide-svelte';
 
 	// Derived states
 	let isEnabled = $derived(songModeStore.enabled);
-	let layers = $derived(songModeStore.layers);
 	let currentPhrase = $derived(songModeStore.currentPhrase);
-	let currentSentiment = $derived(songModeStore.currentSentiment);
-	let currentMood = $derived(songModeStore.currentMood);
-	let currentFormant = $derived(songModeStore.currentFormant);
 	let status = $derived(songModeStore.status);
 
-	// Computed color from sentiment
-	// Using $derived.by() for complex computed values (Svelte 5)
-	let sentimentColor = $derived.by(() => {
-		if (!currentSentiment) return '#888888';
-		const hsl = sentimentToColor(currentSentiment);
-		return hslToHex(hsl.h, hsl.s, hsl.l);
-	});
+	// TEMPORARILY DISABLED: These features are commented out
+	// - Phonetic Geometry
+	// - Narrative Strata
+	// - Atmospheric Resonance
+	// - Material Metaphor
 </script>
 
 <div class="h-full flex flex-col">
@@ -58,114 +48,17 @@
 				</div>
 			{/if}
 
-			<!-- Layer Toggles -->
-			<div class="space-y-2">
-				<p class="text-xs text-secondary uppercase tracking-wide">Layers</p>
-
-				<!-- #3 Phonetic Geometry (Core) -->
-				<button
-					class="w-full p-3 rounded border text-left transition-colors {layers.phonetic
-						? 'bg-brand-primary/10 border-brand-primary'
-						: 'bg-surface-panel-alt border-subtle'}"
-					onclick={() => toggleSongModeLayer('phonetic')}
-				>
-					<div class="flex items-center gap-2">
-						<Volume2 size={14} class={layers.phonetic ? 'text-brand-primary' : 'text-secondary'} />
-						<span class="text-sm font-medium {layers.phonetic ? 'text-primary' : 'text-secondary'}"
-							>Phonetic Geometry</span
-						>
-						<span class="ml-auto text-xs text-secondary">CORE</span>
-					</div>
-					<p class="text-xs text-secondary mt-1">Vowel sounds shape the sculpture (real-time)</p>
-					{#if layers.phonetic && currentFormant}
-						<div class="mt-2 flex gap-4 text-xs">
-							<span class="text-brand-primary">
-								Open: {(currentFormant.openness * 100).toFixed(0)}%
-							</span>
-							<span class="text-brand-primary">
-								Front: {(currentFormant.frontness * 100).toFixed(0)}%
-							</span>
-						</div>
-					{/if}
-				</button>
-
-				<!-- #2 Narrative Strata (Core) -->
-				<button
-					class="w-full p-3 rounded border text-left transition-colors {layers.narrative
-						? 'bg-brand-primary/10 border-brand-primary'
-						: 'bg-surface-panel-alt border-subtle'}"
-					onclick={() => toggleSongModeLayer('narrative')}
-				>
-					<div class="flex items-center gap-2">
-						<Palette size={14} class={layers.narrative ? 'text-brand-primary' : 'text-secondary'} />
-						<span class="text-sm font-medium {layers.narrative ? 'text-primary' : 'text-secondary'}"
-							>Narrative Strata</span
-						>
-						<span class="ml-auto text-xs text-secondary">CORE</span>
-					</div>
-					<p class="text-xs text-secondary mt-1">Lyrics sentiment → glaze colors (AI)</p>
-					{#if layers.narrative && currentSentiment}
-						<div class="mt-2 flex items-center gap-2">
-							<div
-								class="w-4 h-4 rounded-full border border-white/20"
-								style="background-color: {sentimentColor}"
-							></div>
-							<span class="text-xs text-secondary">
-								{currentSentiment.valence > 0 ? '😊' : '😢'}
-								{currentSentiment.energy > 0 ? '⚡' : '💤'}
-							</span>
-						</div>
-					{/if}
-				</button>
-
-				<!-- Divider -->
-				<div class="border-t border-subtle my-2"></div>
-				<p class="text-xs text-secondary uppercase tracking-wide flex items-center gap-1">
-					<FlaskConical size={10} /> Beta Features
+			<!-- Layer Toggles - TEMPORARILY DISABLED
+			     These features are disabled until re-enabled:
+			     - Phonetic Geometry
+			     - Narrative Strata  
+			     - Atmospheric Resonance
+			     - Material Metaphor
+			-->
+			<div class="p-3 bg-surface-panel-alt rounded border border-subtle text-center">
+				<p class="text-sm text-secondary">
+					Song Mode layers temporarily disabled for maintenance.
 				</p>
-
-				<!-- #5 Atmospheric Resonance (Beta) -->
-				<button
-					class="w-full p-3 rounded border text-left transition-colors {layers.atmosphere
-						? 'bg-amber-500/10 border-amber-500'
-						: 'bg-surface-panel-alt border-subtle'}"
-					onclick={() => toggleSongModeLayer('atmosphere')}
-				>
-					<div class="flex items-center gap-2">
-						<Sparkles size={14} class={layers.atmosphere ? 'text-amber-500' : 'text-secondary'} />
-						<span class="text-sm font-medium {layers.atmosphere ? 'text-primary' : 'text-secondary'}"
-							>Atmospheric Resonance</span
-						>
-						<span class="ml-auto text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500"
-							>BETA</span
-						>
-					</div>
-					<p class="text-xs text-secondary mt-1">Mood → environment & lighting (AI)</p>
-					{#if layers.atmosphere && currentMood}
-						<div class="mt-2 text-xs text-amber-500">
-							🎭 {currentMood.mood} ({(currentMood.confidence * 100).toFixed(0)}%)
-						</div>
-					{/if}
-				</button>
-
-				<!-- #1 Material Metaphor (Beta) -->
-				<button
-					class="w-full p-3 rounded border text-left transition-colors {layers.material
-						? 'bg-amber-500/10 border-amber-500'
-						: 'bg-surface-panel-alt border-subtle'}"
-					onclick={() => toggleSongModeLayer('material')}
-				>
-					<div class="flex items-center gap-2">
-						<Layers size={14} class={layers.material ? 'text-amber-500' : 'text-secondary'} />
-						<span class="text-sm font-medium {layers.material ? 'text-primary' : 'text-secondary'}"
-							>Material Metaphor</span
-						>
-						<span class="ml-auto text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500"
-							>BETA</span
-						>
-					</div>
-					<p class="text-xs text-secondary mt-1">Lyrics → PBR material properties (AI)</p>
-				</button>
 			</div>
 
 			<!-- Status Indicators -->

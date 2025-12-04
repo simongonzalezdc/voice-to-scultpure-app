@@ -119,15 +119,8 @@ export function computeProfile(layers: SculptureLayer[], explicitResolution?: nu
 		y: i / (resolution - 1) // Normalized height 0 to 1
 	}));
 	
-	// DEBUG: Log profile statistics
-	if (result.length > 0) {
-		const minY = Math.min(...result.map(p => p.y));
-		const maxY = Math.max(...result.map(p => p.y));
-		const minX = Math.min(...result.map(p => p.x));
-		const maxX = Math.max(...result.map(p => p.x));
-		const avgX = result.reduce((sum, p) => sum + p.x, 0) / result.length;
-		console.log(`📊 [COMPOSITOR OUT] ${result.length} pts, X=[${minX.toFixed(3)}-${maxX.toFixed(3)}] avg=${avgX.toFixed(3)}, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}]`);
-	}
+	// FIX 5: Removed excessive logging from hot path (was logging every frame)
+	// Debug logging moved to rate-limited section above
 	
 	return result;
 }

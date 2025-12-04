@@ -150,10 +150,11 @@ export const songModeStore = $state<{
 	enabled: false,
 
 	layers: {
-		phonetic: true, // Default ON - core real-time feature
-		narrative: true, // Default ON - core AI feature
-		atmosphere: false, // Default OFF - BETA feature
-		material: false // Default OFF - BETA feature
+		// TEMPORARILY DISABLED - all features off until re-enabled
+		phonetic: false, // Phonetic Geometry - DISABLED
+		narrative: false, // Narrative Strata - DISABLED
+		atmosphere: false, // Atmospheric Resonance - DISABLED
+		material: false // Material Metaphor - DISABLED
 	},
 
 	currentFormant: null,

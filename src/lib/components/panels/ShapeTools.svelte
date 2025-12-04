@@ -8,24 +8,19 @@
 	import {
 		uiStore,
 		setSculptMode,
-		setControlMode,
 		setQuantizeEnabled,
-		setSymmetryCount,
-		setRecordingMode
+		setSymmetryCount
 	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
-	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
-	import { Info, Link, Mic, Sparkles, BarChart, Music, Clock, Disc3, Layers, Zap, ChevronDown } from 'lucide-svelte';
+	import { songModeStore, enableSongMode } from '$lib/stores/songModeStore.svelte';
+	import { Info, Link, Mic, Music, Sparkles, ChevronDown } from 'lucide-svelte';
 
-	// Local state for sliders (deformation only - no duplicates!)
+	// Local state for sliders
 	let twist = $state(0);
-	// REMOVED: verticalStretch - confusing during singing
-	let smoothness = $state(0.5); // Renamed from "roughness"
+	let smoothness = $state(0.5);
 	let sculptMode = $state<'additive' | 'subtractive'>('additive');
-	let controlMode = $state(uiStore.controlMode);
-	let recordingMode = $state(uiStore.recordingMode);
 	let quantize = $derived(uiStore.modifiers.quantize);
 	let symmetryCount = $state(uiStore.modifiers.symmetryCount);
 
@@ -64,8 +59,6 @@
 			sculptMode = uiStore.sculptMode;
 		}
 
-		controlMode = uiStore.controlMode;
-		recordingMode = uiStore.recordingMode;
 		symmetryCount = uiStore.modifiers.symmetryCount;
 	});
 
@@ -154,146 +147,22 @@
 			</summary>
 			<div class="p-3 space-y-4 border-t border-subtle bg-surface-panel/50">
 				
-				<!-- Recording Duration Mode -->
-				<div class="space-y-2">
-					<p class="text-xs font-semibold text-secondary flex items-center gap-2">
-						<Clock size={12} />
-						Recording Duration
-					</p>
-					<div class="flex flex-col gap-2">
-						<button
-							class="w-full py-2 px-3 text-sm rounded border transition-colors text-left relative {recordingMode ===
-							'song'
-								? 'bg-brand-primary border-brand-primary text-white'
-								: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-							onclick={() => {
-								recordingMode = 'song';
-								setRecordingMode('song');
-								if (!songModeStore.enabled) {
-									enableSongMode();
-								}
-							}}
-							title="Song Mode: 1-5 minute recordings with 4x detail + AI features"
-						>
-							<span class="flex items-center gap-2">
-								<Music size={14} />
-								<span class="flex-1">Song Mode</span>
-								<span class="text-xs opacity-70">1-5 min</span>
-							</span>
-							{#if recordingMode === 'song'}
-								<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">DEFAULT</span>
-							{/if}
-						</button>
-						<button
-							class="w-full py-2 px-3 text-sm rounded border transition-colors text-left {recordingMode ===
-							'coil'
-								? 'bg-brand-primary border-brand-primary text-white'
-								: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-							onclick={() => {
-								recordingMode = 'coil';
-								setRecordingMode('coil');
-								if (songModeStore.enabled) {
-									disableSongMode();
-								}
-							}}
-							title="Coil Mode: Build up layers like coil handbuilding in pottery"
-						>
-							<span class="flex items-center gap-2">
-								<Layers size={14} />
-								<span class="flex-1">Coil Build</span>
-								<span class="text-xs opacity-70">∞ layers</span>
-							</span>
-						</button>
-						
-						<!-- Quick capture mode (hidden under details) -->
-						<details>
-							<summary class="text-xs text-subtle cursor-pointer hover:text-secondary py-1">
-								Quick Capture (10-30s)
-							</summary>
-							<button
-								class="w-full mt-1 py-1.5 px-2 text-xs rounded border transition-colors text-left {recordingMode ===
-								'standard'
-									? 'bg-surface-panel-alt border-brand-primary text-primary'
-									: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
-								onclick={() => {
-									recordingMode = 'standard';
-									setRecordingMode('standard');
-									if (songModeStore.enabled) {
-										disableSongMode();
-									}
-								}}
-								title="Standard Mode: 10-30 second recordings"
-							>
-								<span class="flex items-center gap-2">
-									<Zap size={12} />
-									<span class="flex-1">Quick Capture</span>
-									<span class="text-xs opacity-70">10-30s</span>
-								</span>
-							</button>
-						</details>
+				<!-- Recording Mode: Song Mode is the standard -->
+				<div class="rounded border border-brand-primary/30 bg-brand-primary/5 p-3">
+					<div class="flex items-center gap-2">
+						<Music size={14} class="text-brand-primary" />
+						<span class="text-sm font-medium text-brand-primary">Song Mode</span>
+						<span class="text-xs opacity-70 text-secondary">1-5 min</span>
 					</div>
-					<p class="text-xs text-subtle mt-1 italic">
-						{#if recordingMode === 'standard'}
-							Quick captures (128 pts). Best for short phrases.
-						{:else if recordingMode === 'song'}
-							Full songs (512 pts). Sing for minutes without losing detail.
-						{:else}
-							Stack coils like pottery. Each recording is a layer.
-						{/if}
+					<p class="text-xs text-subtle mt-1">
+						Sing for minutes. Your voice shapes the sculpture in real-time.
 					</p>
 				</div>
 
-				<!-- Control Mode: Virtuoso is Default -->
-				<div class="space-y-2 pt-2 border-t border-subtle/50">
-					<p class="text-xs font-semibold text-secondary flex items-center gap-2">
-						<BarChart size={12} />
-						Control Mode
-					</p>
-					<div class="rounded border border-brand-primary/30 bg-brand-primary/5 p-3">
-						<p class="text-sm text-secondary mb-2 flex items-center gap-2">
-							<Music size={14} class="text-brand-primary" />
-							<span class="text-brand-primary font-medium">Virtuoso Mode</span>
-							<span class="text-xs bg-brand-primary text-white px-1.5 py-0.5 rounded">ACTIVE</span>
-						</p>
-						<p class="text-xs text-secondary">
-							🎵 <strong>Pitch controls Radius</strong> — Higher = wider/narrower depending on shape.
-						</p>
-						
-						<!-- Advanced toggle for Standard mode -->
-						<details class="mt-3">
-							<summary class="text-xs text-subtle cursor-pointer hover:text-secondary">
-								Advanced: Switch to Standard
-							</summary>
-							<div class="mt-2 flex gap-2">
-								<button
-									class="flex-1 py-1.5 px-2 text-xs rounded border transition-colors {controlMode ===
-									'standard'
-										? 'bg-surface-panel-alt border-brand-primary text-primary'
-										: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
-									onclick={() => {
-										controlMode = 'standard';
-										setControlMode('standard');
-									}}
-									title="Standard Mode: Volume controls Radius"
-								>
-									Standard
-								</button>
-								<button
-									class="flex-1 py-1.5 px-2 text-xs rounded border transition-colors {controlMode ===
-									'melodic'
-										? 'bg-brand-primary border-brand-primary text-white'
-										: 'bg-surface-panel border-subtle text-secondary hover:border-brand-primary/50'}"
-									onclick={() => {
-										controlMode = 'melodic';
-										setControlMode('melodic');
-									}}
-									title="Virtuoso Mode: Pitch controls Radius"
-								>
-									Virtuoso
-								</button>
-							</div>
-						</details>
-					</div>
+				<!-- How It Works -->
+				<div class="text-xs text-secondary pt-2 border-t border-subtle/50">
+					<p class="font-semibold mb-1">🎵 How Voice Sculpting Works:</p>
+					<p class="text-subtle">Low pitch = Wide base, High pitch = Narrow top</p>
 				</div>
 			</div>
 		</details>

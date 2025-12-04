@@ -40,7 +40,8 @@ export class DynamicGeometryManager {
 	private colorBuffer: Float32Array | null = null;
 
 	private radialSegments: number;
-	private profileResolution: number;
+	private maxProfileResolution: number; // Pre-allocated max size
+	private activeProfileResolution: number; // Currently active points
 	private isDynamic: boolean;
 	private isDisposed: boolean = false;
 
@@ -49,21 +50,24 @@ export class DynamicGeometryManager {
 
 	constructor(config: DynamicGeometryConfig = {}) {
 		this.radialSegments = config.radialSegments ?? GEOMETRY_LATHE_SEGMENTS;
-		this.profileResolution = config.profileResolution ?? 128;
+		// Pre-allocate for max expected resolution to avoid runtime buffer resizing
+		this.maxProfileResolution = config.profileResolution ?? 512;
+		this.activeProfileResolution = GEOMETRY_MIN_SEGMENTS; // Start small
 		this.isDynamic = config.dynamic ?? true;
 
-		// Pre-allocate buffers
-		const vertexCount = this.calculateVertexCount();
-		this.positionBuffer = new Float32Array(vertexCount * 3);
-		this.normalBuffer = new Float32Array(vertexCount * 3);
-		this.uvBuffer = new Float32Array(vertexCount * 2);
+		// Pre-allocate buffers for MAXIMUM size upfront
+		const maxVertexCount = this.calculateVertexCount(this.maxProfileResolution);
+		this.positionBuffer = new Float32Array(maxVertexCount * 3);
+		this.normalBuffer = new Float32Array(maxVertexCount * 3);
+		this.uvBuffer = new Float32Array(maxVertexCount * 2);
 
 		// Create geometry with pre-allocated attributes
 		this.geometry = new BufferGeometry();
 		this.initializeAttributes();
+		this.generateIndices(); // Generate indices for max size upfront
 
 		console.log(
-			`🔧 [DYNAMIC-GEO] Created manager: ${this.radialSegments} segments × ${this.profileResolution} points = ${vertexCount} vertices`
+			`🔧 [DYNAMIC-GEO] Created manager: ${this.radialSegments} segments × ${this.maxProfileResolution} max points (pre-allocated)`
 		);
 	}
 
@@ -71,8 +75,8 @@ export class DynamicGeometryManager {
 	 * Calculate total vertex count for lathe geometry
 	 * LatheGeometry creates (radialSegments + 1) * profilePoints vertices
 	 */
-	private calculateVertexCount(): number {
-		return (this.radialSegments + 1) * this.profileResolution;
+	private calculateVertexCount(profileResolution?: number): number {
+		return (this.radialSegments + 1) * (profileResolution ?? this.activeProfileResolution);
 	}
 
 	/**
@@ -97,6 +101,7 @@ export class DynamicGeometryManager {
 	/**
 	 * Update geometry from a profile curve
 	 * This is the main optimization - updates buffers in-place instead of recreating geometry
+	 * Uses drawRange to render only the active portion of pre-allocated buffers
 	 *
 	 * @param profile - Array of {x: radius, y: height} points
 	 * @returns true if geometry was updated, false if skipped (no change)
@@ -112,10 +117,15 @@ export class DynamicGeometryManager {
 			return false;
 		}
 
-		// Check if profile resolution changed (rare - requires buffer reallocation)
-		if (profile.length !== this.profileResolution) {
-			this.resizeBuffers(profile.length);
+		// Clamp profile to max pre-allocated size (no runtime buffer reallocation!)
+		const clampedLength = Math.min(profile.length, this.maxProfileResolution);
+		if (profile.length > this.maxProfileResolution) {
+			// Downsample if needed (rare edge case)
+			profile = this.downsampleProfile(profile, this.maxProfileResolution);
 		}
+
+		// Update active resolution (no buffer reallocation - just tracking)
+		this.activeProfileResolution = clampedLength;
 
 		// Dirty check - skip if profile hasn't changed
 		const profileHash = this.hashProfile(profile);
@@ -124,8 +134,12 @@ export class DynamicGeometryManager {
 		}
 		this.lastProfileHash = profileHash;
 
-		// Generate lathe vertices
+		// Generate lathe vertices into pre-allocated buffers
 		this.generateLatheVertices(profile);
+
+		// Update draw range to only render active vertices (KEY FIX)
+		const activeIndexCount = this.calculateIndexCount(clampedLength);
+		this.geometry.setDrawRange(0, activeIndexCount);
 
 		// Mark attributes as needing update
 		const posAttr = this.geometry.getAttribute('position') as BufferAttribute;
@@ -141,6 +155,28 @@ export class DynamicGeometryManager {
 		this.geometry.computeBoundingBox();
 
 		return true;
+	}
+
+	/**
+	 * Downsample a profile to fit within max resolution
+	 */
+	private downsampleProfile(profile: LathePoint[], targetLength: number): LathePoint[] {
+		const result: LathePoint[] = [];
+		for (let i = 0; i < targetLength; i++) {
+			const t = i / (targetLength - 1);
+			const srcIdx = Math.floor(t * (profile.length - 1));
+			const point = profile[srcIdx];
+			if (point) result.push(point);
+		}
+		return result;
+	}
+
+	/**
+	 * Calculate index count for a given profile resolution
+	 * Each quad = 2 triangles = 6 indices
+	 */
+	private calculateIndexCount(profileResolution: number): number {
+		return this.radialSegments * (profileResolution - 1) * 6;
 	}
 
 	/**
@@ -234,41 +270,7 @@ export class DynamicGeometryManager {
 		}
 	}
 
-	/**
-	 * Resize buffers when profile resolution changes
-	 * This is expensive but should be rare (only when resolution changes)
-	 */
-	private resizeBuffers(newResolution: number): void {
-		console.log(
-			`🔄 [DYNAMIC-GEO] Resizing buffers: ${this.profileResolution} → ${newResolution} points`
-		);
 
-		this.profileResolution = newResolution;
-		const vertexCount = this.calculateVertexCount();
-
-		// Reallocate buffers
-		this.positionBuffer = new Float32Array(vertexCount * 3);
-		this.normalBuffer = new Float32Array(vertexCount * 3);
-		this.uvBuffer = new Float32Array(vertexCount * 2);
-
-		// Update geometry attributes
-		const usage = this.isDynamic ? DynamicDrawUsage : StaticDrawUsage;
-
-		const positionAttr = new BufferAttribute(this.positionBuffer, 3);
-		positionAttr.setUsage(usage);
-		this.geometry.setAttribute('position', positionAttr);
-
-		const normalAttr = new BufferAttribute(this.normalBuffer, 3);
-		normalAttr.setUsage(usage);
-		this.geometry.setAttribute('normal', normalAttr);
-
-		const uvAttr = new BufferAttribute(this.uvBuffer, 2);
-		uvAttr.setUsage(usage);
-		this.geometry.setAttribute('uv', uvAttr);
-
-		// Clear hash to force update
-		this.lastProfileHash = '';
-	}
 
 	/**
 	 * Update vertex colors
@@ -324,23 +326,20 @@ export class DynamicGeometryManager {
 	}
 
 	/**
-	 * Create a simple hash of the profile for dirty checking
+	 * Create a hash of the profile for dirty checking
+	 * FIX 5: Increased sampling density from 5 to 20 points to detect subtle changes
 	 */
 	private hashProfile(profile: LathePoint[]): string {
-		// Sample a few points for quick comparison
-		const samples = [
-			0,
-			Math.floor(profile.length / 4),
-			Math.floor(profile.length / 2),
-			Math.floor((profile.length * 3) / 4),
-			profile.length - 1
-		];
+		// FIX 5: Sample 20 evenly distributed points for better change detection
+		const sampleCount = Math.min(20, profile.length);
 		let hash = `${profile.length}:`;
 
-		for (const i of samples) {
-			const p = profile[i];
+		for (let i = 0; i < sampleCount; i++) {
+			const idx = Math.floor((i / (sampleCount - 1)) * (profile.length - 1));
+			const p = profile[idx];
 			if (p) {
-				hash += `${p.x.toFixed(4)},${p.y.toFixed(4)};`;
+				// Use 3 decimal places for better precision without excessive string length
+				hash += `${p.x.toFixed(3)},`;
 			}
 		}
 
@@ -362,14 +361,14 @@ export class DynamicGeometryManager {
 	}
 
 	/**
-	 * Check if geometry needs index buffer (for optimized rendering)
-	 * LatheGeometry benefits from indexed rendering
+	 * Generate index buffer for optimized rendering
+	 * Pre-generates indices for max resolution; drawRange limits what's rendered
 	 */
 	generateIndices(): void {
 		if (this.geometry.index) return; // Already has indices
 
 		const segments = this.radialSegments;
-		const points = this.profileResolution;
+		const points = this.maxProfileResolution; // Use max size for pre-allocation
 		const indices: number[] = [];
 
 		for (let i = 0; i < segments; i++) {
@@ -406,7 +405,7 @@ export class DynamicGeometryManager {
 export function createDynamicGeometry(config?: DynamicGeometryConfig): DynamicGeometryManager {
 	return new DynamicGeometryManager({
 		radialSegments: GEOMETRY_LATHE_SEGMENTS,
-		profileResolution: 128,
+		profileResolution: 512, // Pre-allocate for max expected resolution
 		dynamic: true,
 		...config
 	});

@@ -26,20 +26,24 @@ export const SMOOTHING_FACTOR = 0.15; // Volume smoothing (lower = smoother, 0.1
 export const SIGNAL_THRESHOLD = 0.02; // Minimum RMS for pitch detection (was 0.05, lowered for sensitivity)
 
 // Sculpture Geometry Constants
-export const SCULPTURE_BASE_RADIUS = 0.2; // Base radius for additive sculpting
-export const SCULPTURE_MAX_RADIUS = 1.5; // Maximum radius (standard block size for subtractive mode)
-export const SCULPTURE_MIN_RADIUS = 0.05; // Minimum radius (allows deeper cuts)
-export const SCULPTURE_SENSITIVITY = 3.5; // Energy to radius multiplier (amplified from 2.0)
+// FIX: Proper proportions for vase-like shapes (taller than wide)
+// With height normalized to 1.0, radius should be smaller for proper aspect ratio
+export const SCULPTURE_BASE_RADIUS = 0.25; // Base/default radius (was 0.15)
+export const SCULPTURE_MAX_RADIUS = 0.5; // Maximum radius - diameter 1.0 = same as height (was 2.0!)
+export const SCULPTURE_MIN_RADIUS = 0.1; // Minimum radius for narrow necks (was 0.03 - too extreme)
+export const SCULPTURE_SENSITIVITY = 3.0; // Energy to radius multiplier (was 5.0 - too aggressive)
 
 // Geometry Resolution
+// FIX 2: Increased resolutions for more detailed sculptures
 export const GEOMETRY_MIN_SEGMENTS = 6; // Low poly (hexagonal/blocky)
-export const GEOMETRY_MAX_SEGMENTS = 64; // High poly (smooth)
-export const GEOMETRY_MAX_POINTS = 200; // Maximum points in lathe curve (high res)
+export const GEOMETRY_MAX_SEGMENTS = 96; // High poly (was 64 - smoother curves)
+export const GEOMETRY_MAX_POINTS = 400; // Maximum points in lathe curve (was 200 - more detail)
 
 // Recording Mode Resolution (Option B: Song Mode)
-export const STANDARD_MODE_RESOLUTION = 128; // Standard mode: 10-30 second recordings
-export const SONG_MODE_RESOLUTION = 512; // Song mode: 1-5 minute recordings (4x detail)
-export const COIL_MODE_RESOLUTION = 256; // Coil mode: Each coil layer (Option C)
+// FIX 2: Doubled resolutions for better preview-to-final consistency
+export const STANDARD_MODE_RESOLUTION = 256; // Standard mode: 10-30 second recordings (was 128)
+export const SONG_MODE_RESOLUTION = 768; // Song mode: 1-5 minute recordings (was 512)
+export const COIL_MODE_RESOLUTION = 384; // Coil mode: Each coil layer (was 256)
 
 // Timbre Range (Spectral Centroid)
 export const TIMBRE_MIN_HZ = 1000; // Typical spectral centroid for silence/breathing
@@ -91,14 +95,16 @@ export const CALIBRATION_ATTACK_THRESHOLD_MAX = 0.5; // Maximum attack threshold
 export const CALIBRATION_ENERGY_DELTA_STDDEV_MULTIPLIER = 2; // Multiplier for std dev in attack threshold
 
 // Geometry Creation Constants (from Sculpture.svelte)
-export const GEOMETRY_LATHE_SEGMENTS = 64; // Default segments for LatheGeometry
-export const GEOMETRY_RESOLUTION_COMPOSITOR = 128; // Resolution used by compositor for layer data
+// FIX 2: Increased segments for smoother sculptures
+export const GEOMETRY_LATHE_SEGMENTS = 96; // Default segments for LatheGeometry (was 64)
+export const GEOMETRY_RESOLUTION_COMPOSITOR = 256; // Resolution used by compositor (was 128)
 export const SYMMETRY_DISTORTION_AMPLITUDE = 0.2; // Max distortion amplitude for symmetry effect
 export const HEATMAP_STRESS_COLOR_AMPLITUDE = 1.0; // Amplitude scaling for stress colors
 
 // Compositor Frame Rate Limiting (from Sculpture.svelte)
-export const COMPOSITOR_TARGET_FPS = 30; // Target FPS for geometry updates (30fps sufficient for smooth sculpture)
-export const COMPOSITOR_FRAME_TIME_MS = 1000 / 30; // Pre-calculated frame time in milliseconds
+// 30fps is sufficient for sculpture preview - no need for 60fps
+export const COMPOSITOR_TARGET_FPS = 30; // Target FPS for geometry updates
+export const COMPOSITOR_FRAME_TIME_MS = 1000 / 30; // Pre-calculated frame time in milliseconds (~33ms)
 
 // Voice-Reactive Material Constants (from Sculpture.svelte)
 export const VOICE_REACTION_GLOW_MULTIPLIER = 2.0; // Pitch to glow amplification (was 2.0 * 3.0)

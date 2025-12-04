@@ -6,8 +6,10 @@
 	import GlazeMixer from '$lib/components/panels/GlazeMixer.svelte';
 	import ExportTools from '$lib/components/panels/ExportTools.svelte';
 	import SongModePanel from '$lib/components/panels/SongModePanel.svelte';
+	import Gallery from '$lib/components/panels/Gallery.svelte';
 	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
-	import { Music, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { galleryStore } from '$lib/stores/galleryStore.svelte';
+	import { Music, Image, ChevronDown, ChevronRight } from 'lucide-svelte';
 
 	// NEW ARCHITECTURE:
 	// - ObjectProperties: Always visible (single source of truth)
@@ -29,6 +31,9 @@
 	let isSongRecordingMode = $derived(uiStore.recordingMode === 'song');
 	let isSongModeEnabled = $derived(songModeStore.enabled);
 
+	// Gallery state
+	let isGalleryExpanded = $state(true); // Default expanded so users see their sculptures
+
 	// Auto-expand Song Mode panel when recording mode is 'song'
 	$effect(() => {
 		if (isSongRecordingMode && !isSongModeExpanded) {
@@ -42,6 +47,10 @@
 	function toggleSongModePanel() {
 		isSongModeExpanded = !isSongModeExpanded;
 	}
+
+	function toggleGalleryPanel() {
+		isGalleryExpanded = !isGalleryExpanded;
+	}
 </script>
 
 <!-- FIXED: Entire sidebar scrolls as one unit -->
@@ -50,6 +59,35 @@
 	<!-- ObjectProperties: Always Visible (Single Source of Truth) -->
 	<div class="border-b border-subtle">
 		<ObjectProperties />
+	</div>
+
+	<!-- Gallery Collapsible Panel -->
+	<div class="border-b border-subtle">
+		<button
+			class="w-full p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+			onclick={toggleGalleryPanel}
+		>
+			<div class="flex items-center gap-2">
+				<Image size={16} class="text-secondary" />
+				<span class="text-sm font-medium text-secondary">Gallery</span>
+				{#if galleryStore.count > 0}
+					<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-white/10 text-secondary">
+						{galleryStore.count}
+					</span>
+				{/if}
+			</div>
+			{#if isGalleryExpanded}
+				<ChevronDown size={16} class="text-secondary" />
+			{:else}
+				<ChevronRight size={16} class="text-secondary" />
+			{/if}
+		</button>
+
+		{#if isGalleryExpanded}
+			<div class="gallery-content border-t border-subtle/50">
+				<Gallery />
+			</div>
+		{/if}
 	</div>
 
 	<!-- Song Mode Collapsible Panel -->
@@ -143,8 +181,9 @@
 		border-color: var(--border-subtle);
 	}
 
-	/* Song Mode collapsible panel */
-	.song-mode-content {
+	/* Collapsible panels */
+	.song-mode-content,
+	.gallery-content {
 		max-height: 400px;
 		overflow-y: auto;
 		animation: slide-down 0.2s ease-out;
