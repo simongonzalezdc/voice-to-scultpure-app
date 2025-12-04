@@ -7,6 +7,20 @@
 
 import type { LathePoint } from '$lib/types';
 import { safeArrayAccess, isValidIndex } from '$lib/utils/arrayHelpers';
+import {
+	CONSTRAINT_DIFF_THRESHOLD,
+	CERAMIC_MIN_HAND_RADIUS,
+	CERAMIC_MAX_OVERHANG_ANGLE,
+	CERAMIC_BASE_STABILITY_RATIO,
+	CERAMIC_TOP_EXEMPT_THRESHOLD,
+	CERAMIC_CRITICAL_MIN_RADIUS,
+	CERAMIC_SMOOTH_WINDOW,
+	CERAMIC_BASE_HEIGHT_THRESHOLD,
+	PRINT_3D_MAX_OVERHANG_ANGLE,
+	PRINT_3D_MIN_RADIUS,
+	PRINT_3D_STEEP_INWARD_ANGLE,
+	PRINT_3D_FIRST_LAYER_MIN_RADIUS
+} from '$lib/config/constants';
 
 export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
 
@@ -66,7 +80,7 @@ export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): n
 		const diff = Math.abs(original.x - fixed.x);
 
 		// If fixed is different, it was a violation
-		if (diff > 0.001) {
+		if (diff > CONSTRAINT_DIFF_THRESHOLD) {
 			// How severe?
 			// Normalized difference relative to original size?
 			// Or just simple boolean logic: if it needed fixing, it's risky.
@@ -105,49 +119,36 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
 function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
 
-	// AUDIT FIX: Real-world minimum for hand access
-	// A human hand needs ~70mm diameter opening (35mm radius)
-	// In normalized units relative to typical 150mm height:
-	// 35mm / (150mm * 0.4 baseRadiusRatio) ≈ 0.58 normalized radius
-	// But we're more lenient to allow artistic freedom, requiring ~0.2 minimum
-	// which translates to ~24mm radius on a 150mm tall vase (finger access)
-	const MIN_HAND_RADIUS = 0.2; // ~24mm radius - allows finger access, warns for hand access
-
-	const MAX_OVERHANG_ANGLE = 45; // degrees
-	const BASE_STABILITY_RATIO = 1.2; // Base should be 1.2x wider than average (reduced from 1.5)
-
 	// RULE A: Hand Access - Ensure minimum radius for hand entry
 	// Exception: Top 5% (rim) can be narrower for closure
-	const topThreshold = 0.95; // Top 5% exempt
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) {
-			constrained[i] = { x: MIN_HAND_RADIUS, y: i / constrained.length };
+			constrained[i] = { x: CERAMIC_MIN_HAND_RADIUS, y: i / constrained.length };
 			continue;
 		}
 
 		const normalizedHeight = point.y;
 
 		// Allow rim to close (top 5%)
-		if (normalizedHeight < topThreshold) {
+		if (normalizedHeight < CERAMIC_TOP_EXEMPT_THRESHOLD) {
 			// HARDENED: Enforce stricter minimum radius for hand access
-			if (point.x < MIN_HAND_RADIUS) {
-				point.x = MIN_HAND_RADIUS;
+			if (point.x < CERAMIC_MIN_HAND_RADIUS) {
+				point.x = CERAMIC_MIN_HAND_RADIUS;
 			}
 		}
 	}
 
 	// DIRECTIVE 1B: Structural Smoothing - Apply Simple Moving Average (SMA)
 	// Smooth audio jitter into clay flow using a 7-point moving average
-	const SMOOTH_WINDOW = 7;
 	const smoothed: LathePoint[] = [];
 
 	for (let i = 0; i < constrained.length; i++) {
 		const currentPoint = safeArrayAccess(constrained, i);
 		if (!currentPoint) continue;
 
-		const start = Math.max(0, i - Math.floor(SMOOTH_WINDOW / 2));
-		const end = Math.min(constrained.length, i + Math.floor(SMOOTH_WINDOW / 2) + 1);
+		const start = Math.max(0, i - Math.floor(CERAMIC_SMOOTH_WINDOW / 2));
+		const end = Math.min(constrained.length, i + Math.floor(CERAMIC_SMOOTH_WINDOW / 2) + 1);
 
 		let sumRadius = 0;
 		let count = 0;
@@ -191,9 +192,9 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 		if (dx > 0 && dy > 0) {
 			const angle = Math.atan(dx / dy) * (180 / Math.PI);
 
-			if (angle > MAX_OVERHANG_ANGLE) {
+			if (angle > CERAMIC_MAX_OVERHANG_ANGLE) {
 				// Clamp to max overhang angle
-				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
+				const maxDx = dy * Math.tan((CERAMIC_MAX_OVERHANG_ANGLE * Math.PI) / 180);
 				currPoint.x = prevPoint.x + maxDx;
 			}
 		}
@@ -203,12 +204,10 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// If shape is too narrow overall (below hand access), boost entire shape outward
 	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
 	const minDetectedRadius = Math.min(...constrained.map((p) => p.x));
-
 	// Only boost if the shape is dangerously narrow (would collapse)
-	const criticalMinRadius = 0.05; // Absolute minimum to prevent degenerate geometry
-	if (averageRadius < criticalMinRadius || minDetectedRadius < criticalMinRadius / 2) {
+	if (averageRadius < CERAMIC_CRITICAL_MIN_RADIUS || minDetectedRadius < CERAMIC_CRITICAL_MIN_RADIUS / 2) {
 		// Boost entire shape to ensure it forms a viable vessel
-		const boostAmount = Math.max(0, criticalMinRadius - minDetectedRadius);
+		const boostAmount = Math.max(0, CERAMIC_CRITICAL_MIN_RADIUS - minDetectedRadius);
 		console.log(
 			`🏺 [CERAMIC] Boosting shape by ${boostAmount.toFixed(3)} (avgRadius: ${averageRadius.toFixed(3)}, min: ${minDetectedRadius.toFixed(3)})`
 		);
@@ -223,7 +222,6 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 
 	// RULE C: Base Stability - Wide base to support upper mass
 	// Bottom 10% should be slightly wider for stability (but not excessively)
-	const baseThreshold = 0.1;
 	const updatedAverageRadius =
 		constrained.reduce((sum, p) => {
 			if (!p) return sum;
@@ -232,8 +230,8 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// FIXED: Use a more reasonable minimum base radius
 	// This prevents the "flat disc" appearance while still ensuring stability
 	const minBaseRadius = Math.max(
-		updatedAverageRadius * BASE_STABILITY_RATIO, // 1.2x average
-		MIN_HAND_RADIUS // At least the minimum hand radius
+		updatedAverageRadius * CERAMIC_BASE_STABILITY_RATIO, // 1.2x average
+		CERAMIC_MIN_HAND_RADIUS // At least the minimum hand radius
 	);
 
 	let basePointsAdjusted = 0;
@@ -241,7 +239,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) continue;
 
-		if (point.y < baseThreshold) {
+		if (point.y < CERAMIC_BASE_HEIGHT_THRESHOLD) {
 			// Enforce wide base
 			if (point.x < minBaseRadius) {
 				point.x = minBaseRadius;
@@ -263,8 +261,6 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
  */
 function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
-	const MAX_OVERHANG_ANGLE = 60; // degrees (FDM typical: 45-60°)
-	const MIN_RADIUS = 0.001; // 1mm minimum (prevents zero-radius gaps)
 
 	// RULE A: Overhang Constraints
 	// Limit how fast radius can grow relative to layer height
@@ -283,9 +279,9 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 			// Calculate angle from vertical
 			const angle = Math.atan(dx / dy) * (180 / Math.PI);
 
-			if (angle > MAX_OVERHANG_ANGLE) {
+			if (angle > PRINT_3D_MAX_OVERHANG_ANGLE) {
 				// Clamp to max printable overhang
-				const maxDx = dy * Math.tan((MAX_OVERHANG_ANGLE * Math.PI) / 180);
+				const maxDx = dy * Math.tan((PRINT_3D_MAX_OVERHANG_ANGLE * Math.PI) / 180);
 				currPoint.x = prevPoint.x + maxDx;
 			}
 		}
@@ -293,7 +289,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 		// Inward slopes are fine (no support needed when printing)
 		// But we smooth sharp inward transitions to avoid bridging issues
 		if (dx < 0) {
-			const maxNegativeDx = -dy * Math.tan((75 * Math.PI) / 180); // Allow steep inward
+			const maxNegativeDx = -dy * Math.tan((PRINT_3D_STEEP_INWARD_ANGLE * Math.PI) / 180);
 			if (dx < maxNegativeDx) {
 				currPoint.x = prevPoint.x + maxNegativeDx;
 			}
@@ -306,8 +302,8 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) continue;
 
-		if (point.x < MIN_RADIUS) {
-			point.x = MIN_RADIUS;
+		if (point.x < PRINT_3D_MIN_RADIUS) {
+			point.x = PRINT_3D_MIN_RADIUS;
 		}
 	}
 
@@ -316,9 +312,8 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	if (constrained.length > 0) {
 		const firstPoint = safeArrayAccess(constrained, 0);
 		if (firstPoint) {
-			const firstLayerMinRadius = 0.01; // 10mm minimum first layer
-			if (firstPoint.x < firstLayerMinRadius) {
-				firstPoint.x = firstLayerMinRadius;
+			if (firstPoint.x < PRINT_3D_FIRST_LAYER_MIN_RADIUS) {
+				firstPoint.x = PRINT_3D_FIRST_LAYER_MIN_RADIUS;
 			}
 		}
 	}

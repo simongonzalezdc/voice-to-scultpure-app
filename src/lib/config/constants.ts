@@ -112,3 +112,69 @@ export const FORCE_MODE_PITCH_MIN_HZ = 80; // Minimum pitch for force mode targe
 export const FORCE_MODE_PITCH_MAX_HZ = 800; // Maximum pitch for force mode target
 export const FORCE_MODE_MIC_LEVEL_THRESHOLD = 0.05; // Minimum mic level to show force target
 export const FORCE_MODE_FALLBACK_RADIUS = 0.5; // Fallback radius when geometry sampling fails
+
+// =============================================================================
+// AUDIT FIX: Extracted Magic Numbers
+// =============================================================================
+
+// Physics Mapping Constants
+export const BEAT_DECAY_TIME_MS = 300; // How long beat effect lasts
+export const DEFAULT_PITCH_A4_HZ = 440; // A4 reference pitch
+export const PITCH_RANGE_HZ = 720; // Pitch normalization range (was MAX - MIN)
+export const TIMBRE_NOISE_AMPLITUDE = 0.3; // Amplified timbre noise (was 0.15)
+export const PITCH_JITTER_AMPLITUDE = 0.25; // Amplified pitch ripple (was 0.1)
+export const QUANTIZE_STEP = 0.15; // 15% increments for Lego filter (~7 distinct levels)
+export const TIMBRE_NORMALIZATION_HZ = 5000; // Timbre normalization divisor
+export const PHYSICS_LOG_INTERVAL_MS = 3000; // Rate limit for physics logging
+
+// Glaze Generation Constants
+export const GLAZE_MAX_POINTS = 200; // Maximum points for glaze color generation
+export const GLAZE_PITCH_HUE_MAX = 280; // 0° (red) to 280° (purple) hue range
+export const GLAZE_SATURATION_BASE = 0.5; // Base saturation (50%)
+export const GLAZE_SATURATION_RANGE = 0.5; // Saturation range added by energy
+
+// Ceramic Material PBR Constants (from materialFactory.ts)
+export const CERAMIC_DEFAULT_ROUGHNESS = 0.35; // Semi-matte ceramic body
+export const CERAMIC_CLEARCOAT = 0.9; // Base clearcoat for glossy glazes
+export const CERAMIC_CLEARCOAT_ROUGHNESS = 0.15; // Slightly textured glaze
+export const CERAMIC_SHEEN = 0.3; // Subtle ceramic sheen
+export const CERAMIC_SHEEN_ROUGHNESS = 0.4; // Sheen roughness
+export const CERAMIC_SHEEN_COLOR = '#E8DCC8'; // Warm ceramic undertone
+export const CERAMIC_IOR = 1.52; // Glass-like index of refraction for glaze
+export const CERAMIC_THICKNESS = 0.5; // Subsurface scatter distance
+export const CERAMIC_ENV_MAP_INTENSITY = 1.2; // Environment reflection strength
+export const CERAMIC_ATTENUATION_COLOR = '#D4C4A8'; // Warm clay shows through
+export const CERAMIC_ATTENUATION_DISTANCE = 0.5; // Attenuation distance
+
+// Energy/Dazzler Material Constants
+export const ENERGY_MATERIAL_BASE_COLOR = '#111111'; // Dark charcoal base
+export const ENERGY_MATERIAL_ROUGHNESS = 0.8; // Matte to prevent reflection interference
+
+// Fabrication Constraint Constants
+export const CONSTRAINT_DIFF_THRESHOLD = 0.001; // Threshold for detecting constraint changes
+export const CERAMIC_MIN_HAND_RADIUS = 0.2; // ~24mm radius for finger access
+export const CERAMIC_MAX_OVERHANG_ANGLE = 45; // Maximum outward overhang (degrees)
+export const CERAMIC_BASE_STABILITY_RATIO = 1.2; // Base should be 1.2x wider than average
+export const CERAMIC_TOP_EXEMPT_THRESHOLD = 0.95; // Top 5% exempt from min radius (rim)
+export const CERAMIC_CRITICAL_MIN_RADIUS = 0.05; // Absolute minimum to prevent degenerate geometry
+export const CERAMIC_SMOOTH_WINDOW = 7; // SMA window size for clay smoothing
+export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.1; // Bottom 10% is base zone
+
+// 3D Print Constraint Constants
+export const PRINT_3D_MAX_OVERHANG_ANGLE = 60; // FDM typical max overhang (degrees)
+export const PRINT_3D_MIN_RADIUS = 0.001; // 1mm minimum to prevent zero-radius gaps
+export const PRINT_3D_STEEP_INWARD_ANGLE = 75; // Allow steep inward slopes (degrees)
+export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.01; // 10mm minimum first layer for adhesion
+
+// Compositor Constants
+export const COMPOSITOR_MIN_RADIUS = 0.01; // Minimum radius constraint in compositor
+export const COMPOSITOR_LOG_INTERVAL_MS = 2000; // Rate limit for compositor logging
+export const COMPOSITOR_DEFAULT_RESOLUTION = 128; // Default resolution if not specified
+
+// Dynamic Geometry Manager Constants
+export const NORMAL_LENGTH_THRESHOLD = 0.0001; // Minimum normal length before normalization
+
+// High-Res Export Constants
+export const EXPORT_SEGMENTS_HIGH = 128; // 4x higher than preview (32)
+export const EXPORT_SUPER_SAMPLE_FACTOR = 2; // 2x super-sampling for AA
+export const EXPORT_TONE_MAPPING_EXPOSURE = 1.2; // ACES tone mapping exposure

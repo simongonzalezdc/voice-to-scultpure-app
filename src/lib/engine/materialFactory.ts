@@ -14,7 +14,20 @@ import {
 	PLASTIC_COLOR_LIGHTEN_FACTOR,
 	ERROR_COLOR,
 	GHOST_OPACITY,
-	GHOST_ROUGHNESS
+	GHOST_ROUGHNESS,
+	CERAMIC_DEFAULT_ROUGHNESS,
+	CERAMIC_CLEARCOAT,
+	CERAMIC_CLEARCOAT_ROUGHNESS,
+	CERAMIC_SHEEN,
+	CERAMIC_SHEEN_ROUGHNESS,
+	CERAMIC_SHEEN_COLOR,
+	CERAMIC_IOR,
+	CERAMIC_THICKNESS,
+	CERAMIC_ENV_MAP_INTENSITY,
+	CERAMIC_ATTENUATION_COLOR,
+	CERAMIC_ATTENUATION_DISTANCE,
+	ENERGY_MATERIAL_BASE_COLOR,
+	ENERGY_MATERIAL_ROUGHNESS
 } from '$lib/config/constants';
 
 /**
@@ -136,11 +149,11 @@ export function createBaseMaterialProps(
  */
 export function createCeramicMaterialProps(
 	baseColor: string,
-	glazeRoughness: number = 0.35,
+	glazeRoughness: number = CERAMIC_DEFAULT_ROUGHNESS,
 	glazeTransmission: number = 0
 ): MaterialProps {
 	// Adjust clearcoat based on roughness - glossy glazes have more clearcoat
-	const clearcoatAmount = Math.max(0, 0.9 - glazeRoughness * 0.8);
+	const clearcoatAmount = Math.max(0, CERAMIC_CLEARCOAT - glazeRoughness * 0.8);
 	
 	return {
 		color: baseColor,
@@ -154,20 +167,20 @@ export function createCeramicMaterialProps(
 		vertexColors: false,
 		// Glaze layer (clearcoat simulates the glassy coating)
 		clearcoat: clearcoatAmount,
-		clearcoatRoughness: 0.15,
+		clearcoatRoughness: CERAMIC_CLEARCOAT_ROUGHNESS,
 		// Ceramic body sheen (subtle light scattering)
-		sheen: 0.3,
-		sheenRoughness: 0.4,
-		sheenColor: '#E8DCC8', // Warm ceramic undertone
+		sheen: CERAMIC_SHEEN,
+		sheenRoughness: CERAMIC_SHEEN_ROUGHNESS,
+		sheenColor: CERAMIC_SHEEN_COLOR,
 		// Environment reflections
-		envMapIntensity: 1.2,
+		envMapIntensity: CERAMIC_ENV_MAP_INTENSITY,
 		// Glaze refraction (glass-like IOR for glaze)
-		ior: 1.52,
+		ior: CERAMIC_IOR,
 		// Translucent glaze properties
 		transmission: glazeTransmission,
-		thickness: 0.5, // Subsurface scatter distance
-		attenuationColor: '#D4C4A8', // Warm clay shows through translucent glaze
-		attenuationDistance: 0.5
+		thickness: CERAMIC_THICKNESS,
+		attenuationColor: CERAMIC_ATTENUATION_COLOR,
+		attenuationDistance: CERAMIC_ATTENUATION_DISTANCE
 	};
 }
 
@@ -187,8 +200,8 @@ export function createEnergyMaterialProps(config: EnergyMaterialConfig): Materia
 		: 0;
 
 	return {
-		color: '#111111', // Dark charcoal base
-		roughness: 0.8, // Matte to prevent reflections interfering with glow
+		color: ENERGY_MATERIAL_BASE_COLOR,
+		roughness: ENERGY_MATERIAL_ROUGHNESS,
 		metalness: 0,
 		emissive: config.emissiveColor,
 		emissiveIntensity: totalIntensity,
