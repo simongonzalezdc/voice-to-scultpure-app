@@ -235,34 +235,19 @@ export function generateLathe(
 	const musicalIntensity = uiStore.musicalDetailIntensity ?? 0.5;
 	const intensityMultiplier = 0.25 + (musicalIntensity * 1.75); // Range: 0.25x to 2x
 
-	// FORM MODE: Silhouette Core disables beat/phrase deformation for clean pitch-driven shape
-	const silhouetteCoreEnabled = uiStore.formModes?.silhouetteCoreEnabled ?? false;
-
-	// B3: Beat-Driven Sculptural Features
-	// DISABLED when Silhouette Core mode is active (removes spark plug rings)
+	// SILHOUETTE CORE (DEFAULT): Disable beat/phrase deformation for clean pitch-driven shapes
+	// This is now the DEFAULT foundation for all sculptures.
+	// Beat ridges and phrase markers create the "spark plug" appearance which we've removed.
+	// The result: voice data flows directly as the silhouette without visual noise.
 	let beatDeformation = 0;
-	if (!silhouetteCoreEnabled) {
-		if (isBeat) {
-			// Create distinct ridge for beat
-			// Scaled by musical detail intensity
-			beatDeformation = 0.25 * intensityMultiplier;
-		} else if (beatMultiplier > 1.0) {
-			// Decay
-			beatDeformation = (beatMultiplier - 1.0) * 0.5 * intensityMultiplier;
-		}
-	}
-
-	// B2: Musical Ring Structure (Phrase detection)
-	// DISABLED when Silhouette Core mode is active (removes spark plug rings)
+	// Beat deformation is DISABLED (was: 0.25 * intensityMultiplier)
+	
+	// Phrase ring structure is DISABLED
+	// This was creating horizontal rings that obscured the voice-to-form relationship
 	let phraseRing = 0;
-	if (!silhouetteCoreEnabled) {
-		if (frame.time - lastFrameTime > PHRASE_GAP_THRESHOLD) {
-			// Gap detected - start of new phrase
-			// Scaled by musical detail intensity
-			phraseRing = 0.35 * intensityMultiplier;
-		}
-	}
-		lastFrameTime = frame.time;
+	// Phrase ring is DISABLED (was: 0.35 * intensityMultiplier)
+	
+	lastFrameTime = frame.time;
 
 		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
 		let normalizedHeight: number;

@@ -88,9 +88,9 @@ export const uiStore = $state<{
 	musicalDetailIntensity: number;
 	// GENERATIVE PERFORMANCE: Wizard mode
 	performanceWizardActive: boolean;
-	// FORM FIDELITY MODES: Voice-to-form transformation modes
+	// FORM FIDELITY MODES: Optional voice-sculpture enhancements
+	// Silhouette Core is ALWAYS the default foundation (no beat/phrase rings)
 	formModes: {
-		silhouetteCoreEnabled: boolean;
 		profileFinsEnabled: boolean;
 		profileFinsBaseRadius: number;
 		envelopeSmoothEnabled: boolean;
@@ -163,9 +163,8 @@ export const uiStore = $state<{
 	profileStyle: 'natural', // Default: natural (no additional transformations)
 	musicalDetailIntensity: 0.5, // Default: 50% musical detail (balanced)
 	performanceWizardActive: false, // GENERATIVE PERFORMANCE: Wizard overlay
-	// FORM FIDELITY MODES: All disabled by default (traditional spark plug behavior)
+	// FORM FIDELITY MODES: Optional enhancements on top of default Silhouette Core
 	formModes: {
-		silhouetteCoreEnabled: false,
 		profileFinsEnabled: false,
 		profileFinsBaseRadius: 0.3,
 		envelopeSmoothEnabled: false,

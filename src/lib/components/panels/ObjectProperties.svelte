@@ -560,30 +560,11 @@
 		<div class="border-t border-subtle pt-4">
 			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
 				<Music size={14} />
-				Form Fidelity
+				Form Enhancement
 			</h3>
 			<p class="text-xs text-secondary opacity-75 mb-3">
-				How the singing influences the sculpture's shape
+				Optional effects on the default voice-sculpture mapping
 			</p>
-
-			<!-- Silhouette Core -->
-			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded mb-2">
-				<input
-					type="checkbox"
-					checked={uiStore.formModes.silhouetteCoreEnabled}
-					onchange={(e) => {
-						uiStore.formModes.silhouetteCoreEnabled = e.currentTarget.checked;
-						sculptureStore.geometryDirty = true;
-					}}
-					class="w-4 h-4 accent-brand-primary"
-				/>
-				<div class="flex flex-col flex-1">
-					<span class="text-sm text-primary font-medium">Silhouette Core</span>
-					<span class="text-[10px] text-secondary">
-						Remove rings, pure pitch-to-width mapping
-					</span>
-				</div>
-			</label>
 
 			<!-- Profile-Following Fins -->
 			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded mb-2">
@@ -670,7 +651,7 @@
 			{/if}
 
 			<div class="bg-surface-alt p-2 rounded mt-2 text-xs text-secondary leading-relaxed">
-				<p>Enable modes independently to explore different relationships between your voice and the sculpture's form.</p>
+				<p><strong>Foundation:</strong> All sculptures use clean pitch-to-width mapping (no beat rings or phrase markers). These options add optional visual enhancements on top.</p>
 			</div>
 		</div>
 	</div>

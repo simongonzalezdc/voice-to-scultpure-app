@@ -362,10 +362,9 @@ import {
 			// Applied after constraints so the artistic effect is visible
 			profile = applyProfileStyle(profile);
 
-			// FORM FIDELITY MODES: Apply voice-to-form transformations
-			// These modular modes can be toggled independently to control how singing influences the shape
+			// FORM ENHANCEMENT MODES: Apply optional transformations on top of default Silhouette Core
+			// Silhouette Core is ALWAYS the foundation (clean pitch-to-width, no beat/phrase rings)
 			const formModeConfig: FormModeConfig = {
-				silhouetteCoreEnabled: uiStore.formModes?.silhouetteCoreEnabled ?? false,
 				profileFinsEnabled: uiStore.formModes?.profileFinsEnabled ?? false,
 				profileFinsBaseRadius: uiStore.formModes?.profileFinsBaseRadius ?? 0.3,
 				envelopeSmoothEnabled: uiStore.formModes?.envelopeSmoothEnabled ?? false,

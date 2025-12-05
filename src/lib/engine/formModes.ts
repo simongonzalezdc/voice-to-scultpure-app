@@ -7,10 +7,9 @@
 
 import type { LathePoint } from '$lib/types';
 
-export type FormMode = 'silhouette_core' | 'profile_fins' | 'envelope_smooth';
+export type FormMode = 'profile_fins' | 'envelope_smooth';
 
 export interface FormModeConfig {
-	silhouetteCoreEnabled: boolean;
 	profileFinsEnabled: boolean;
 	profileFinsBaseRadius: number; // Inner radius for fins (0-1 normalized)
 	envelopeSmoothEnabled: boolean;
@@ -18,23 +17,18 @@ export interface FormModeConfig {
 }
 
 /**
- * MODE 1: SILHOUETTE CORE
+ * SILHOUETTE CORE (DEFAULT / ALWAYS ACTIVE)
  * 
+ * This is the foundation for ALL sculptures.
  * Removes beat ridges and phrase markers that create "spark plug" rings.
  * Keeps only the fundamental pitch-to-radius mapping.
  * 
  * The voice-driven profile IS the silhouette.
- * Fins are purely aesthetic decoration.
- */
-export function applySilhouetteCore(profile: LathePoint[], enabled: boolean): LathePoint[] {
-	if (!enabled) return profile;
-	
-	// Simply return the profile as-is. The key is that
-	// physicsMapping.ts will skip beat/phrase additions when this is enabled.
-	// This function is a marker for the transformation pipeline.
-	console.log(`🎨 [FORM MODES] Silhouette Core applied (${profile.length} points)`);
-	return profile;
-}
+ * Optional modes (fins, smoothing) enhance this clean core.
+ * 
+ * NOTE: This is handled directly in physicsMapping.ts by checking
+ * uiStore.formModes (which no longer has a toggle for it).
+ * It's always active.
 
 /**
  * MODE 2: PROFILE-FOLLOWING FINS
@@ -162,17 +156,18 @@ export function applyAmplitudeEnvelope(
 /**
  * COMPOSE MODES
  * 
- * Apply multiple modes in sequence.
- * Modes are applied in order: envelope → fins → silhouette.
- * Each mode is a pure transformation that can be combined.
+ * Apply optional enhancements on top of the default Silhouette Core.
+ * Silhouette Core is ALWAYS the foundation (beat/phrase rings disabled in physicsMapping.ts).
+ * 
+ * Order: Envelope Smoothing → Profile-Following Fins
+ * This allows fins to follow the smoothed contour if both are enabled.
  */
 export function applyFormModes(profile: LathePoint[], config: FormModeConfig): LathePoint[] {
 	let result = profile;
 	
-	// Order matters: smoothing first, then fins, then silhouette
+	// Apply optional modes on top of default silhouette core
 	result = applyAmplitudeEnvelope(result, config.envelopeSmoothEnabled, config.envelopeSmoothAmount);
 	result = applyProfileFollowingFins(result, config.profileFinsEnabled, config.profileFinsBaseRadius);
-	result = applySilhouetteCore(result, config.silhouetteCoreEnabled);
 	
 	return result;
 }
