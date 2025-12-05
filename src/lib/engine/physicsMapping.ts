@@ -236,7 +236,7 @@ export function generateLathe(
 	const intensityMultiplier = 0.25 + (musicalIntensity * 1.75); // Range: 0.25x to 2x
 
 	// B3: Beat-Driven Sculptural Features
-		let beatDeformation = 0;
+	let beatDeformation = 0;
 	if (isBeat) {
 		// Create distinct ridge for beat
 		// Scaled by musical detail intensity

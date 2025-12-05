@@ -819,8 +819,10 @@ import {
 				frustumCulled={false}
 			>
 				<!-- AUDIT FIX: Full PBR material with ceramic/glaze properties -->
+				<!-- FINS FIX: flatShading makes faceted surfaces visible (crystalline/angular/minimal) -->
 				<T.MeshPhysicalMaterial
 					{...materialProps}
+					flatShading={uiStore.facetStyle !== 'smooth'}
 					transparent={uiStore.view.mode === 'xray' || (materialProps.transmission ?? 0) > 0}
 					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
 					wireframe={uiStore.view.mode === 'wireframe'}
