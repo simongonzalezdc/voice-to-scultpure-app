@@ -10,6 +10,11 @@ let workletNode: AudioWorkletNode | null = null;
 let mediaStream: MediaStream | null = null;
 let initialized = false;
 
+// AUDIO CAPTURE: MediaRecorder for playback functionality
+let mediaRecorder: MediaRecorder | null = null;
+let recordedChunks: Blob[] = [];
+let isRecordingAudio = false;
+
 // Directive 1: Visualizer Bypass - Direct AnalyserNode for guaranteed feedback
 let analyserNode: AnalyserNode | null = null;
 let analyserDataArray: Uint8Array<ArrayBuffer> | null = null;
@@ -271,6 +276,93 @@ export function getAudioContext(): AudioContext | null {
 
 export function getWorkletNode(): AudioWorkletNode | null {
 	return workletNode;
+}
+
+// ============================================================================
+// AUDIO CAPTURE FOR PLAYBACK
+// ============================================================================
+
+/**
+ * Start recording audio for playback
+ * This runs in parallel with the analysis worklet
+ */
+export function startAudioCapture(): void {
+	if (!mediaStream) {
+		console.warn('⚠️ [AUDIO CAPTURE] No media stream available');
+		return;
+	}
+	
+	if (isRecordingAudio) {
+		console.warn('⚠️ [AUDIO CAPTURE] Already recording');
+		return;
+	}
+	
+	recordedChunks = [];
+	
+	try {
+		// Use webm format for better browser support
+		const options = { mimeType: 'audio/webm;codecs=opus' };
+		
+		// Fallback to other formats if webm not supported
+		if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+			const fallbacks = ['audio/webm', 'audio/ogg', 'audio/mp4'];
+			const supported = fallbacks.find(type => MediaRecorder.isTypeSupported(type));
+			if (supported) {
+				options.mimeType = supported;
+			}
+		}
+		
+		mediaRecorder = new MediaRecorder(mediaStream, options);
+		
+		mediaRecorder.ondataavailable = (event) => {
+			if (event.data.size > 0) {
+				recordedChunks.push(event.data);
+			}
+		};
+		
+		mediaRecorder.onerror = (event) => {
+			console.error('❌ [AUDIO CAPTURE] MediaRecorder error:', event);
+		};
+		
+		mediaRecorder.start(100); // Capture in 100ms chunks
+		isRecordingAudio = true;
+		
+		console.log(`🎙️ [AUDIO CAPTURE] Started recording (${options.mimeType})`);
+	} catch (err) {
+		console.error('❌ [AUDIO CAPTURE] Failed to start:', err);
+	}
+}
+
+/**
+ * Stop recording and return the audio blob
+ */
+export async function stopAudioCapture(): Promise<Blob | null> {
+	if (!mediaRecorder || !isRecordingAudio) {
+		console.warn('⚠️ [AUDIO CAPTURE] Not recording');
+		return null;
+	}
+	
+	return new Promise((resolve) => {
+		mediaRecorder!.onstop = () => {
+			const blob = new Blob(recordedChunks, { type: mediaRecorder!.mimeType });
+			console.log(`🎙️ [AUDIO CAPTURE] Stopped - ${blob.size} bytes (${(blob.size / 1024).toFixed(1)} KB)`);
+			
+			recordedChunks = [];
+			mediaRecorder = null;
+			isRecordingAudio = false;
+			
+			resolve(blob);
+		};
+		
+		mediaRecorder!.stop();
+	});
+}
+
+/**
+ * Check if currently recording audio
+ */
+export function isCapturingAudio(): boolean {
+	return isRecordingAudio;
 }
 
 export function resetAudioContext(): void {

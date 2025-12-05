@@ -7,9 +7,11 @@
 	import ExportTools from '$lib/components/panels/ExportTools.svelte';
 	import SongModePanel from '$lib/components/panels/SongModePanel.svelte';
 	import Gallery from '$lib/components/panels/Gallery.svelte';
+	import PlaybackController from '$lib/components/ui/PlaybackController.svelte';
 	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
 	import { galleryStore } from '$lib/stores/galleryStore.svelte';
-	import { Music, Image, ChevronDown, ChevronRight, History } from 'lucide-svelte';
+	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
+	import { Music, Image, ChevronDown, ChevronRight, History, Play } from 'lucide-svelte';
 	
 	// P0/P1: Human Compatibility Components
 	import LivePreview from '$lib/components/controls/LivePreview.svelte';
@@ -43,6 +45,10 @@
 	// P1: Session History state
 	let isHistoryExpanded = $state(false);
 	
+	// Playback panel state
+	let isPlaybackExpanded = $state(true); // Default expanded when audio available
+	let hasAudioForPlayback = $derived(!!sculptureStore.currentSculpture?.audioBlob);
+	
 	// Show live preview when recording
 	let isRecording = $derived(recordingStore.state === 'recording');
 
@@ -66,6 +72,10 @@
 	
 	function toggleHistoryPanel() {
 		isHistoryExpanded = !isHistoryExpanded;
+	}
+	
+	function togglePlaybackPanel() {
+		isPlaybackExpanded = !isPlaybackExpanded;
 	}
 </script>
 
@@ -102,6 +112,35 @@
 	<div class="border-b border-subtle">
 		<ObjectProperties />
 	</div>
+
+	<!-- Playback Controller Panel (Only shows when audio is available) -->
+	{#if hasAudioForPlayback}
+		<div class="border-b border-subtle">
+			<button
+				class="w-full p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+				onclick={togglePlaybackPanel}
+			>
+				<div class="flex items-center gap-2">
+					<Play size={16} class="text-brand-primary" />
+					<span class="text-sm font-medium text-brand-primary">Playback</span>
+					<span class="px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/20 text-brand-primary">
+						🎵
+					</span>
+				</div>
+				{#if isPlaybackExpanded}
+					<ChevronDown size={16} class="text-secondary" />
+				{:else}
+					<ChevronRight size={16} class="text-secondary" />
+				{/if}
+			</button>
+
+			{#if isPlaybackExpanded}
+				<div class="playback-content border-t border-subtle/50 p-3">
+					<PlaybackController />
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Gallery Collapsible Panel -->
 	<div class="border-b border-subtle">
@@ -256,6 +295,7 @@
 	.song-mode-content,
 	.gallery-content,
 	.history-content,
+	.playback-content,
 	.feedback-content {
 		max-height: 400px;
 		overflow-y: auto;

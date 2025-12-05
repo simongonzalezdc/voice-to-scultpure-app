@@ -11,8 +11,9 @@ import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMap
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
 import { quantizePitch } from '$lib/audio/audioTheory';
-import { getAudioContext } from '$lib/audio/audioContext';
+import { getAudioContext, startAudioCapture, stopAudioCapture } from '$lib/audio/audioContext';
 import { playResonance } from '$lib/audio/sonification';
+import { loadAudioBlob } from '$lib/stores/playbackStore.svelte';
 import { getRadiusMetrics } from '$lib/engine/metrics';
 import {
 	DEFAULT_HEIGHT_MM,
@@ -125,11 +126,16 @@ export function startRecording(): void {
 	
 	// CRITICAL FIX: Set plain boolean flag for non-reactive callback contexts
 	_isCapturing = true;
+	
+	// Start audio capture for playback (only in sculpt mode)
+	if (!isGlazeMode) {
+		startAudioCapture();
+	}
 
 	if (isGlazeMode) {
 		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
 	} else {
-		console.log('🎙️ [RECORDING] Started - frames reset to 0, _isCapturing = true');
+		console.log('🎙️ [RECORDING] Started - frames reset to 0, audio capture started, _isCapturing = true');
 	}
 }
 
@@ -273,6 +279,15 @@ export async function stopRecording(): Promise<void> {
 				sculpture.physical.height = DEFAULT_HEIGHT_MM * heightRatio;
 				
 				console.log(`📐 [RECORDING] Final height: ${seconds.toFixed(1)}s → ${heightRatio.toFixed(2)}x (${DEFAULT_HEIGHT_MM * heightRatio}mm)`);
+
+				// Stop audio capture and attach blob to sculpture for playback
+				const audioBlob = await stopAudioCapture();
+				if (audioBlob) {
+					sculpture.audioBlob = audioBlob;
+					// Load audio into playback store for immediate availability
+					await loadAudioBlob(audioBlob);
+					console.log(`🎵 [RECORDING] Audio blob attached (${(audioBlob.size / 1024).toFixed(1)} KB)`);
+				}
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
