@@ -67,12 +67,13 @@ export async function initializeAudioContext(
 	// DIRECTIVE 3: Create DynamicsCompressorNode to normalize volume
 	// This reduces jittery shapes and makes thickness mapping consistent
 	// Chain: Source -> Compressor -> Worklet -> Destination
+	// NOTE: Reduced compression ratio from 12:1 to 4:1 to preserve dynamics
 	dynamicsCompressor = audioContext.createDynamicsCompressor();
-	dynamicsCompressor.threshold.value = -50; // Very sensitive to all input
-	dynamicsCompressor.knee.value = 40; // Smooth compression curve
-	dynamicsCompressor.ratio.value = 12; // Heavy compression (12:1)
-	dynamicsCompressor.attack.value = 0; // Instant response
-	dynamicsCompressor.release.value = 0.25; // 250ms release for smoothness
+	dynamicsCompressor.threshold.value = -40; // Trigger at -40dB (less aggressive)
+	dynamicsCompressor.knee.value = 30; // Smooth compression curve
+	dynamicsCompressor.ratio.value = 4; // Gentle compression (4:1) - preserves dynamics
+	dynamicsCompressor.attack.value = 0.003; // 3ms attack (not instant, prevents clipping)
+	dynamicsCompressor.release.value = 0.15; // 150ms release for natural decay
 
 	// Directive 2: Keep the graph alive - Connect to destination (muted)
 	gainNode = audioContext.createGain();
@@ -97,23 +98,29 @@ export async function startMicrophoneCapture(deviceId?: string): Promise<MediaSt
 		return mediaStream;
 	}
 
+	// AUDIO QUALITY FIX: Disable processing that causes dropouts/artifacts
+	// echoCancellation: Cuts off audio it thinks is echo (bad for singing)
+	// noiseSuppression: Aggressively suppresses voice harmonics it considers "noise"
+	// autoGainControl: Causes volume fluctuations and dropouts
+	const audioConstraints: MediaTrackConstraints = {
+		echoCancellation: false,  // DISABLED: Causes voice cutoffs
+		noiseSuppression: false,  // DISABLED: Suppresses singing harmonics
+		autoGainControl: false,   // DISABLED: Causes volume fluctuations
+		sampleRate: AUDIO_SAMPLE_RATE,
+		channelCount: 1,          // Mono is sufficient for voice
+	};
+
+	if (deviceId) {
+		audioConstraints.deviceId = { exact: deviceId };
+	}
+
 	const constraints: MediaStreamConstraints = {
-		audio: deviceId
-			? {
-					deviceId: { exact: deviceId },
-					echoCancellation: true,
-					noiseSuppression: true,
-					autoGainControl: true
-				}
-			: {
-					echoCancellation: true,
-					noiseSuppression: true,
-					autoGainControl: true
-				}
+		audio: audioConstraints
 	};
 
 	try {
 		mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+		console.log('🎤 [AUDIO] Microphone captured with quality settings (no echo/noise suppression)');
 		return mediaStream;
 	} catch (error) {
 		throw new Error(`Failed to access microphone: ${error}`);
@@ -300,8 +307,12 @@ export function startAudioCapture(): void {
 	recordedChunks = [];
 	
 	try {
-		// Use webm format for better browser support
-		const options = { mimeType: 'audio/webm;codecs=opus' };
+		// Use webm/opus format with HIGH QUALITY bitrate for clear playback
+		// 128kbps is high quality for voice (CD quality is 1411kbps for stereo)
+		const options: MediaRecorderOptions = { 
+			mimeType: 'audio/webm;codecs=opus',
+			audioBitsPerSecond: 128000  // 128 kbps - high quality for voice
+		};
 		
 		// Fallback to other formats if webm not supported
 		if (!MediaRecorder.isTypeSupported(options.mimeType)) {
