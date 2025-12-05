@@ -15,6 +15,10 @@
 	let isExporting = $state(false);
 	let exportingFormat = $state<string | null>(null);
 
+	// Slicer optimization state
+	let slicerOptimizeEnabled = $state(true);
+	let estimatedTriangleCount = $state(0);
+
 	// Get current UI settings for exports
 	function getExportOptions(): ExportOptions {
 		return {
@@ -24,6 +28,32 @@
 			deformation: uiStore.deformation
 		};
 	}
+
+	// Estimate triangle count based on current settings
+	function estimateTriangleCount() {
+		// Current settings: facetStyle x profile points
+		const facetSegments = uiStore.facetStyle === 'smooth' ? 96 : 
+		                       uiStore.facetStyle === 'crystalline' ? 32 :
+		                       uiStore.facetStyle === 'angular' ? 16 : 8;
+		
+		const profilePoints = sculptureStore.currentSculpture?.layers?.[0]?.data?.length ?? 128;
+		
+		// Each quad (2 triangles) between points and segments
+		let triangles = facetSegments * (profilePoints - 1) * 2;
+		
+		// Apply simplification reduction if in 3D print mode and optimization enabled
+		if (uiStore.constraintMode === '3d_print' && slicerOptimizeEnabled) {
+			// SimplifyModifier targets 50K triangles, typically achieves 50-75% reduction
+			triangles = Math.ceil(triangles * 0.4); // Conservative estimate
+		}
+		
+		estimatedTriangleCount = triangles;
+	}
+
+	// Update estimate when sculpture changes
+	$effect(() => {
+		estimateTriangleCount();
+	});
 
 	// Local state for editing
 	let editingWallThickness = $state(0);
@@ -168,6 +198,44 @@
 			<!-- Export Options -->
 			<div>
 				<h3 class="text-sm font-semibold text-secondary mb-3">Export Options</h3>
+
+				<!-- Slicer Optimization (3D Print Mode) -->
+				{#if uiStore.constraintMode === '3d_print'}
+					<div class="mb-4 p-3 surface-panel-alt rounded">
+						<div class="flex items-center gap-2 mb-2">
+							<input
+								id="slicer-optimize"
+								type="checkbox"
+								bind:checked={slicerOptimizeEnabled}
+								onchange={estimateTriangleCount}
+								class="w-4 h-4 cursor-pointer"
+							/>
+							<label for="slicer-optimize" class="text-sm text-primary cursor-pointer font-semibold">
+								Optimize for Slicer
+							</label>
+						</div>
+						<p class="text-xs text-secondary leading-relaxed mb-2">
+							Reduces mesh complexity for faster slicing. Maintains shape quality.
+						</p>
+						<div class="text-xs text-secondary">
+							<div class="flex justify-between">
+								<span>Estimated triangles:</span>
+								<span class="font-mono">
+									{#if estimatedTriangleCount > 100000}
+										<span class="text-warning">{Math.round(estimatedTriangleCount / 1000)}K</span>
+										<span class="text-warning ml-1">(⚠️ may be slow)</span>
+									{:else if estimatedTriangleCount > 50000}
+										<span class="text-accent">{Math.round(estimatedTriangleCount / 1000)}K</span>
+										<span class="text-accent ml-1">(good)</span>
+									{:else}
+										<span class="text-success">{Math.round(estimatedTriangleCount / 1000)}K</span>
+										<span class="text-success ml-1">(✓ optimal)</span>
+									{/if}
+								</span>
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<!-- Wall Thickness -->
 				<div>

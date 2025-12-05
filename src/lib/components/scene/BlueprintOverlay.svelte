@@ -17,7 +17,7 @@
 	// Use $state.raw for Three.js objects to track assignment but not internal properties
 	let lineGeometry = $state.raw<BufferGeometry | null>(null);
 	let lineRef = $state<any>(null);
-	
+
 	// Track previous geometry for cleanup (avoids reading state in effect that writes it)
 	let previousGeometry: BufferGeometry | null = null;
 

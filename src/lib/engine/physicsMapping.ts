@@ -131,7 +131,7 @@ export function generateLathe(
 			// Pitch -> Radius (Low=Wide, High=Narrow)
 			// PERCEPTUAL FIX: Use logarithmic (semitone) scaling
 			// One octave up = same radius change, regardless of starting note
-			
+
 			const pitch = frame.pitch || 220; // Default to A3 (middle of range) if no pitch
 			
 			// Convert Hz to semitones (perceptually linear)
@@ -182,7 +182,7 @@ export function generateLathe(
 				normalizedRoughness = Math.max(0, Math.min(1, (rawCentroid - tMin) / (tMax - tMin)));
 			}
 		}
-
+		
 		// Deterministic hash function using voice features
 		const voiceHash = (seed: number) => {
 			const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -236,7 +236,7 @@ export function generateLathe(
 	const intensityMultiplier = 0.25 + (musicalIntensity * 1.75); // Range: 0.25x to 2x
 
 	// B3: Beat-Driven Sculptural Features
-	let beatDeformation = 0;
+		let beatDeformation = 0;
 	if (isBeat) {
 		// Create distinct ridge for beat
 		// Scaled by musical detail intensity

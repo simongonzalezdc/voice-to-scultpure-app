@@ -11,7 +11,7 @@
 	// Accessibility state
 	let reduceMotion = $state(appSettings.reduceMotion ?? false);
 	let flashIntensity = $state(appSettings.flashIntensity ?? 1.0);
-	
+
 	// P0: Voice Calibration dialog state
 	let showVoiceCalibration = $state(false);
 	let hasVoiceCalibration = $derived(calibrationStore.isCalibrated);
@@ -144,7 +144,7 @@
 				>
 					<span>🤖</span>
 					<span>Open AI Chat & Settings</span>
-				</button>
+								</button>
 			</div>
 
 			<!-- Accessibility Settings -->

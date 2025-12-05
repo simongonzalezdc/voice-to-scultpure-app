@@ -4,6 +4,7 @@ import { uiStore } from '$lib/stores/uiStore.svelte';
 import { getSegmentsForFacetStyle, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { SimplifyModifier } from 'three/addons/modifiers/SimplifyModifier.js';
 import { Mesh, BufferGeometry, Matrix4, Vector3, Float32BufferAttribute } from 'three';
 
 // ============================================================================
@@ -209,6 +210,48 @@ function removeDegenerate(geometry: BufferGeometry): BufferGeometry {
 }
 
 // ============================================================================
+// MESH SIMPLIFICATION FOR SLICER OPTIMIZATION
+// ============================================================================
+
+/**
+ * Simplify geometry for 3D printing (reduce triangle count for slicer)
+ * Uses SimplifyModifier to maintain shape while reducing complexity
+ * @param geometry - BufferGeometry to simplify
+ * @param targetTriangleCount - Target number of triangles (aim for ~50K max)
+ * @returns Simplified geometry
+ */
+function simplifyGeometry(geometry: BufferGeometry, targetTriangleCount: number = 50000): BufferGeometry {
+	const posAttr = geometry.getAttribute('position');
+	if (!posAttr) return geometry;
+
+	const currentTriangleCount = posAttr.count / 3;
+	
+	if (currentTriangleCount <= targetTriangleCount) {
+		console.log(`✅ [SIMPLIFY] Geometry already optimized: ${currentTriangleCount} triangles`);
+		return geometry;
+	}
+
+	// Calculate target vertex count (3 vertices per triangle)
+	const targetVertexCount = targetTriangleCount * 3;
+	
+	// Use SimplifyModifier to reduce geometry
+	try {
+		console.log(`🔄 [SIMPLIFY] Reducing from ${currentTriangleCount} to ~${targetTriangleCount} triangles...`);
+		
+		const modifier = new SimplifyModifier();
+		const simplified = modifier.modify(geometry, targetVertexCount);
+		
+		const resultTriangleCount = simplified.getAttribute('position').count / 3;
+		console.log(`✅ [SIMPLIFY] Success: ${resultTriangleCount} triangles (${((resultTriangleCount/currentTriangleCount)*100).toFixed(1)}% of original)`);
+		
+		return simplified;
+	} catch (err) {
+		console.warn(`⚠️ [SIMPLIFY] Simplification failed, using original:`, err);
+		return geometry;
+	}
+}
+
+// ============================================================================
 // DIRECT MESH EXPORT (Guaranteed to match app view)
 // ============================================================================
 
@@ -368,6 +411,15 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 		console.log(`✅ [STL DIRECT] Geometry is manifold-ready`);
 	}
 	
+	// STEP 3: Simplify geometry for 3D printing mode (slicer optimization)
+	// Only simplify if in 3D Print constraint mode
+	if (uiStore.constraintMode === '3d_print') {
+		console.log(`🖨️ [STL DIRECT] Simplifying geometry for slicer compatibility...`);
+		const simplified = simplifyGeometry(geometry, 50000); // Target 50K triangles max
+		geometry.dispose();
+		geometry = simplified;
+	}
+	
 	// Create a temporary mesh for the exporter
 	const exportMesh = new Mesh(geometry);
 	
@@ -493,9 +545,9 @@ export function lathePointsToSTL(
 			const z2 = Math.sin(angle2) * secondPoint.x;
 
 			const capTri = createTriangle(
-				{ x: 0, y: bottomY, z: 0 },
-				{ x: x2, y: bottomY, z: z2 },
-				{ x: x1, y: bottomY, z: z1 }
+					{ x: 0, y: bottomY, z: 0 },
+					{ x: x2, y: bottomY, z: z2 },
+					{ x: x1, y: bottomY, z: z1 }
 			);
 			if (capTri) triangles.push(capTri);
 		}
@@ -516,9 +568,9 @@ export function lathePointsToSTL(
 			const z2 = Math.sin(angle2) * secondLastPoint.x;
 
 			const topTri = createTriangle(
-				{ x: 0, y: topY, z: 0 },
-				{ x: x1, y: topY, z: z1 },
-				{ x: x2, y: topY, z: z2 }
+					{ x: 0, y: topY, z: 0 },
+					{ x: x1, y: topY, z: z1 },
+					{ x: x2, y: topY, z: z2 }
 			);
 			if (topTri) triangles.push(topTri);
 		}
@@ -569,9 +621,9 @@ function createTriangle(
 	}
 	
 	// Normalize
-	normal.x /= length;
-	normal.y /= length;
-	normal.z /= length;
+		normal.x /= length;
+		normal.y /= length;
+		normal.z /= length;
 
 	return `facet normal ${normal.x} ${normal.y} ${normal.z}
   outer loop

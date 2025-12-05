@@ -399,7 +399,7 @@
 			</div>
 
 		<!-- Modals & Panels -->
-		{#if uiStore.panels.aiPanel}
+			{#if uiStore.panels.aiPanel}
 			<!-- AI Panel as centered modal - doesn't block sidebar -->
 			<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 				<div class="relative w-full max-w-lg h-[70vh] max-h-[600px] bg-surface rounded-xl shadow-2xl border border-subtle overflow-hidden flex flex-col">
@@ -414,13 +414,13 @@
 					<AIPanel />
 				</div>
 			</div>
-		{/if}
-		{#if uiStore.panels.projectList}
+			{/if}
+			{#if uiStore.panels.projectList}
 			<ProjectList />
-		{/if}
-		{#if uiStore.panels.settings}
-			<SettingsPanel />
-		{/if}
+			{/if}
+			{#if uiStore.panels.settings}
+				<SettingsPanel />
+			{/if}
 		{:else}
 			<div class="flex-1 relative overflow-hidden bg-app flex items-center justify-center">
 				<div class="text-center text-[#888]">

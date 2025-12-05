@@ -17,7 +17,9 @@ import {
 	CERAMIC_SMOOTH_WINDOW,
 	CERAMIC_BASE_HEIGHT_THRESHOLD,
 	PRINT_3D_MIN_RADIUS,
-	PRINT_3D_FIRST_LAYER_MIN_RADIUS
+	PRINT_3D_FIRST_LAYER_MIN_RADIUS,
+	PRINT_3D_MIN_WALL_MM,
+	DEFAULT_HEIGHT_MM
 } from '$lib/config/constants';
 
 export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
@@ -281,6 +283,58 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 				firstPoint.x = PRINT_3D_FIRST_LAYER_MIN_RADIUS;
 			}
 		}
+	}
+
+	// RULE C: Minimum Wall Thickness (NEW)
+	// Convert minimum wall thickness from mm to normalized units
+	// Wall thickness = 2 * radius (diameter)
+	// PRINT_3D_MIN_WALL_MM = 1.2mm (3x nozzle width for 0.4mm nozzle)
+	// For 150mm tall sculpture: normalized units = sculpture height
+	const minWallRadiusNormalized = (PRINT_3D_MIN_WALL_MM / 2.0) / DEFAULT_HEIGHT_MM;
+	const wallThicknessMinRadius = Math.max(PRINT_3D_MIN_RADIUS, minWallRadiusNormalized);
+
+	for (let i = 0; i < constrained.length; i++) {
+		const point = safeArrayAccess(constrained, i);
+		if (!point) continue;
+
+		if (point.x < wallThicknessMinRadius) {
+			point.x = wallThicknessMinRadius;
+		}
+	}
+
+	// RULE D: Smooth sharp radius transitions
+	// Prevent abrupt changes that create thin walls or weak points
+	// Use 5-point moving average to smooth transitions
+	const smoothedRadii: number[] = [];
+	const windowSize = 5;
+
+	for (let i = 0; i < constrained.length; i++) {
+		const start = Math.max(0, i - Math.floor(windowSize / 2));
+		const end = Math.min(constrained.length, i + Math.floor(windowSize / 2) + 1);
+
+		let sum = 0;
+		let count = 0;
+		for (let j = start; j < end; j++) {
+			const p = safeArrayAccess(constrained, j);
+			if (p) {
+				sum += p.x;
+				count++;
+			}
+		}
+
+		smoothedRadii.push(count > 0 ? sum / count : 0.5);
+	}
+
+	// Apply smoothed radii, taking max to prevent shrinkage
+	for (let i = 0; i < constrained.length; i++) {
+		const point = safeArrayAccess(constrained, i);
+		if (point) {
+			point.x = Math.max(point.x, smoothedRadii[i]);
+		}
+	}
+
+	if (wallThicknessMinRadius > PRINT_3D_MIN_RADIUS) {
+		console.log(`🖨️ [3D PRINT] Enforced minimum wall thickness: ${(PRINT_3D_MIN_WALL_MM).toFixed(2)}mm (radius=${wallThicknessMinRadius.toFixed(3)})`);
 	}
 
 	return constrained;

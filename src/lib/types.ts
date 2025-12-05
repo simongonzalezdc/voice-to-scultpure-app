@@ -68,6 +68,7 @@ export interface SculptureDefinition {
 
 	// Metadata
 	audioBlobId?: string;
+	audioBlob?: Blob; // Runtime reference to audio blob for playback (not persisted)
 	instructions?: string[];
 }
 

@@ -195,6 +195,13 @@ export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.15; // Bottom 15% is base zone (l
 export const PRINT_3D_MIN_RADIUS = 0.08; // 8% minimum radius to prevent thin walls
 export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.10; // 10% minimum first layer for bed adhesion (less aggressive)
 
+// 3D Print Resolution & Geometry Constants
+// Optimized for slicer performance without sacrificing quality
+export const PRINT_3D_PROFILE_RESOLUTION = 256; // Reduced from 2048 (slicer optimization)
+export const PRINT_3D_RADIAL_SEGMENTS = 48; // Reduced from 32-96 (slicer optimization)
+export const PRINT_3D_MIN_WALL_MM = 1.2; // Minimum wall thickness (3x nozzle width for 0.4mm)
+// Result: ~24K triangles before simplification, ~12K after SimplifyModifier
+
 // Compositor Constants
 export const COMPOSITOR_MIN_RADIUS = 0.01; // Minimum radius constraint in compositor
 export const COMPOSITOR_LOG_INTERVAL_MS = 2000; // Rate limit for compositor logging

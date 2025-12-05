@@ -12,6 +12,7 @@
 		type RecordingState
 	} from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
+	import { playbackStore, getPlaybackProgress } from '$lib/stores/playbackStore.svelte';
 	import {
 		Vector2,
 		Vector3,
@@ -585,6 +586,9 @@ import {
 	let smoothedEmission = $state(0);
 	let smoothedDazzlerIntensity = $state(0);
 	let beatFlashIntensity = $state(0); // Beat-triggered flash
+	
+	// Playback highlighting: Creates a glowing band that moves with playback position
+	let playbackEmissiveBoost = $state(0); // Extra emissive during playback (0-1)
 
 	useTask((delta) => {
 		// Update cinematic transitions (Song Mode atmosphere changes)
@@ -603,6 +607,18 @@ import {
 			beatFlashIntensity = Math.max(0, beatFlashIntensity - delta * 8);
 		}
 
+		// PLAYBACK HIGHLIGHTING: Add emissive boost during audio playback
+		// Creates a glowing effect that highlights the sculpture as it plays back
+		if (playbackStore.state === 'playing') {
+			const playbackProgress = getPlaybackProgress();
+			// Create a sharp pulse around the current playback position
+			// This creates a moving highlight band
+			playbackEmissiveBoost = 0.3 + Math.sin(playbackProgress * Math.PI * 2) * 0.2;
+		} else {
+			// Fade out playback boost when not playing
+			playbackEmissiveBoost = Math.max(0, playbackEmissiveBoost - delta * 2);
+		}
+
 		// DAZZLER EFFECT: Energy material with voice-reactive glow
 		if (isEnergyMaterial && emissiveEnabled) {
 			// Calculate target intensity from base + voice reactivity
@@ -619,7 +635,8 @@ import {
 			materialProps.color = '#111111'; // Dark base
 			materialProps.roughness = 0.8; // Matte
 			materialProps.emissive = emissiveColor;
-			materialProps.emissiveIntensity = smoothedDazzlerIntensity;
+			// Add playback boost on top of dazzler effect
+			materialProps.emissiveIntensity = smoothedDazzlerIntensity + playbackEmissiveBoost;
 			return;
 		}
 
@@ -637,9 +654,10 @@ import {
 				targetWithBeat,
 				EMISSION_SMOOTHING_FACTOR
 			);
-			materialProps.emissiveIntensity = smoothedEmission;
+			// Add playback boost on top of emission
+			materialProps.emissiveIntensity = smoothedEmission + playbackEmissiveBoost;
 		} else {
-			materialProps.emissiveIntensity = deriveEmissiveIntensity(false, 0);
+			materialProps.emissiveIntensity = deriveEmissiveIntensity(false, 0) + playbackEmissiveBoost;
 		}
 		materialProps.emissive = uiStore.activeGlaze.color;
 	});

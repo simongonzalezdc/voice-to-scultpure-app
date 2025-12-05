@@ -11,6 +11,7 @@
 	import BlueprintOverlay from './BlueprintOverlay.svelte';
 	import PostProcessing from './PostProcessing.svelte';
 	import PrintVolumeBounds from './PrintVolumeBounds.svelte';
+	import PitchContourLine from './PitchContourLine.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -142,6 +143,9 @@
 </T.Group>
 
 <Sculpture sculpture={sculptureStore.currentSculpture || sculptureStore.ghostSculpture} />
+
+<!-- Pitch Contour: Color-coded spiral ribbon showing pitch over time -->
+<PitchContourLine />
 
 {#if uiStore.view.showBlueprint}
 	<BlueprintOverlay />

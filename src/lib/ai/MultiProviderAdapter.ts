@@ -83,14 +83,14 @@ export async function callProvider(
 					maxTokens
 				));
 				break;
-		case 'openai':
-		case 'groq':
-		case 'openrouter':
-		case 'together':
-		case 'deepseek':
+			case 'openai':
+			case 'groq':
+			case 'openrouter':
+			case 'together':
+			case 'deepseek':
 		case 'zhipu':
-		default:
-			({ response, content } = await callOpenAICompatible(
+			default:
+				({ response, content } = await callOpenAICompatible(
 					config,
 					apiKey,
 					model,
