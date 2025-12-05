@@ -12,6 +12,8 @@ export interface PlaybackStore {
 	audioContext: AudioContext | null;
 	audioBuffer: AudioBuffer | null;
 	sourceNode: AudioBufferAudioSourceNode | null;
+	playStartTime: number; // AudioContext.currentTime when playback started
+	audioOffsetAtPlay: number; // The offset we passed to source.start()
 }
 
 export const playbackStore = $state<PlaybackStore>({
@@ -20,7 +22,9 @@ export const playbackStore = $state<PlaybackStore>({
 	duration: 0,
 	audioContext: null,
 	audioBuffer: null,
-	sourceNode: null
+	sourceNode: null,
+	playStartTime: 0,
+	audioOffsetAtPlay: 0
 });
 
 /**
@@ -86,13 +90,19 @@ export function play(): void {
 		source.buffer = playbackStore.audioBuffer;
 		source.connect(playbackStore.audioContext.destination);
 
+		// Record the offset we're starting from (for accurate time tracking during pause/resume)
+		playbackStore.audioOffsetAtPlay = playbackStore.currentTime;
+
 		// Start from current position
 		source.start(0, playbackStore.currentTime);
+
+		// Record when playback started (for syncing currentTime with actual audio playback)
+		playbackStore.playStartTime = playbackStore.audioContext.currentTime;
 
 		playbackStore.sourceNode = source;
 		playbackStore.state = 'playing';
 
-		console.log(`▶️ [PLAYBACK] Playing from ${playbackStore.currentTime.toFixed(2)}s`);
+		console.log(`▶️ [PLAYBACK] Playing from ${playbackStore.currentTime.toFixed(2)}s (audioContext.currentTime: ${playbackStore.playStartTime.toFixed(3)}s)`);
 	} catch (err) {
 		console.error(`❌ [PLAYBACK] Failed to play:`, err);
 	}
@@ -110,8 +120,19 @@ export function pause(): void {
 			playbackStore.sourceNode = null;
 		}
 
+		// Calculate how much time has elapsed since playback started
+		// This ensures resume() will continue from the correct position
+		if (playbackStore.audioContext) {
+			const elapsedTime = playbackStore.audioContext.currentTime - playbackStore.playStartTime;
+			playbackStore.currentTime = playbackStore.audioOffsetAtPlay + elapsedTime;
+			
+			// Clamp to duration
+			playbackStore.currentTime = Math.max(0, Math.min(playbackStore.currentTime, playbackStore.duration));
+			
+			console.log(`⏸️ [PLAYBACK] Paused at ${playbackStore.currentTime.toFixed(2)}s (elapsed: ${elapsedTime.toFixed(3)}s)`);
+		}
+
 		playbackStore.state = 'paused';
-		console.log(`⏸️ [PLAYBACK] Paused at ${playbackStore.currentTime.toFixed(2)}s`);
 	} catch (err) {
 		console.error(`❌ [PLAYBACK] Failed to pause:`, err);
 	}
@@ -161,12 +182,13 @@ export function seek(normalizedPosition: number): void {
 
 /**
  * Update current playback time (called from animation loop)
+ * Syncs playbackStore.currentTime with actual audio context timing
  */
-export function updatePlaybackTime(deltaTime: number): void {
+export function updatePlaybackTime(): void {
 	if (playbackStore.state === 'playing' && playbackStore.audioContext) {
-		// Track time relative to audio context's current time
-		// This gives accurate playback position
-		playbackStore.currentTime += deltaTime;
+		// Calculate time based on when playback started (accurate to audio context)
+		const elapsedTime = playbackStore.audioContext.currentTime - playbackStore.playStartTime;
+		playbackStore.currentTime = playbackStore.audioOffsetAtPlay + elapsedTime;
 
 		// Auto-stop at end
 		if (playbackStore.currentTime >= playbackStore.duration) {

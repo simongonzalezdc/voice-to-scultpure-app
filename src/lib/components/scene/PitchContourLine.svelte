@@ -2,7 +2,7 @@
 	import { T, useTask } from '@threlte/core';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
-	import { playbackStore, getPlaybackProgress } from '$lib/stores/playbackStore.svelte';
+	import { playbackStore, getPlaybackProgress, updatePlaybackTime } from '$lib/stores/playbackStore.svelte';
 	import { pitchToColor, hexToRgb } from '$lib/engine/colorMapping';
 	import { MIN_PITCH_HZ, MAX_PITCH_HZ, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 	import type { AnalysisFrame } from '$lib/types';
@@ -224,8 +224,12 @@
 		}
 	});
 
-	// Animation loop for playhead
+	// Animation loop for playhead and timing
 	useTask(() => {
+		// Sync playback time with actual audio context timing
+		updatePlaybackTime();
+		
+		// Update playhead visualization if playing
 		if (playbackStore.state === 'playing') {
 			updatePlayhead();
 		}
