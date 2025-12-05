@@ -555,6 +555,124 @@
 				</p>
 			</div>
 		</div>
+
+		<!-- Form Fidelity Modes -->
+		<div class="border-t border-subtle pt-4">
+			<h3 class="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
+				<Music size={14} />
+				Form Fidelity
+			</h3>
+			<p class="text-xs text-secondary opacity-75 mb-3">
+				How the singing influences the sculpture's shape
+			</p>
+
+			<!-- Silhouette Core -->
+			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded mb-2">
+				<input
+					type="checkbox"
+					checked={uiStore.formModes.silhouetteCoreEnabled}
+					onchange={(e) => {
+						uiStore.formModes.silhouetteCoreEnabled = e.currentTarget.checked;
+						sculptureStore.geometryDirty = true;
+					}}
+					class="w-4 h-4 accent-brand-primary"
+				/>
+				<div class="flex flex-col flex-1">
+					<span class="text-sm text-primary font-medium">Silhouette Core</span>
+					<span class="text-[10px] text-secondary">
+						Remove rings, pure pitch-to-width mapping
+					</span>
+				</div>
+			</label>
+
+			<!-- Profile-Following Fins -->
+			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded mb-2">
+				<input
+					type="checkbox"
+					checked={uiStore.formModes.profileFinsEnabled}
+					onchange={(e) => {
+						uiStore.formModes.profileFinsEnabled = e.currentTarget.checked;
+						sculptureStore.geometryDirty = true;
+					}}
+					class="w-4 h-4 accent-brand-primary"
+				/>
+				<div class="flex flex-col flex-1">
+					<span class="text-sm text-primary font-medium">Profile-Following Fins</span>
+					<span class="text-[10px] text-secondary">
+						Fin length maps to voice intensity
+					</span>
+				</div>
+			</label>
+
+			{#if uiStore.formModes.profileFinsEnabled}
+				<div class="bg-surface-alt p-2 rounded mb-2 text-xs">
+					<label class="flex items-center justify-between gap-2">
+						<span class="text-secondary">Base Radius:</span>
+						<div class="flex items-center gap-2 flex-1">
+							<input
+								type="range"
+								min="0.1"
+								max="0.6"
+								step="0.05"
+								value={uiStore.formModes.profileFinsBaseRadius}
+								onchange={(e) => {
+									uiStore.formModes.profileFinsBaseRadius = parseFloat(e.currentTarget.value);
+									sculptureStore.geometryDirty = true;
+								}}
+								class="flex-1 accent-brand-primary"
+							/>
+							<span class="text-white font-mono w-8">{uiStore.formModes.profileFinsBaseRadius.toFixed(2)}</span>
+						</div>
+					</label>
+				</div>
+			{/if}
+
+			<!-- Envelope Smoothing -->
+			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded mb-2">
+				<input
+					type="checkbox"
+					checked={uiStore.formModes.envelopeSmoothEnabled}
+					onchange={(e) => {
+						uiStore.formModes.envelopeSmoothEnabled = e.currentTarget.checked;
+						sculptureStore.geometryDirty = true;
+					}}
+					class="w-4 h-4 accent-brand-primary"
+				/>
+				<div class="flex flex-col flex-1">
+					<span class="text-sm text-primary font-medium">Envelope Smoothing</span>
+					<span class="text-[10px] text-secondary">
+						Smooth out jagged rings while preserving shape
+					</span>
+				</div>
+			</label>
+
+			{#if uiStore.formModes.envelopeSmoothEnabled}
+				<div class="bg-surface-alt p-2 rounded text-xs">
+					<label class="flex items-center justify-between gap-2">
+						<span class="text-secondary">Amount:</span>
+						<div class="flex items-center gap-2 flex-1">
+							<input
+								type="range"
+								min="0"
+								max="1"
+								step="0.05"
+								value={uiStore.formModes.envelopeSmoothAmount}
+								onchange={(e) => {
+									uiStore.formModes.envelopeSmoothAmount = parseFloat(e.currentTarget.value);
+									sculptureStore.geometryDirty = true;
+								}}
+								class="flex-1 accent-brand-primary"
+							/>
+							<span class="text-white font-mono w-8">{Math.round(uiStore.formModes.envelopeSmoothAmount * 100)}%</span>
+						</div>
+					</label>
+				</div>
+			{/if}
+
+			<div class="bg-surface-alt p-2 rounded mt-2 text-xs text-secondary leading-relaxed">
+				<p>Enable modes independently to explore different relationships between your voice and the sculpture's form.</p>
+			</div>
+		</div>
 	</div>
 </div>
 

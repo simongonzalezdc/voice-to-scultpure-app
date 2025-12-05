@@ -88,6 +88,14 @@ export const uiStore = $state<{
 	musicalDetailIntensity: number;
 	// GENERATIVE PERFORMANCE: Wizard mode
 	performanceWizardActive: boolean;
+	// FORM FIDELITY MODES: Voice-to-form transformation modes
+	formModes: {
+		silhouetteCoreEnabled: boolean;
+		profileFinsEnabled: boolean;
+		profileFinsBaseRadius: number;
+		envelopeSmoothEnabled: boolean;
+		envelopeSmoothAmount: number;
+	};
 }>({
 	panels: {
 		aiPanel: false,
@@ -154,7 +162,15 @@ export const uiStore = $state<{
 	facetStyle: 'crystalline', // Default: crystalline (the "fins" aesthetic users love)
 	profileStyle: 'natural', // Default: natural (no additional transformations)
 	musicalDetailIntensity: 0.5, // Default: 50% musical detail (balanced)
-	performanceWizardActive: false // GENERATIVE PERFORMANCE: Wizard overlay
+	performanceWizardActive: false, // GENERATIVE PERFORMANCE: Wizard overlay
+	// FORM FIDELITY MODES: All disabled by default (traditional spark plug behavior)
+	formModes: {
+		silhouetteCoreEnabled: false,
+		profileFinsEnabled: false,
+		profileFinsBaseRadius: 0.3,
+		envelopeSmoothEnabled: false,
+		envelopeSmoothAmount: 0.5
+	}
 });
 
 export function setAutoFixGeometry(enabled: boolean): void {

@@ -29,6 +29,7 @@
 	import { generateLathe, generateGlaze, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
 	import { applyConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
+	import { applyFormModes, type FormModeConfig } from '$lib/engine/formModes';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
@@ -360,6 +361,17 @@ import {
 			// PROFILE STYLE: Apply aesthetic transformation (terraced, spiral, rippled)
 			// Applied after constraints so the artistic effect is visible
 			profile = applyProfileStyle(profile);
+
+			// FORM FIDELITY MODES: Apply voice-to-form transformations
+			// These modular modes can be toggled independently to control how singing influences the shape
+			const formModeConfig: FormModeConfig = {
+				silhouetteCoreEnabled: uiStore.formModes?.silhouetteCoreEnabled ?? false,
+				profileFinsEnabled: uiStore.formModes?.profileFinsEnabled ?? false,
+				profileFinsBaseRadius: uiStore.formModes?.profileFinsBaseRadius ?? 0.3,
+				envelopeSmoothEnabled: uiStore.formModes?.envelopeSmoothEnabled ?? false,
+				envelopeSmoothAmount: uiStore.formModes?.envelopeSmoothAmount ?? 0.5
+			};
+			profile = applyFormModes(profile, formModeConfig);
 
 			// OPTIMIZATION: Use DynamicGeometryManager for ALL geometry updates
 			// This ensures the final sculpture looks identical to the preview
