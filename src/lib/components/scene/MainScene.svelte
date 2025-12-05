@@ -12,6 +12,7 @@
 	import PostProcessing from './PostProcessing.svelte';
 	import PrintVolumeBounds from './PrintVolumeBounds.svelte';
 	import PitchContourLine from './PitchContourLine.svelte';
+	import ScaleRuler from './ScaleRuler.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -108,6 +109,11 @@
 
 <!-- Print Volume Bounds: Shows 3D printer volume (only in 3d_print mode) -->
 <PrintVolumeBounds />
+
+<!-- Scale Ruler: Shows mm dimensions (only in 3d_print mode) -->
+{#if uiStore.constraintMode === '3d_print'}
+	<ScaleRuler />
+{/if}
 
 <!-- Axis Labels for Debugging - Colored lines with labels -->
 <T.Group position={[-3, 0, -3]}>
