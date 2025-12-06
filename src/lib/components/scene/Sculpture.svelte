@@ -17,6 +17,7 @@
 		Vector2,
 		Vector3,
 		Mesh,
+		MeshPhysicalMaterial,
 		BufferAttribute,
 		BufferGeometry,
 		PlaneGeometry,
@@ -27,7 +28,7 @@
 	import type { SculptureDefinition, LathePoint } from '$lib/types';
 	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
-	import { applyConstraints } from '$lib/engine/constraints';
+import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
 	import { applyFormModes, type FormModeConfig } from '$lib/engine/formModes';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
@@ -94,6 +95,19 @@ import {
 	// Buffer Pooling to prevent GC thrashing
 	let colorBuffer: Float32Array | null = null;
 	let heatmapBuffer: Float32Array | null = null;
+	let currentMaterial: MeshPhysicalMaterial | null = null;
+
+	function mapConstraintRisksToColors(risks: number[]): Float32Array {
+		const colors: number[] = [];
+		for (const risk of risks) {
+			const clamped = Math.max(0, Math.min(1, risk));
+			// Green (safe) → Yellow (warning) → Red (violation)
+			const hue = Math.max(0, 0.33 - clamped * 0.33);
+			const color = new Color().setHSL(hue, 1.0, 0.5);
+			colors.push(color.r, color.g, color.b);
+		}
+		return new Float32Array(colors);
+	}
 
 	// OPTIMIZATION: Dynamic geometry manager for real-time updates
 	// Uses DynamicDrawUsage for GPU-optimized buffer updates
@@ -126,6 +140,10 @@ import {
 				liveGeometry.dispose();
 				liveGeometry = null;
 			}
+			if (currentMaterial) {
+				currentMaterial.dispose();
+				currentMaterial = null;
+			}
 			// Clear buffer pools
 			colorBuffer = null;
 			heatmapBuffer = null;
@@ -151,6 +169,13 @@ import {
 	// Set mesh reference in store for color capture
 	$effect(() => {
 		setMeshReference(meshRef || null);
+	});
+
+	// Track current material for explicit disposal when swapping modes
+	$effect(() => {
+		if (meshRef?.material) {
+			currentMaterial = meshRef.material as MeshPhysicalMaterial;
+		}
 	});
 
 	// Material Configuration
@@ -355,7 +380,11 @@ import {
 			// This allows users to toggle between Digital/Ceramic/3D Print without re-recording
 			const effectiveConstraint = uiStore.autoFixGeometry ? uiStore.constraintMode : 'digital';
 			if (effectiveConstraint !== 'digital') {
-				profile = applyConstraints(profile, effectiveConstraint);
+				profile = applyConstraints(
+					profile,
+					effectiveConstraint,
+					sculpture?.physical.height ?? DEFAULT_HEIGHT_MM
+				);
 			}
 
 			// PROFILE STYLE: Apply aesthetic transformation (terraced, spiral, rippled)
@@ -532,10 +561,24 @@ import {
 			// Apply heatmap colors if we have vectors and view mode is heatmap
 			const vectorsToUse = liveGeometry ? lastProfileVectors : derivedVectors;
 			if (vectorsToUse.length > 0 && uiStore.view.mode === 'heatmap') {
-				const stressColors = calculateStressColors(vectorsToUse);
-				if (stressColors && stressColors.length > 0) {
+				const constraintMode = uiStore.constraintMode;
+				const physicalHeight = sculpture?.physical.height ?? DEFAULT_HEIGHT_MM;
+				const constraintProfile = vectorsToUse.map((v) => ({ x: v.x, y: v.y }));
+				const constraintColors =
+					constraintMode !== 'digital'
+						? mapConstraintRisksToColors(
+								analyzeConstraints(constraintProfile, constraintMode, physicalHeight)
+						  )
+						: null;
+
+				const heatmapColors =
+					(constraintColors && constraintColors.length > 0
+						? constraintColors
+						: calculateStressColors(vectorsToUse)) ?? null;
+
+				if (heatmapColors && heatmapColors.length > 0) {
 					heatmapBuffer =
-						applyHeatmapColors(geometry, vectorsToUse, stressColors, heatmapBuffer) ??
+						applyHeatmapColors(geometry, vectorsToUse, heatmapColors, heatmapBuffer) ??
 						heatmapBuffer;
 				}
 			} else {

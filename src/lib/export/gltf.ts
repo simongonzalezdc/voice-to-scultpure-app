@@ -1,8 +1,10 @@
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, BufferAttribute } from 'three';
+import { LatheGeometry, Vector2, Mesh, MeshPhysicalMaterial, BufferAttribute, Color } from 'three';
 import type { SculptureDefinition } from '$lib/types';
 import { generateFinalProfile, type ExportOptions } from './exportUtils';
 import { uiStore } from '$lib/stores/uiStore.svelte';
+import { getSegmentsForFacetStyle } from '$lib/config/constants';
+import { createCeramicMaterialProps } from '$lib/engine/materialFactory';
 
 /**
  * Export sculpture to GLB format with vertex colors and PBR materials
@@ -20,15 +22,14 @@ export async function exportSculptureToGLB(
 		const exportOptions: ExportOptions = {
 			autoFixGeometry: options?.autoFixGeometry ?? true,
 			constraintMode: options?.constraintMode ?? 'ceramic',
-			modifiers: options?.modifiers
+			modifiers: options?.modifiers,
+			scaleToMillimeters: options?.scaleToMillimeters ?? true
 		};
 
 		const finalProfile = generateFinalProfile(sculpture, exportOptions);
 
 		// Determine segment count (match main sculpture logic)
-		// Read from uiStore (legacy property moved there)
-		const roughnessInput = uiStore.activeGlaze.roughness ?? 0.5;
-		const segments = Math.floor(6 + roughnessInput * 58);
+		const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
 
 		// Create geometry from final profile
 		const vectors = finalProfile.map((p) => new Vector2(p.x, p.y));
@@ -82,13 +83,25 @@ export async function exportSculptureToGLB(
 					for (let i = 0; i < vertexCount; i++) {
 						const y = posArray[i * 3 + 1] ?? 0;
 						const normalizedHeight = (y - minY) / totalHeight;
-						const oldVertexIdx = Math.floor(normalizedHeight * (colorCount - 1));
-						const clampedIdx = Math.max(0, Math.min(colorCount - 1, oldVertexIdx));
+						const scaledIndex = normalizedHeight * (colorCount - 1);
+						const lowerIdx = Math.floor(scaledIndex);
+						const upperIdx = Math.min(colorCount - 1, lowerIdx + 1);
+						const t = scaledIndex - lowerIdx;
 
-						const colorIdx = clampedIdx * 3;
-						colors[i * 3] = vertexColors[colorIdx] ?? 1.0;
-						colors[i * 3 + 1] = vertexColors[colorIdx + 1] ?? 1.0;
-						colors[i * 3 + 2] = vertexColors[colorIdx + 2] ?? 1.0;
+						const lowerColorIdx = lowerIdx * 3;
+						const upperColorIdx = upperIdx * 3;
+
+						const lr = vertexColors[lowerColorIdx] ?? 1.0;
+						const lg = vertexColors[lowerColorIdx + 1] ?? 1.0;
+						const lb = vertexColors[lowerColorIdx + 2] ?? 1.0;
+
+						const ur = vertexColors[upperColorIdx] ?? lr;
+						const ug = vertexColors[upperColorIdx + 1] ?? lg;
+						const ub = vertexColors[upperColorIdx + 2] ?? lb;
+
+						colors[i * 3] = lr + (ur - lr) * t;
+						colors[i * 3 + 1] = lg + (ug - lg) * t;
+						colors[i * 3 + 2] = lb + (ub - lb) * t;
 					}
 				}
 
@@ -101,39 +114,35 @@ export async function exportSculptureToGLB(
 		const hasVertexColors = geometry.hasAttribute('color');
 		const baseColor = uiStore.activeGlaze.baseColor || '#E0C9A6';
 		const isPlastic = uiStore.activeGlaze.materialType === 'plastic';
+		const roughnessInput = uiStore.activeGlaze.roughness ?? 0.5;
+		const transmission = uiStore.activeGlaze.transmission ?? 0;
 
-		let material;
+		let material: MeshPhysicalMaterial;
 		if (isPlastic) {
 			material = new MeshPhysicalMaterial({
 				color: baseColor === '#FFFFFF' || baseColor === '#ffffff' ? '#EEEEEE' : baseColor,
 				roughness: Math.max(0.3, roughnessInput),
 				clearcoat: 0.5,
 				clearcoatRoughness: 0.3,
-				metalness: 0.1
+				metalness: 0.1,
+				vertexColors: hasVertexColors
 			});
 		} else {
 			// Ceramic with glaze
-			const glazeColor = uiStore.activeGlaze.color || '#FFFFFF';
-			// Blend base color with glaze color based on transmission (use roughness as proxy)
-			const transmission = (uiStore.activeGlaze.roughness ?? 0.5) * 0.8;
-			const blendedColor = blendColors(baseColor, glazeColor, transmission);
-
-			// Check if vertex colors are available
-			const hasVertexColors =
-				vertexColors && vertexColors.length > 0 && !!geometry.attributes.color;
+			const ceramicProps = createCeramicMaterialProps(baseColor, roughnessInput, transmission);
+			ceramicProps.vertexColors = hasVertexColors;
+			// Keep emissive neutral for export; color driven by vertex colors or base color
+			ceramicProps.emissive = '#000000';
 
 			material = new MeshPhysicalMaterial({
-				color: hasVertexColors ? 'white' : blendedColor,
-				transmission: transmission,
-				thickness: 0.5,
-				roughness: roughnessInput,
-				clearcoat: Math.max(0, transmission),
-				clearcoatRoughness: 0.1,
-				metalness: 0.1,
-				ior: 1.5,
-				vertexColors: hasVertexColors
+				...ceramicProps,
+				color: ceramicProps.vertexColors ? '#ffffff' : ceramicProps.color,
+				sheenColor: new Color(ceramicProps.sheenColor ?? '#ffffff'),
+				attenuationColor: new Color(ceramicProps.attenuationColor ?? '#ffffff')
 			});
 		}
+
+		material.userData = buildMaterialExtensions(material);
 
 		// Create mesh
 		const mesh = new Mesh(geometry, material);
@@ -155,7 +164,7 @@ export async function exportSculptureToGLB(
 				(error) => {
 					reject(error instanceof Error ? error : new Error(String(error)));
 				},
-				{ binary: true, includeCustomExtensions: false }
+				{ binary: true, includeCustomExtensions: true }
 			);
 		});
 
@@ -180,24 +189,30 @@ export async function exportSculptureToGLB(
 	}
 }
 
-/**
- * Blend two hex colors
- */
-function blendColors(colorA: string, colorB: string, t: number): string {
-	const c1 = parseInt(colorA.slice(1), 16);
-	const c2 = parseInt(colorB.slice(1), 16);
+function buildMaterialExtensions(material: MeshPhysicalMaterial) {
+	const colorToArray = (value: Color | string | undefined): [number, number, number] => {
+		const color = new Color(value ?? '#ffffff');
+		return [color.r, color.g, color.b];
+	};
 
-	const r1 = (c1 >> 16) & 255;
-	const g1 = (c1 >> 8) & 255;
-	const b1 = c1 & 255;
-
-	const r2 = (c2 >> 16) & 255;
-	const g2 = (c2 >> 8) & 255;
-	const b2 = c2 & 255;
-
-	const r = Math.round(r1 + (r2 - r1) * t);
-	const g = Math.round(g1 + (g2 - g1) * t);
-	const b = Math.round(b1 + (b2 - b1) * t);
-
-	return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+	return {
+		gltfExtensions: {
+			KHR_materials_clearcoat: {
+				clearcoatFactor: material.clearcoat ?? 0,
+				clearcoatRoughnessFactor: material.clearcoatRoughness ?? 0
+			},
+			KHR_materials_sheen: {
+				sheenColorFactor: colorToArray(material.sheenColor as Color | string),
+				sheenRoughnessFactor: material.sheenRoughness ?? 0
+			},
+			KHR_materials_transmission: {
+				transmissionFactor: material.transmission ?? 0
+			},
+			KHR_materials_volume: {
+				thicknessFactor: material.thickness ?? 0,
+				attenuationColor: colorToArray(material.attenuationColor as Color | string),
+				attenuationDistance: material.attenuationDistance ?? 0
+			}
+		}
+	};
 }

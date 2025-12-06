@@ -2,11 +2,14 @@
 	import { useThrelte, useTask } from '@threlte/core';
 	import { onMount } from 'svelte';
 	import {
+		BlendFunction,
+		BloomEffect,
 		EffectComposer,
 		EffectPass,
-		RenderPass,
-		BloomEffect,
 		KernelSize,
+		NormalPass,
+		RenderPass,
+		SSAOEffect,
 		VignetteEffect
 	} from 'postprocessing';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
@@ -16,12 +19,23 @@
 
 	// Create effect composer
 	const composer = new EffectComposer(renderer);
+	let normalPass: NormalPass | null = null;
 
 	// Quality-based settings
 	const qualitySettings = {
-		low: { bloomWidth: 256, bloomHeight: 256, bloomIntensity: 0.3 },
-		medium: { bloomWidth: 512, bloomHeight: 512, bloomIntensity: 0.5 },
-		high: { bloomWidth: 1024, bloomHeight: 1024, bloomIntensity: 0.7 }
+		low: { bloomWidth: 256, bloomHeight: 256, bloomIntensity: 0.3, ssao: null },
+		medium: {
+			bloomWidth: 512,
+			bloomHeight: 512,
+			bloomIntensity: 0.5,
+			ssao: { samples: 12, radius: 0.35, intensity: 0.9, bias: 0.025 }
+		},
+		high: {
+			bloomWidth: 1024,
+			bloomHeight: 1024,
+			bloomIntensity: 0.7,
+			ssao: { samples: 20, radius: 0.25, intensity: 1.2, bias: 0.02 }
+		}
 	};
 
 	function setupEffectComposer(cam: Camera) {
@@ -29,9 +43,24 @@
 		const settings = qualitySettings[quality] || qualitySettings.medium;
 
 		composer.removeAllPasses();
+		normalPass = null;
 
 		// Base render pass
 		composer.addPass(new RenderPass(scene, cam));
+
+		// SSAO (ambient occlusion) for depth grounding
+		let ssaoEffect: SSAOEffect | null = null;
+		if (settings.ssao) {
+			normalPass = new NormalPass(scene, cam);
+			composer.addPass(normalPass);
+			ssaoEffect = new SSAOEffect(cam, normalPass.renderTarget.texture, {
+				blendFunction: BlendFunction.MULTIPLY,
+				samples: settings.ssao.samples,
+				radius: settings.ssao.radius,
+				intensity: settings.ssao.intensity,
+				bias: settings.ssao.bias
+			});
+		}
 
 		// Bloom effect - subtle glow for emissive materials
 		const bloomEffect = new BloomEffect({
@@ -43,7 +72,9 @@
 			mipmapBlur: true,
 			kernelSize: KernelSize.MEDIUM
 		});
-		composer.addPass(new EffectPass(cam, bloomEffect));
+
+		// Combine effects into a single pass for efficiency
+		const effects = ssaoEffect ? [ssaoEffect, bloomEffect] : [bloomEffect];
 
 		// Vignette effect - subtle darkening at edges for focus
 		if (quality !== 'low') {
@@ -51,8 +82,10 @@
 				darkness: 0.3,
 				offset: 0.3
 			});
-			composer.addPass(new EffectPass(cam, vignetteEffect));
+			effects.push(vignetteEffect);
 		}
+
+		composer.addPass(new EffectPass(cam, ...effects));
 
 		console.log(`🎨 [POST-PROCESSING] Initialized with ${quality} quality settings`);
 	}
@@ -67,6 +100,9 @@
 	// Resize composer when viewport changes
 	$effect(() => {
 		composer.setSize($size.width, $size.height);
+		if (normalPass) {
+			normalPass.setSize($size.width, $size.height);
+		}
 	});
 
 	// Disable auto rendering when mounted

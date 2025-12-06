@@ -63,14 +63,14 @@ export class CloudAISculptor implements AISculptor {
 		const roughness = uiStore.activeGlaze.roughness ?? 0.5;
 		const transmission = uiStore.activeGlaze.transmission ?? 0.3;
 		const twist = uiStore.deformation.twist;
-		const compression = uiStore.deformation.compression;
+		const verticalStretch = uiStore.deformation.verticalStretch;
 
 		const userMessage = `Current sculpture:
 - Radius curve: ${JSON.stringify(radiusCurve.slice(0, 10))}... (${radiusCurve.length} points)
 - Surface roughness: ${roughness}
 - Glaze transmission: ${transmission}
 - Twist: ${twist}
-- Compression: ${compression}
+- Vertical Stretch: ${verticalStretch}
 
 User instruction: ${instruction}
 
@@ -192,12 +192,12 @@ function validateMutation(mutation: SculptureMutation): void {
 				throw new AISculptorErrorImpl('twist must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
-		if (mutation.deformation.compression !== undefined) {
+		if (mutation.deformation.verticalStretch !== undefined) {
 			if (
-				typeof mutation.deformation.compression !== 'number' ||
-				!isFinite(mutation.deformation.compression)
+				typeof mutation.deformation.verticalStretch !== 'number' ||
+				!isFinite(mutation.deformation.verticalStretch)
 			) {
-				throw new AISculptorErrorImpl('compression must be a finite number', 'SCHEMA_ERROR');
+				throw new AISculptorErrorImpl('verticalStretch must be a finite number', 'SCHEMA_ERROR');
 			}
 		}
 		if (mutation.deformation.taper !== undefined) {

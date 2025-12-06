@@ -20,12 +20,14 @@ Transform your voice into beautiful 3D ceramic sculptures using real-time audio 
 - 🏺 **Ceramic Constraints** - Pottery physics: hand access (70mm min), clay smoothing, stable bases
 - 🖨️ **3D Print Constraints** - FDM rules: 60° max overhang, contiguous geometry
 - 📦 **Export Formats** - STL (real millimeters), GLTF/GLB (with PBR materials), High-res PNG renders
+- 🖼️ **High-Res Renders** - 4K supersampled exports with ACES tone mapping and studio HDRI lighting
 
 ### Visual Features
 - ✨ **PBR Ceramic Materials** - Clearcoat glaze, sheen, subsurface scattering simulation
 - 💡 **Professional 3-Point Lighting** - Key, fill, and rim lights with hemisphere ambient
 - 🌈 **Dazzler Effect** - Voice-reactive emissive materials that glow with your voice
-- 🎯 **Heatmap View** - Stress visualization for fabrication analysis
+- 🎯 **Heatmap View** - Curvature + constraint risk visualization for fabrication analysis
+- 🌫️ **Post FX** - SSAO + bloom + vignette tuned by quality settings
 
 ### AI & Automation
 - 🤖 **AI Sculpture Modifications** - Cloud (OpenAI) and Local (WebLLM) AI assistants

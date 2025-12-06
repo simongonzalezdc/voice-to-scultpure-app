@@ -20,6 +20,7 @@
 
 	// Post-processing enabled based on quality setting
 	let enablePostProcessing = $derived(appSettings.graphicsQuality !== 'low');
+	let quality = $derived(appSettings.graphicsQuality || 'medium');
 
 	// PHASE 2.1: Wire ViewportControls to Scene
 	// Lighting controls - Derived from global UI store
@@ -36,6 +37,14 @@
 	} as const;
 
 	let currentEnv = $derived(ENVIRONMENTS[uiStore.view.environment] ?? ENVIRONMENTS.studio);
+
+	const contactShadowSettings = {
+		low: { resolution: 256, blur: 3, opacity: 0.35 },
+		medium: { resolution: 512, blur: 2.5, opacity: 0.4 },
+		high: { resolution: 1024, blur: 2, opacity: 0.45 }
+	} as const;
+
+	let contactSettings = $derived(contactShadowSettings[quality] ?? contactShadowSettings.medium);
 </script>
 
 <!-- Pure Scene Component - Canvas wrapper is in parent -->
@@ -80,7 +89,7 @@
 <T.AmbientLight intensity={0.25} />
 
 {#if currentEnv.map}
-	<Environment files={currentEnv.map} intensity={currentEnv.intensity} />
+	<Environment files={currentEnv.map} intensity={currentEnv.intensity} background={false} />
 {/if}
 
 <OrbitControls
@@ -99,7 +108,14 @@
 	cellSize={1}
 	fadeDistance={50}
 />
-<ContactShadows opacity={0.5} scale={20} blur={2} far={10} resolution={256} color="#000000" />
+<ContactShadows
+	opacity={contactSettings.opacity}
+	scale={20}
+	blur={contactSettings.blur}
+	far={10}
+	resolution={contactSettings.resolution}
+	color="#000000"
+/>
 
 <!-- Ghost Machines: Contextual Rigs (Pottery Wheel / Lathe) -->
 <!-- DIRECTIVE 4: Hide Machines in Force Mode (Telekinesis) -->

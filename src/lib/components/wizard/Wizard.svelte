@@ -14,8 +14,10 @@
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 	import type { SculptureLayer } from '$lib/types';
 
+	type Step = 'shape' | 'detail' | 'glaze' | 'export';
+
 	// Wizard State
-	let currentStep = $state<'shape' | 'detail' | 'glaze' | 'export'>('shape');
+	let currentStep = $state<Step>('shape');
 	let isRecording = $derived(recordingStore.state === 'recording');
 
 	// Real-time audio feedback
@@ -26,7 +28,13 @@
 	const quantizedHue = $derived((latestFrame as any)?.quantizedPitch?.hue ?? null);
 
 	// Step Configurations
-	const STEPS = {
+	const STEPS: Record<Step, {
+		title: string;
+		prompt: string;
+		hint: string;
+		layerType: string | null;
+		action: () => void;
+	}> = {
 		shape: {
 			title: 'Define Silhouette',
 			prompt: 'Sing a long, steady tone to shape the vase profile.',
@@ -60,6 +68,24 @@
 		}
 	} as const;
 
+	const stepOrder: Step[] = ['shape', 'detail', 'glaze', 'export'];
+
+	function applyWorkspaceForStep(step: Step) {
+		if (step === 'glaze') {
+			uiStore.workspace = 'glaze';
+		} else if (step === 'export') {
+			uiStore.workspace = 'export';
+		} else {
+			uiStore.workspace = 'sculpt';
+		}
+	}
+
+	function setStep(step: Step) {
+		currentStep = step;
+		applyWorkspaceForStep(step);
+		STEPS[step].action();
+	}
+
 	// Helper: Ensure a layer of type exists, or create it
 	function ensureLayer(type: string) {
 		if (!sculptureStore.currentSculpture) return;
@@ -78,32 +104,26 @@
 	}
 
 	function nextStep() {
-		if (currentStep === 'shape') {
-			currentStep = 'detail';
-			STEPS.detail.action();
-		} else if (currentStep === 'detail') {
-			currentStep = 'glaze';
-			STEPS.glaze.action();
-		} else if (currentStep === 'glaze') {
-			currentStep = 'export';
-			STEPS.export.action();
+		const currentIndex = stepOrder.indexOf(currentStep);
+		const next = stepOrder[currentIndex + 1];
+		if (next) {
+			setStep(next);
 		}
 	}
 
-	// AUDIT FIX: Implement back navigation for Wizard
+	// AUDIT FIX: Implement back navigation and workspace sync for Wizard
 	function prevStep() {
-		const stepOrder: Array<'shape' | 'detail' | 'glaze' | 'export'> = ['shape', 'detail', 'glaze', 'export'];
 		const currentIndex = stepOrder.indexOf(currentStep);
 		if (currentIndex > 0) {
 			const prevStepValue = stepOrder[currentIndex - 1];
 			if (prevStepValue) {
-				currentStep = prevStepValue;
-				// Reset workspace if leaving glaze mode
-				if (currentStep !== 'glaze' && uiStore.workspace === 'glaze') {
-					uiStore.workspace = 'sculpt';
-				}
+				setStep(prevStepValue);
 			}
 		}
+	}
+
+	function skipToExport() {
+		setStep('export');
 	}
 
 	// Auto-initialize: Create sculpture if none exists
@@ -148,6 +168,11 @@
 			setCurrentSculpture(newSculpture);
 			console.log('🎭 [WIZARD] Created default sculpture for Performance Mode');
 		}
+	});
+
+	// Ensure workspace reflects current step on mount
+	$effect(() => {
+		applyWorkspaceForStep(currentStep);
 	});
 </script>
 
@@ -274,6 +299,15 @@
 						>
 							<span>NEXT STEP</span>
 							<ChevronRight size={16} />
+						</button>
+					{/if}
+
+					{#if !isRecording && currentStep !== 'export'}
+						<button
+							class="flex items-center gap-2 px-4 py-3 rounded-full border border-white/20 text-xs text-white/70 hover:bg-white/10 hover:border-white/40 transition-colors"
+							onclick={skipToExport}
+						>
+							<span>SKIP TO EXPORT</span>
 						</button>
 					{/if}
 				</div>

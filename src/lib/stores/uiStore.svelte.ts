@@ -68,7 +68,7 @@ export const uiStore = $state<{
 	};
 	deformation: {
 		twist: number; // Degrees of twist (-360 to 360)
-		compression: number; // Vertical stretch/compression (-1 to 1, 0 = no change)
+		verticalStretch: number; // Vertical stretch/compression (-1 to 1, 0 = no change)
 		taper: number; // Radius taper top-to-bottom (-1 to 1, 0 = no change)
 	};
 	showGhost: boolean;
@@ -148,7 +148,7 @@ export const uiStore = $state<{
 	},
 	deformation: {
 		twist: 0,
-		compression: 0,
+		verticalStretch: 0,
 		taper: 0
 	},
 	showGhost: true,

@@ -26,7 +26,7 @@ export type ActionType =
 	// Deformation (Shape Manipulation)
 	| 'setDeformation'
 	| 'setTwist'
-	| 'setCompression'
+	| 'setVerticalStretch'
 	| 'setTaper'
 
 	// Surface & Material
@@ -80,9 +80,9 @@ export type ActionParams =
 	| { constraintMode: 'digital' | 'ceramic' | '3d_print' }
 
 	// Deformation
-	| { twist: number; compression: number; taper: number }
+	| { twist: number; verticalStretch: number; taper: number }
 	| { twist: number }
-	| { compression: number }
+	| { verticalStretch: number }
 	| { taper: number }
 
 	// Surface
@@ -148,7 +148,7 @@ export interface ActionContext {
 	layerCount: number;
 	currentDeformation: {
 		twist: number;
-		compression: number;
+		verticalStretch: number;
 		taper: number;
 	};
 	currentGlaze: {
@@ -171,7 +171,7 @@ CURRENT STATE:
 - Layer Count: ${context.layerCount}
 - Height: ${context.physicalHeight}mm
 - Constraint Mode: ${context.constraintMode}
-- Deformation: twist=${context.currentDeformation.twist}°, compression=${context.currentDeformation.compression}, taper=${context.currentDeformation.taper}
+- Deformation: twist=${context.currentDeformation.twist}°, verticalStretch=${context.currentDeformation.verticalStretch}, taper=${context.currentDeformation.taper}
 - Glaze: color=${context.currentGlaze.color}, roughness=${context.currentGlaze.roughness}
 `.trim();
 }

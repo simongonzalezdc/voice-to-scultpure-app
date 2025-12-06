@@ -10,6 +10,7 @@ import { safeArrayAccess, isValidIndex } from '$lib/utils/arrayHelpers';
 import {
 	CONSTRAINT_DIFF_THRESHOLD,
 	CERAMIC_MIN_HAND_RADIUS,
+	CERAMIC_MIN_HAND_ACCESS_MM,
 	CERAMIC_MAX_OVERHANG_ANGLE,
 	CERAMIC_BASE_STABILITY_RATIO,
 	CERAMIC_TOP_EXEMPT_THRESHOLD,
@@ -30,7 +31,11 @@ export type ConstraintMode = 'digital' | 'ceramic' | '3d_print';
  * @param mode - Constraint mode (digital, ceramic, 3d_print)
  * @returns Constrained curve that is physically manufacturable
  */
-export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): LathePoint[] {
+export function applyConstraints(
+	curve: LathePoint[],
+	mode: ConstraintMode,
+	physicalHeightMm: number = DEFAULT_HEIGHT_MM
+): LathePoint[] {
 	console.log(`🔧 [CONSTRAINTS] Applying "${mode}" constraints to ${curve.length} points`);
 	
 	if (curve.length < 2) {
@@ -44,7 +49,7 @@ export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): Lat
 			return applyDigitalConstraints(curve);
 		case 'ceramic':
 			console.log(`🔧 [CONSTRAINTS] Ceramic mode: applying pottery constraints`);
-			return applyCeramicConstraints(curve);
+			return applyCeramicConstraints(curve, physicalHeightMm);
 		case '3d_print':
 			console.log(`🔧 [CONSTRAINTS] 3D Print mode: applying FDM constraints`);
 			return apply3DPrintConstraints(curve);
@@ -61,12 +66,16 @@ export function applyConstraints(curve: LathePoint[], mode: ConstraintMode): Lat
  * 0.5 = Warning (Yellow)
  * 1.0 = Violation (Red)
  */
-export function analyzeConstraints(curve: LathePoint[], mode: ConstraintMode): number[] {
+export function analyzeConstraints(
+	curve: LathePoint[],
+	mode: ConstraintMode,
+	physicalHeightMm: number = DEFAULT_HEIGHT_MM
+): number[] {
 	const risks = new Array(curve.length).fill(0);
 
 	if (curve.length < 2 || mode === 'digital') return risks;
 
-	const constrained = applyConstraints(curve, mode);
+	const constrained = applyConstraints(curve, mode, physicalHeightMm);
 
 	// Compare original vs constrained to determine risk
 	// If significant deviation, mark as violation
@@ -116,15 +125,21 @@ function applyDigitalConstraints(curve: LathePoint[]): LathePoint[] {
  * - Normalized: 35mm / 150mm height ≈ 0.23 radius ratio
  * - But sculpture width is scaled differently, so we use ~0.35 (70mm on typical vase)
  */
-function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
+function applyCeramicConstraints(curve: LathePoint[], physicalHeightMm: number): LathePoint[] {
 	const constrained = curve.map((p) => ({ ...p })); // Deep copy
+
+	const heightMm = Math.max(1, physicalHeightMm || DEFAULT_HEIGHT_MM);
+	const minHandRadius = Math.max(
+		CERAMIC_MIN_HAND_RADIUS,
+		(CERAMIC_MIN_HAND_ACCESS_MM / heightMm) / 2
+	);
 
 	// RULE A: Hand Access - Ensure minimum radius for hand entry
 	// Exception: Top 5% (rim) can be narrower for closure
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (!point) {
-			constrained[i] = { x: CERAMIC_MIN_HAND_RADIUS, y: i / constrained.length };
+			constrained[i] = { x: minHandRadius, y: i / constrained.length };
 			continue;
 		}
 
@@ -133,8 +148,8 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 		// Allow rim to close (top 5%)
 		if (normalizedHeight < CERAMIC_TOP_EXEMPT_THRESHOLD) {
 			// HARDENED: Enforce stricter minimum radius for hand access
-			if (point.x < CERAMIC_MIN_HAND_RADIUS) {
-				point.x = CERAMIC_MIN_HAND_RADIUS;
+			if (point.x < minHandRadius) {
+				point.x = minHandRadius;
 			}
 		}
 	}
@@ -231,7 +246,7 @@ function applyCeramicConstraints(curve: LathePoint[]): LathePoint[] {
 	// This prevents the "flat disc" appearance while still ensuring stability
 	const minBaseRadius = Math.max(
 		updatedAverageRadius * CERAMIC_BASE_STABILITY_RATIO, // 1.2x average
-		CERAMIC_MIN_HAND_RADIUS // At least the minimum hand radius
+		minHandRadius // At least the minimum hand radius derived from physical height
 	);
 
 	let basePointsAdjusted = 0;

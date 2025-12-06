@@ -7,7 +7,7 @@ import { applyDeformation } from '$lib/engine/physicsMapping';
  */
 export function exportProfileSVG(
 	sculpture: SculptureDefinition,
-	deformation?: { twist: number; compression: number; taper: number }
+	deformation?: { twist: number; verticalStretch: number; taper: number }
 ): string {
 	const curve = sculpture.radiusCurve;
 	if (!curve || curve.length < 2) {

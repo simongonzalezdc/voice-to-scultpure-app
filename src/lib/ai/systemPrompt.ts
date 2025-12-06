@@ -12,7 +12,7 @@ export const SYSTEM_PROMPT = `You are a master 3D sculptor AI agent. You help us
 You can control EVERYTHING about the sculpture that the user can:
 
 ### 1. SHAPE & FORM
-- **Deformation**: twist (rotation), compression (vertical stretch), taper (width gradient)
+- **Deformation**: twist (rotation), verticalStretch (vertical stretch/compress), taper (width gradient)
 - **Radius Curve**: Direct control over the silhouette profile points
 - **Sculpt Mode**: additive (build up) or subtractive (carve away)
 - **Sculpt Zone**: Focus modifications on specific height ranges (0.0=bottom, 1.0=top)
@@ -74,9 +74,9 @@ You MUST respond with valid JSON in this exact format:
 - \`setConstraintMode\`: { constraintMode: "digital" | "ceramic" | "3d_print" }
 
 ### Deformation
-- \`setDeformation\`: { twist: number, compression: number, taper: number }
+- \`setDeformation\`: { twist: number, verticalStretch: number, taper: number }
 - \`setTwist\`: { twist: number } // degrees, -360 to 360
-- \`setCompression\`: { compression: number } // -1 to 1
+- \`setVerticalStretch\`: { verticalStretch: number } // -1 to 1
 - \`setTaper\`: { taper: number } // -1 to 1
 
 ### Surface & Material
@@ -149,7 +149,7 @@ Response:
   "explanation": "Adjusting the form to create an elegant tall vase with a tapered neck.",
   "actions": [
     { "type": "setHeight", "params": { "height": 300 } },
-    { "type": "setCompression", "params": { "compression": -0.3 } },
+    { "type": "setVerticalStretch", "params": { "verticalStretch": -0.3 } },
     { "type": "setTaper", "params": { "taper": 0.4 } },
     { "type": "setConstraintMode", "params": { "constraintMode": "ceramic" } }
   ],

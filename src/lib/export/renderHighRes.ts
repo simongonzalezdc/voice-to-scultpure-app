@@ -21,24 +21,34 @@ import {
 	Vector2,
 	ACESFilmicToneMapping,
 	SRGBColorSpace,
-	Color
+	Color,
+	PMREMGenerator,
+	type Texture
 } from 'three';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import JSZip from 'jszip';
 import type { SculptureDefinition } from '$lib/types';
 import { uiStore } from '$lib/stores/uiStore.svelte';
 import { computeProfile } from '$lib/engine/compositor';
 import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
+import {
+	EXPORT_SEGMENTS_HIGH,
+	EXPORT_SUPER_SAMPLE_FACTOR,
+	EXPORT_TONE_MAPPING_EXPOSURE
+} from '$lib/config/constants';
+import { createCeramicMaterialProps } from '$lib/engine/materialFactory';
 
-// High quality export settings
-const EXPORT_SEGMENTS = 128; // 4x higher than preview (32)
-const SUPER_SAMPLE_FACTOR = 2; // 2x super-sampling
+const ENVIRONMENT_MAPS = {
+	studio: '/environments/studio_small_03_1k.hdr',
+	neon: '/environments/royal_esplanade_1k.hdr'
+} as const;
 
 export async function renderHighRes(
 	sculpture: SculptureDefinition,
 	quality: 'low' | 'high' = 'high'
 ): Promise<Blob> {
 	const baseSize = quality === 'high' ? 4096 : 2048;
-	const renderSize = baseSize * SUPER_SAMPLE_FACTOR; // Super-sample at 2x
+	const renderSize = baseSize * EXPORT_SUPER_SAMPLE_FACTOR; // Super-sample at 2x
 	
 	const canvas = document.createElement('canvas');
 	canvas.width = renderSize;
@@ -54,7 +64,7 @@ export async function renderHighRes(
 	
 	// AUDIT FIX: Proper tone mapping and color space
 	renderer.toneMapping = ACESFilmicToneMapping;
-	renderer.toneMappingExposure = 1.2;
+	renderer.toneMappingExposure = EXPORT_TONE_MAPPING_EXPOSURE;
 	renderer.outputColorSpace = SRGBColorSpace;
 
 	const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
@@ -92,85 +102,92 @@ export async function renderHighRes(
 	}
 	
 	const points = profile.map((p) => new Vector2(p.x, p.y));
-	const geometry = new LatheGeometry(points, EXPORT_SEGMENTS);
+	const geometry = new LatheGeometry(
+		points,
+		quality === 'high' ? EXPORT_SEGMENTS_HIGH : Math.max(64, Math.floor(EXPORT_SEGMENTS_HIGH / 2))
+	);
 	
 	// AUDIT FIX: Ceramic material with full PBR properties (matches Sculpture.svelte)
 	const glazeRoughness = uiStore.activeGlaze.roughness ?? 0.35;
 	const glazeTransmission = uiStore.activeGlaze.transmission ?? 0;
-	const clearcoatAmount = Math.max(0, 0.9 - glazeRoughness * 0.8);
-	
+	const ceramicProps = createCeramicMaterialProps(
+		uiStore.activeGlaze.color || DEFAULT_MATERIAL_CERAMIC,
+		glazeRoughness,
+		glazeTransmission
+	);
+
 	const material = new MeshPhysicalMaterial({
-		color: new Color(uiStore.activeGlaze.color || DEFAULT_MATERIAL_CERAMIC),
-		roughness: glazeRoughness,
-		metalness: 0.0,
-		// Glaze layer
-		clearcoat: clearcoatAmount,
-		clearcoatRoughness: 0.15,
-		// Ceramic body sheen
-		sheen: 0.3,
-		sheenRoughness: 0.4,
-		sheenColor: new Color('#E8DCC8'),
-		// Environment reflections
-		envMapIntensity: 1.2,
-		// Glaze refraction
-		ior: 1.52,
-		// Translucent glaze
-		transmission: glazeTransmission,
-		thickness: 0.5,
-		attenuationColor: new Color('#D4C4A8'),
-		attenuationDistance: 0.5
+		...ceramicProps,
+		color: new Color(ceramicProps.color),
+		sheenColor: new Color(ceramicProps.sheenColor ?? '#ffffff'),
+		attenuationColor: new Color(ceramicProps.attenuationColor ?? '#ffffff')
 	});
-	
-	const mesh = new Mesh(geometry, material);
-	scene.add(mesh);
 
-	const zip = new JSZip();
-	
-	// Downsample canvas for final output
-	const finalCanvas = document.createElement('canvas');
-	finalCanvas.width = baseSize;
-	finalCanvas.height = baseSize;
-	const ctx = finalCanvas.getContext('2d')!;
+	// Add environment reflections with PMREM
+	const envPath = ENVIRONMENT_MAPS[uiStore.view.environment] ?? ENVIRONMENT_MAPS.studio;
+	let envMap: Texture | null = null;
 
-	// Front view
-	camera.position.set(0, 0.5, 3);
-	camera.lookAt(0, 0.5, 0);
-	renderer.render(scene, camera);
-	ctx.drawImage(canvas, 0, 0, baseSize, baseSize); // Downsample
-	const frontBlob = await canvasToBlob(finalCanvas);
-	zip.file('front.png', frontBlob);
+	try {
+		envMap = await loadEnvironmentMap(renderer, envPath);
+		material.envMap = envMap;
+		material.needsUpdate = true;
 
-	// Top view
-	camera.position.set(0, 4, 0.01);
-	camera.lookAt(0, 0.5, 0);
-	renderer.render(scene, camera);
-	ctx.drawImage(canvas, 0, 0, baseSize, baseSize);
-	const topBlob = await canvasToBlob(finalCanvas);
-	zip.file('top.png', topBlob);
+		const mesh = new Mesh(geometry, material);
+		scene.add(mesh);
 
-	// Side view
-	camera.position.set(3, 0.5, 0);
-	camera.lookAt(0, 0.5, 0);
-	renderer.render(scene, camera);
-	ctx.drawImage(canvas, 0, 0, baseSize, baseSize);
-	const sideBlob = await canvasToBlob(finalCanvas);
-	zip.file('side.png', sideBlob);
+		const zip = new JSZip();
+		
+		// Downsample canvas for final output
+		const finalCanvas = document.createElement('canvas');
+		finalCanvas.width = baseSize;
+		finalCanvas.height = baseSize;
+		const ctx = finalCanvas.getContext('2d')!;
+		const downsample = () => {
+			ctx.clearRect(0, 0, baseSize, baseSize);
+			ctx.drawImage(canvas, 0, 0, baseSize, baseSize);
+		};
 
-	// Isometric view (hero shot)
-	camera.position.set(2.5, 2, 2.5);
-	camera.lookAt(0, 0.5, 0);
-	renderer.render(scene, camera);
-	ctx.drawImage(canvas, 0, 0, baseSize, baseSize);
-	const isoBlob = await canvasToBlob(finalCanvas);
-	zip.file('isometric.png', isoBlob);
+		// Front view
+		camera.position.set(0, 0.5, 3);
+		camera.lookAt(0, 0.5, 0);
+		renderer.render(scene, camera);
+		downsample();
+		const frontBlob = await canvasToBlob(finalCanvas);
+		zip.file('front.png', frontBlob);
 
-	// Cleanup
-	geometry.dispose();
-	material.dispose();
-	renderer.dispose();
+		// Top view
+		camera.position.set(0, 4, 0.01);
+		camera.lookAt(0, 0.5, 0);
+		renderer.render(scene, camera);
+		downsample();
+		const topBlob = await canvasToBlob(finalCanvas);
+		zip.file('top.png', topBlob);
 
-	const zipBlob = await zip.generateAsync({ type: 'blob' });
-	return zipBlob;
+		// Side view
+		camera.position.set(3, 0.5, 0);
+		camera.lookAt(0, 0.5, 0);
+		renderer.render(scene, camera);
+		downsample();
+		const sideBlob = await canvasToBlob(finalCanvas);
+		zip.file('side.png', sideBlob);
+
+		// Isometric view (hero shot)
+		camera.position.set(2.5, 2, 2.5);
+		camera.lookAt(0, 0.5, 0);
+		renderer.render(scene, camera);
+		downsample();
+		const isoBlob = await canvasToBlob(finalCanvas);
+		zip.file('isometric.png', isoBlob);
+
+		const zipBlob = await zip.generateAsync({ type: 'blob' });
+		return zipBlob;
+	} finally {
+		// Ensure GPU resources are always released, even if env load fails
+		geometry.dispose();
+		material.dispose();
+		envMap?.dispose();
+		renderer.dispose();
+	}
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -182,5 +199,28 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 				reject(new Error('Failed to convert canvas to blob'));
 			}
 		}, 'image/png');
+	});
+}
+
+async function loadEnvironmentMap(renderer: WebGLRenderer, url: string): Promise<Texture> {
+	const pmremGenerator = new PMREMGenerator(renderer);
+	pmremGenerator.compileEquirectangularShader();
+
+	return new Promise((resolve, reject) => {
+		const loader = new RGBELoader();
+		loader.load(
+			url,
+			(texture) => {
+				const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+				texture.dispose();
+				pmremGenerator.dispose();
+				resolve(envMap);
+			},
+			undefined,
+			(error) => {
+				pmremGenerator.dispose();
+				reject(error instanceof Error ? error : new Error(String(error)));
+			}
+		);
 	});
 }

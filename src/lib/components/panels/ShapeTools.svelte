@@ -80,7 +80,7 @@
 		if (radiusCurve.length === 0) return;
 		const deformed = applyDeformation(radiusCurve, {
 			twist: twist,
-			compression: 0, // REMOVED: verticalStretch feature
+			verticalStretch: 0, // REMOVED: verticalStretch feature
 			taper: 0
 		});
 		setGhostSculpture({
@@ -113,7 +113,7 @@
 
 		const deformed = applyDeformation(radiusCurve, {
 			twist: currentTwist,
-			compression: 0, // REMOVED: verticalStretch feature
+			verticalStretch: 0, // REMOVED: verticalStretch feature
 			taper: 0
 		});
 

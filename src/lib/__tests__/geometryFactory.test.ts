@@ -296,7 +296,7 @@ describe('geometryFactory', () => {
 				{ x: 0.5, y: 1 }
 			];
 
-			const deformation = { twist: 0.5, compression: 0.2, taper: 0.1 };
+			const deformation = { twist: 0.5, verticalStretch: 0.2, taper: 0.1 };
 
 			const result = deriveProfileWithTransforms(
 				profile,
@@ -341,7 +341,7 @@ describe('geometryFactory', () => {
 
 			const result = deriveProfileWithTransforms(
 				profile,
-				{ twist: 0, compression: 0, taper: 0 },
+				{ twist: 0, verticalStretch: 0, taper: 0 },
 				1.0,
 				undefined,
 				'digital',

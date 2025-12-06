@@ -14,7 +14,7 @@ export interface SculptureMutation {
 	};
 	deformation?: {
 		twist?: number;
-		compression?: number;
+		verticalStretch?: number;
 		taper?: number;
 	};
 }

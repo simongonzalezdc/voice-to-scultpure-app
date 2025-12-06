@@ -342,4 +342,45 @@ test.describe('Critical Path: Record → Stop → Export', () => {
 			console.log('ℹ️ Toast notification system not yet mounted (Phase 3 feature)');
 		}
 	});
+
+	test('should surface physical scale indicators in Export panel', async ({ page }) => {
+		const exportButton = page.locator('button:has-text("Export")').first();
+		if (!(await exportButton.isVisible().catch(() => false))) {
+			console.warn('⚠️ Export button not visible, skipping scale assertion');
+			return;
+		}
+
+		await exportButton.click();
+
+		// Prefer 3D Print mode to reveal mm scale overlays
+		const printButton = page.locator('button:has-text("3D Print")').first();
+		if (await printButton.isVisible().catch(() => false)) {
+			await printButton.click();
+			await page.waitForTimeout(300);
+		}
+
+		const mmLabel = page.locator('text=/mm/').first();
+		const hasScale = await mmLabel.isVisible().catch(() => false);
+		expect(hasScale).toBe(true);
+		console.log('✅ Physical scale indicators are visible');
+	});
+
+	test('wizard navigation should support Next and Back', async ({ page }) => {
+		const wizardStep = page.locator('text=Define Silhouette').first();
+		const wizardVisible = await wizardStep.isVisible().catch(() => false);
+
+		if (!wizardVisible) {
+			console.warn('ℹ️ Wizard UI not visible; skipping navigation test');
+			return;
+		}
+
+		const nextButton = page.locator('button:has-text("NEXT STEP")').first();
+		await nextButton.click().catch(() => {});
+		await expect(page.locator('text=Add Rhythmic Texture').first()).toBeVisible();
+
+		const backButton = page.locator('button:has-text("BACK")').first();
+		await backButton.click().catch(() => {});
+		await expect(page.locator('text=Define Silhouette').first()).toBeVisible();
+		console.log('✅ Wizard Next/Back navigation works');
+	});
 });

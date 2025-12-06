@@ -16,6 +16,7 @@ import { applyConstraints, type ConstraintMode } from './constraints';
 import {
 	DEFAULT_CYLINDER_RADIUS,
 	DEFAULT_CYLINDER_SEGMENTS,
+	DEFAULT_HEIGHT_MM,
 	GEOMETRY_MIN_SEGMENTS,
 	getSegmentsForFacetStyle
 } from '$lib/config/constants';
@@ -306,7 +307,7 @@ export function createFallbackGeometry(): {
  */
 export function deriveProfileWithTransforms(
 	profile: LathePoint[],
-	deformation: { twist: number; compression: number; taper: number } | undefined,
+	deformation: { twist: number; verticalStretch: number; taper: number } | undefined,
 	heightScale: number,
 	modifiers: { quantize?: boolean; symmetryCount?: number } | undefined,
 	constraintMode: ConstraintMode,
@@ -314,15 +315,16 @@ export function deriveProfileWithTransforms(
 ): LathePoint[] {
 	try {
 		let processedProfile = profile;
+		const physicalHeightMm = Math.max(1, heightScale * DEFAULT_HEIGHT_MM);
 
-		// 1. Apply deformations (twist, compression, taper) first
+		// 1. Apply deformations (twist, vertical stretch, taper) first
 		if (deformation) {
 			processedProfile = applyDeformation(processedProfile, deformation);
 		}
 
 		// 2. Apply constraints if auto-fix is enabled
 		if (autoFixGeometry && constraintMode !== 'digital') {
-			processedProfile = applyConstraints(processedProfile, constraintMode);
+			processedProfile = applyConstraints(processedProfile, constraintMode, physicalHeightMm);
 		}
 
 		// 3. Apply modifiers (quantize, symmetry)

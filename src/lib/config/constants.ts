@@ -183,6 +183,7 @@ export const ENERGY_MATERIAL_ROUGHNESS = 0.8; // Matte to prevent reflection int
 // Fabrication Constraint Constants
 export const CONSTRAINT_DIFF_THRESHOLD = 0.001; // Threshold for detecting constraint changes
 export const CERAMIC_MIN_HAND_RADIUS = 0.25; // ~30mm radius for hand access (more visible constraint)
+export const CERAMIC_MIN_HAND_ACCESS_MM = 70; // Minimum opening for hand entry
 export const CERAMIC_MAX_OVERHANG_ANGLE = 40; // Maximum outward overhang - stricter for clay stability
 export const CERAMIC_BASE_STABILITY_RATIO = 1.4; // Base should be 1.4x wider than average (more stable)
 export const CERAMIC_TOP_EXEMPT_THRESHOLD = 0.95; // Top 5% exempt from min radius (rim)

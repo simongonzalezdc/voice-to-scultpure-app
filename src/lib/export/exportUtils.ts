@@ -15,10 +15,10 @@ export interface ExportOptions {
 		quantizeSteps?: number; // Optional - not used everywhere
 		symmetryCount: number;
 	};
-	/** Deformation to apply (twist, compression, taper) */
+	/** Deformation to apply (twist, verticalStretch, taper) */
 	deformation?: {
 		twist: number;
-		compression: number;
+		verticalStretch: number;
 		taper: number;
 	};
 	/** AUDIT FIX: Whether to scale output to real-world millimeters (for STL/3D printing) */
@@ -29,7 +29,7 @@ export interface ExportOptions {
  * Generates the final profile for export by applying the same transformation
  * pipeline as the live renderer:
  * 1. Compose layers using computeProfile (SAME as app view)
- * 2. Apply deformations (twist, compression, taper)
+ * 2. Apply deformations (twist, verticalStretch, taper)
  * 3. Apply fabrication constraints (if auto-fix is on)
  * 4. Apply modifiers (quantize, symmetry)
  *
@@ -57,7 +57,7 @@ export function generateFinalProfile(
 		throw new Error('Sculpture has no geometry data to export');
 	}
 
-	// Step 2: Apply deformations (twist, compression, taper)
+	// Step 2: Apply deformations (twist, verticalStretch, taper)
 	if (options.deformation) {
 		profile = applyDeformation(profile, options.deformation);
 	}
@@ -65,7 +65,11 @@ export function generateFinalProfile(
 	// Step 3: Apply fabrication constraints (if auto-fix is enabled)
 	// This ensures the exported geometry meets physical manufacturing limits
 	if (options.autoFixGeometry && options.constraintMode !== 'digital') {
-		profile = applyConstraints(profile, options.constraintMode);
+		profile = applyConstraints(
+			profile,
+			options.constraintMode,
+			sculpture.physical.height || DEFAULT_HEIGHT_MM
+		);
 	}
 
 	// Step 4: Apply modifiers (quantize, symmetry)
@@ -87,16 +91,14 @@ export function generateFinalProfile(
 	//   - X (radius) is NOT scaled - stays at normalized values
 	// 
 	// To preserve the same aspect ratio in the export:
-	//   - Y scales to sculpture.height (mm)
-	//   - X scales to DEFAULT_HEIGHT_MM (mm) - matching the unscaled render
+	//   - Both X and Y scale to the physical sculpture height (mm) so exports
+	//     match the real-world dimensions shown in the UI ruler
 	if (options.scaleToMillimeters) {
 		const heightMM = sculpture.physical.height || DEFAULT_HEIGHT_MM;
 		
 		profile = profile.map(point => ({
-			// Scale radius: multiply by DEFAULT_HEIGHT_MM to match live render aspect ratio
-			// In live render, radius is NOT scaled by heightScale, only Y is
-			x: point.x * DEFAULT_HEIGHT_MM,
-			// Scale height: normalized Y (0-1) to actual millimeters
+			// Scale radius and height into millimeters using the requested height
+			x: point.x * heightMM,
 			y: point.y * heightMM
 		}));
 	}

@@ -84,14 +84,14 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 			// DEFORMATION
 			// ============================================
 			case 'setDeformation': {
-				const p = params as { twist: number; compression: number; taper: number };
+				const p = params as { twist: number; verticalStretch: number; taper: number };
 				uiStore.deformation.twist = clamp(p.twist, -360, 360);
-				uiStore.deformation.compression = clamp(p.compression, -1, 1);
+				uiStore.deformation.verticalStretch = clamp(p.verticalStretch, -1, 1);
 				uiStore.deformation.taper = clamp(p.taper, -1, 1);
 				sculptureStore.geometryDirty = true;
 				return {
 					success: true,
-					message: `Set deformation: twist=${p.twist}°, compression=${p.compression}, taper=${p.taper}`,
+					message: `Set deformation: twist=${p.twist}°, verticalStretch=${p.verticalStretch}, taper=${p.taper}`,
 					actionType: type
 				};
 			}
@@ -103,11 +103,15 @@ export function executeAction(action: SculptorAction): ExecutionResult {
 				return { success: true, message: `Set twist to ${p.twist}°`, actionType: type };
 			}
 
-			case 'setCompression': {
-				const p = params as { compression: number };
-				uiStore.deformation.compression = clamp(p.compression, -1, 1);
+			case 'setVerticalStretch': {
+				const p = params as { verticalStretch: number };
+				uiStore.deformation.verticalStretch = clamp(p.verticalStretch, -1, 1);
 				sculptureStore.geometryDirty = true;
-				return { success: true, message: `Set compression to ${p.compression}`, actionType: type };
+				return {
+					success: true,
+					message: `Set vertical stretch to ${p.verticalStretch}`,
+					actionType: type
+				};
 			}
 
 			case 'setTaper': {
@@ -407,7 +411,7 @@ export function buildContext(): ActionContext {
 		layerCount: sculptureStore.currentSculpture?.layers.length ?? 0,
 		currentDeformation: {
 			twist: uiStore.deformation.twist,
-			compression: uiStore.deformation.compression,
+			verticalStretch: uiStore.deformation.verticalStretch,
 			taper: uiStore.deformation.taper
 		},
 		currentGlaze: {

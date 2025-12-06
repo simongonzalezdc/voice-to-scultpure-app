@@ -34,7 +34,7 @@ describe('Physics Mapping', () => {
 
 		const deformed = applyDeformation(curve, {
 			twist: 0.5,
-			compression: 0.2,
+			verticalStretch: 0.2,
 			taper: 0.1
 		});
 

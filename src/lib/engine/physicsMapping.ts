@@ -19,7 +19,12 @@ import {
 	SILENCE_THRESHOLD_MULTIPLIER,
 	MIN_PITCH_HZ,
 	MAX_PITCH_HZ,
-	DEFAULT_HEIGHT_MM
+	DEFAULT_HEIGHT_MM,
+	BEAT_DECAY_TIME_MS,
+	TIMBRE_NOISE_AMPLITUDE,
+	CALIBRATION_ATTACK_THRESHOLD_DEFAULT,
+	QUANTIZE_STEP,
+	PHYSICS_LOG_INTERVAL_MS
 } from '$lib/config/constants';
 import { uiStore, type ProfileStyle } from '$lib/stores/uiStore.svelte';
 
@@ -31,7 +36,7 @@ import { uiStore, type ProfileStyle } from '$lib/stores/uiStore.svelte';
  * Beat state tracking for rhythm-based deformation
  */
 let lastBeatImpulse = 0;
-const BEAT_DECAY_TIME = 300; // ms - how long the beat effect lasts
+const BEAT_DECAY_TIME = BEAT_DECAY_TIME_MS; // ms - how long the beat effect lasts
 
 /**
  * Calculate beat impulse multiplier (decays over time)
@@ -197,13 +202,17 @@ export function generateLathe(
 		const musicalIntensityLocal = uiStore.musicalDetailIntensity ?? 0.5;
 		const textureMultiplier = 0.25 + (musicalIntensityLocal * 1.75); // Range: 0.25x to 2x
 		
-		const timbreTexture = (voiceHash(timbreSeed + indexSeed) - 0.5) * normalizedRoughness * 0.3 * textureMultiplier;
+		const timbreTexture =
+			(voiceHash(timbreSeed + indexSeed) - 0.5) *
+			normalizedRoughness *
+			TIMBRE_NOISE_AMPLITUDE *
+			textureMultiplier;
 
 		// Dynamic Attack Detection (B1: Attacks -> Notches)
 		let attackJitter = 0;
 		const previousFrame = index > 0 ? sampledFrames[index - 1] : null;
 		if (previousFrame && profile?.attackThreshold) {
-			const threshold = profile.attackThreshold || 0.15;
+			const threshold = profile.attackThreshold || CALIBRATION_ATTACK_THRESHOLD_DEFAULT;
 			const deltaEnergy = Math.abs(frame.energy - previousFrame.energy);
 			const isAttack = deltaEnergy > threshold;
 
@@ -297,7 +306,7 @@ export function generateLathe(
 // Rate-limit logging in hot paths
 let lastModifierLogTime = 0;
 let lastLatheLogTime = 0;
-const LOG_INTERVAL_MS = 3000;
+const LOG_INTERVAL_MS = PHYSICS_LOG_INTERVAL_MS;
 
 export function applyModifiers(
 	curve: LathePoint[],
@@ -325,7 +334,7 @@ export function applyModifiers(
 			// Quantize to create faceted/stepped surfaces
 			// Radius is in normalized units (typically 0-1.5 range)
 			// Use a step size relative to the typical radius range, not millimeters
-			const step = 0.15; // 15% increments (creates ~7 distinct radius levels - more visible)
+			const step = QUANTIZE_STEP; // 15% increments (creates ~7 distinct radius levels - more visible)
 			radius = Math.round(radius / step) * step;
 		}
 
@@ -478,10 +487,10 @@ function applyRippledStyle(curve: LathePoint[]): LathePoint[] {
 
 export function applyDeformation(
 	curve: LathePoint[],
-	deformation: { twist: number; compression: number; taper: number }
+	deformation: { twist: number; verticalStretch: number; taper: number }
 ): LathePoint[] {
-	// ISSUE 3 FIX: Non-destructive compression formula
-	// compression range: -0.5 (stretch) to 0.5 (squash)
+	// ISSUE 3 FIX: Non-destructive vertical stretch/compression formula
+	// verticalStretch range: -0.5 (squash) to 0.5 (stretch)
 	// Formula: Apply more effect at the top, less at the bottom (normalized by height)
 	return curve.map((point, i) => {
 		if (!point) {
@@ -491,10 +500,10 @@ export function applyDeformation(
 		const normalizedHeight = i / curve.length;
 		const angle = deformation.twist * normalizedHeight * Math.PI * 2;
 
-		// Compression formula: Linear scaling based on normalized height
-		// Negative compression stretches (factor > 1), positive compresses (factor < 1)
-		const compressionFactor = 1 - deformation.compression * normalizedHeight;
-		const compressedY = (point.y ?? 0) * compressionFactor;
+		// Vertical stretch formula: Linear scaling based on normalized height
+		// Negative values stretch (factor > 1), positive values compress (factor < 1)
+		const stretchFactor = 1 - deformation.verticalStretch * normalizedHeight;
+		const stretchedY = (point.y ?? 0) * stretchFactor;
 
 		const taperedX = (point.x ?? 0.5) * (1 - deformation.taper * normalizedHeight);
 
@@ -503,7 +512,7 @@ export function applyDeformation(
 
 		return {
 			x: rotatedX,
-			y: compressedY
+			y: stretchedY
 		};
 	});
 }

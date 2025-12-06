@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import { uiStore, setConstraintMode, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, type FacetStyle, type ProfileStyle } from '$lib/stores/uiStore.svelte';
+import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, type FacetStyle, type ProfileStyle } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import type { BaseShape } from '$lib/types';
-	import type { ConstraintMode } from '$lib/engine/constraints';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
 	import { Cylinder, Circle, Box, FileText, Ruler, AlertTriangle, Check, Diamond, Gem, Hexagon, Octagon, Layers, Waves, Music, Shell } from 'lucide-svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
@@ -62,14 +61,6 @@
 			baseShape: newShape,
 			radiusCurve: newShape === 'lathe' ? currentSculpture.radiusCurve : []
 		});
-	}
-
-	function handleConstraintChange(mode: ConstraintMode) {
-		setConstraintMode(mode);
-	}
-
-	function toggleAutoFix() {
-		uiStore.autoFixGeometry = !autoFixGeometry;
 	}
 
 	// Calculate real-world dimensions in mm
@@ -488,65 +479,16 @@
 				Physical constraints applied to all geometry
 			</p>
 
-			<div class="flex gap-2 mb-3">
-				<button
-					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
-					'digital'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintChange('digital')}
-					title={getConstraintDescription('digital')}
-				>
-					<span class="flex items-center justify-center gap-1">
-						{getConstraintIcon('digital')}
-						Digital
-					</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
-					'3d_print'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintChange('3d_print')}
-					title={getConstraintDescription('3d_print')}
-				>
-					<span class="flex items-center justify-center gap-1">
-						{getConstraintIcon('3d_print')}
-						3D Print
-					</span>
-				</button>
-				<button
-					class="flex-1 py-2 px-3 text-xs rounded border transition-colors {constraintMode ===
-					'ceramic'
-						? 'bg-brand-primary border-brand-primary text-white'
-						: 'bg-surface-panel-alt border-subtle text-secondary hover:border-brand-primary/50'}"
-					onclick={() => handleConstraintChange('ceramic')}
-					title={getConstraintDescription('ceramic')}
-				>
-					<span class="flex items-center justify-center gap-1">
-						{getConstraintIcon('ceramic')}
-						Ceramic
-					</span>
-				</button>
-			</div>
-
-			<!-- Auto-Fix Toggle -->
-			<label class="flex items-center gap-2 cursor-pointer bg-surface-panel-alt p-2 rounded">
-				<input
-					type="checkbox"
-					checked={autoFixGeometry}
-					onchange={toggleAutoFix}
-					class="w-4 h-4 accent-brand-primary"
-				/>
-				<div class="flex flex-col flex-1">
-					<span class="text-sm text-primary font-medium">Auto-Fix Geometry</span>
-					<span class="text-[10px] text-secondary">
-						{autoFixGeometry
-							? 'Automatically adjust shape to meet physical limits'
-							: 'Show warnings where physics are violated'}
-					</span>
+			<div class="surface-panel-alt p-3 rounded flex items-center justify-between">
+				<div class="flex items-center gap-2 text-sm text-primary">
+					{getConstraintIcon(constraintMode)}
+					<span class="font-semibold uppercase">{constraintMode}</span>
 				</div>
-			</label>
+				<div class="text-[11px] text-secondary text-right">
+					Auto-Fix: {autoFixGeometry ? 'On' : 'Off'}<br />
+					<span class="text-[10px] text-subtle">Adjust in Fabrication panel</span>
+				</div>
+			</div>
 
 			<!-- Constraint Description -->
 			<div class="surface-panel-alt p-2 rounded mt-2">

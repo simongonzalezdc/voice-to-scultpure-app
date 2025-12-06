@@ -169,7 +169,7 @@ describe('Edge Cases and Error Handling', () => {
 			// Test with extreme deformation
 			const extremeDeformation = {
 				twist: Infinity,
-				compression: NaN,
+				verticalStretch: NaN,
 				taper: -Infinity
 			};
 
@@ -210,7 +210,7 @@ describe('Edge Cases and Error Handling', () => {
 
 			const zeroDeformation = {
 				twist: 0,
-				compression: 0,
+				verticalStretch: 0,
 				taper: 0
 			};
 
