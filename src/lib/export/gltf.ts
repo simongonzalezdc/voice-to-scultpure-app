@@ -23,6 +23,7 @@ export async function exportSculptureToGLB(
 			autoFixGeometry: options?.autoFixGeometry ?? true,
 			constraintMode: options?.constraintMode ?? 'ceramic',
 			modifiers: options?.modifiers,
+			deformation: options?.deformation,
 			scaleToMillimeters: options?.scaleToMillimeters ?? true
 		};
 
