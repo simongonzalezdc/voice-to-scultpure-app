@@ -41,9 +41,8 @@ export const GEOMETRY_MAX_POINTS = 2048; // Maximum points in lathe curve (was 4
 
 // Recording Mode Resolution (Option B: Song Mode)
 // FIX 2: High resolution to preserve recording details (striations/rings)
-export const STANDARD_MODE_RESOLUTION = 1024; // Standard mode: 10-30 second recordings (was 256)
-export const SONG_MODE_RESOLUTION = 2048; // Song mode: 1-5 minute recordings (was 768)
-export const COIL_MODE_RESOLUTION = 384; // Coil mode: Each coil layer (was 256)
+export const STANDARD_MODE_RESOLUTION = 1024; // Standard mode: 10-30 second recordings
+export const SONG_MODE_RESOLUTION = 2048; // Song mode: 1-5 minute recordings
 
 // Timbre Range (Spectral Centroid)
 export const TIMBRE_MIN_HZ = 1000; // Typical spectral centroid for silence/breathing

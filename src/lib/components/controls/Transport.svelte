@@ -471,8 +471,6 @@
 		<div class="px-1.5 py-0.5 text-[10px] bg-[#333] text-[#aaa] rounded">
 			{#if uiStore.recordingMode === 'song'}
 				🎵 Song
-			{:else if uiStore.recordingMode === 'coil'}
-				🏺 Coil
 			{:else}
 				📍 Std
 			{/if}

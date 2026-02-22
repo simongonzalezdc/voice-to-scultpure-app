@@ -2,7 +2,7 @@
 
 Transform your voice into beautiful 3D ceramic sculptures using real-time audio analysis. Sing, hum, or speak to shape pottery - your voice becomes the potter's hands.
 
-**📖 [Testing Guide](./TESTING_GUIDE.md) | [Test Implementation Summary](./TEST_IMPLEMENTATION_SUMMARY.md)**
+**📖 [Testing Guide](./TESTING_GUIDE.md)**
 
 ## Features
 
@@ -13,8 +13,7 @@ Transform your voice into beautiful 3D ceramic sculptures using real-time audio 
 
 ### Recording Modes
 - 🎵 **Standard Mode** - 10-30 second recordings for quick shapes
-- 🎶 **Song Mode** - 1-5 minute recordings with 512-point resolution
-- 🌀 **Coil Mode** - Build spiral pottery layer by layer (traditional coiling technique)
+- 🎶 **Song Mode** - 1-5 minute recordings with high-resolution capture
 
 ### Fabrication & Export
 - 🏺 **Ceramic Constraints** - Pottery physics: hand access (70mm min), clay smoothing, stable bases
@@ -36,7 +35,7 @@ Transform your voice into beautiful 3D ceramic sculptures using real-time audio 
 
 ### Persistence
 - 💾 **Project Management** - Save/load sculptures with OPFS
-- 📤 **Multi-format Export** - PNG, SVG, WAV, STL, GLTF
+- 📤 **Multi-format Export** - PNG, WAV, STL, GLTF
 
 ## Tech Stack
 
@@ -120,7 +119,6 @@ npx playwright show-report
 - `constraints.test.ts` - Fabrication constraint logic (ceramic, 3D print, digital modes)
 - `physicsMapping.test.ts` - Lathe geometry generation and deformation
 - `ringBuffer.test.ts` - Audio ring buffer operations
-- `svgExport.test.ts` - SVG export functionality
 
 **E2E Tests** (`tests/e2e/`)
 

@@ -25,7 +25,7 @@ export interface SculpturePhysical {
 
 export type LayerType = 'base' | 'deformation' | 'texture' | 'glaze' | 'distortion';
 export type BlendMode = 'add' | 'subtract' | 'multiply' | 'overwrite';
-export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane' | 'coil'; // Shape types (coil = pottery coil building)
+export type BaseShape = 'lathe' | 'sphere' | 'cube' | 'plane';
 
 export interface SculptureLayer {
 	id: string;

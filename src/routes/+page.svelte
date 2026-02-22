@@ -176,8 +176,8 @@
 							break;
 						case 's':
 						case 'S':
-							// Cycle recording mode: standard → song → coil → standard
-							const modes: ('standard' | 'song' | 'coil')[] = ['standard', 'song', 'coil'];
+							// Cycle recording mode: standard → song → standard
+							const modes: ('standard' | 'song')[] = ['standard', 'song'];
 							const currentMode = uiStore.recordingMode ?? 'standard';
 							const currentIdx = modes.indexOf(currentMode);
 							const nextMode = modes[(currentIdx + 1) % modes.length] ?? 'standard';

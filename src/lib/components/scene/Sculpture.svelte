@@ -915,38 +915,5 @@ import {
 			</T.Mesh>
 		{/if}
 
-		<!-- COIL MODE: DISABLED - needs fixing (layers don't stack correctly) -->
-		{#if false && uiStore.recordingMode === 'coil' && sculpture?.layers}
-			{@const layerCount = sculpture.layers.filter((l: import('$lib/types').SculptureLayer) => l.type === 'distortion').length}
-			{@const nextBandStart = layerCount / (layerCount + 1)}
-			{@const nextBandEnd = (layerCount + 1) / (layerCount + 2)}
-			{@const bandCenter = (nextBandStart + nextBandEnd) / 2}
-			
-			<!-- Show existing coil layers as colored bands -->
-			{#each sculpture.layers.filter((l: import('$lib/types').SculptureLayer) => l.type === 'distortion') as layer, i}
-				{@const bandY = (i + 0.5) / (layerCount + 1)}
-				{@const hue = (i / Math.max(1, layerCount)) * 0.7}
-				<T.Mesh position.y={bandY - 0.5} rotation.x={Math.PI / 2}>
-					<T.TorusGeometry args={[0.52, 0.01, 8, 32]} />
-					<T.MeshBasicMaterial 
-						color={`hsl(${hue * 360}, 70%, 50%)`}
-						transparent={true}
-						opacity={0.6}
-					/>
-				</T.Mesh>
-			{/each}
-			
-			<!-- Show next coil position (preview) -->
-			{#if recordingStore.state !== 'recording'}
-				<T.Mesh position.y={bandCenter - 0.5} rotation.x={Math.PI / 2}>
-					<T.TorusGeometry args={[0.55, 0.015, 8, 32]} />
-					<T.MeshBasicMaterial 
-						color="#00ff88"
-						transparent={true}
-						opacity={0.4 + Math.sin(Date.now() * 0.003) * 0.2}
-					/>
-				</T.Mesh>
-			{/if}
-		{/if}
 	</T.Group>
 {/if}
