@@ -7,7 +7,7 @@ import type {
 	BaseShape
 } from '$lib/types';
 import { Color } from 'three';
-import { pitchToColor, hexToRgb } from './colorMapping';
+import { pitchToColor, hexToRgb, generateAutoColors, generateAutoRoughness } from './colorMapping';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
 	SCULPTURE_BASE_RADIUS,
@@ -19,6 +19,8 @@ import {
 	SILENCE_THRESHOLD_MULTIPLIER,
 	MIN_PITCH_HZ,
 	MAX_PITCH_HZ,
+	HUMAN_VOICE_PITCH_MIN,
+	HUMAN_VOICE_PITCH_MAX,
 	DEFAULT_HEIGHT_MM,
 	BEAT_DECAY_TIME_MS,
 	TIMBRE_NOISE_AMPLITUDE,
@@ -27,6 +29,152 @@ import {
 	PHYSICS_LOG_INTERVAL_MS
 } from '$lib/config/constants';
 import { uiStore, type ProfileStyle } from '$lib/stores/uiStore.svelte';
+
+// ============================================================================
+// ANGULAR SCULPTURE GENERATION
+// Creates spirals instead of cylinders by mapping pitch to angle
+// ============================================================================
+
+/**
+ * Generate angular sculpture data from audio frames
+ *
+ * This is the NEW approach that fixes the "wax cylinder" problem:
+ * - Pitch → Angle (creates spiral)
+ * - Spectral Flatness → Angular Spread (tone=narrow, noise=wide)
+ * - Volume → Radius (material amount)
+ *
+ * Returns a 2D array: angularRadii[heightIndex][angleIndex] = radius
+ */
+export function generateAngularSculpture(
+	frames: AnalysisFrame[],
+	profile?: UserProfile,
+	options?: {
+		spiralIntensity?: number;  // 0=disabled (cylinder), 1=full spiral
+		spreadIntensity?: number;  // 0=uniform, 1=organic
+		heightResolution?: number;
+		angleResolution?: number;
+	}
+): {
+	angularRadii: Float32Array;  // [height][angle] = radius
+	colors: Float32Array;        // RGB per vertex
+	roughness: number;           // Material roughness
+	heightResolution: number;
+	angleResolution: number;
+} {
+	const spiralIntensity = options?.spiralIntensity ?? 1.0;
+	const spreadIntensity = options?.spreadIntensity ?? 1.0;
+	const heightResolution = options?.heightResolution ?? 256;
+	const angleResolution = options?.angleResolution ?? 32;
+
+	// Initialize angular radii with base radius
+	const angularRadii = new Float32Array(heightResolution * angleResolution);
+	angularRadii.fill(SCULPTURE_BASE_RADIUS);
+
+	// If no frames, return cylinder
+	if (!frames.length) {
+		const colors = new Float32Array(heightResolution * 3).fill(0.8);
+		return {
+			angularRadii,
+			colors,
+			roughness: 0.5,
+			heightResolution,
+			angleResolution
+		};
+	}
+
+	// Get noise floor for gating
+	const noiseFloor = profile?.energyRange?.min || NOISE_FLOOR_DEFAULT;
+	const silenceThreshold = noiseFloor * SILENCE_THRESHOLD_MULTIPLIER;
+
+	// Build angular distribution
+	const angleStep = (Math.PI * 2) / angleResolution;
+
+	for (let frameIdx = 0; frameIdx < frames.length; frameIdx++) {
+		const frame = frames[frameIdx];
+		if (!frame) continue;
+
+		// Map frame index to height index
+		const heightT = frameIdx / Math.max(1, frames.length - 1);
+		const heightIdx = Math.floor(heightT * (heightResolution - 1));
+
+		// Get audio features
+		let energy = frame.energy || 0;
+		if (energy < silenceThreshold) continue; // Skip silence
+
+		const pitch = frame.pitch || 220;
+		const flatness = frame.timbre?.spectralFlatness ?? 0.5;
+
+		// Get angle from frame (calculated by analysis worker)
+		const frameAngle = frame.angle ?? mapPitchToAngle(pitch);
+
+		// Calculate spread from spectral flatness
+		// Tone (flatness≈0) = narrow spread, Noise (flatness≈1) = wide spread
+		const spread = 0.1 + flatness * 0.5 * spreadIntensity;
+
+		// Calculate radius from energy (guard against NaN/Infinity)
+		const safeEnergy = Number.isFinite(energy) ? Math.max(0, energy) : 0;
+		const perceivedEnergy = Math.pow(safeEnergy, 0.6);
+		const radius = Math.min(
+			SCULPTURE_MAX_RADIUS,
+			Math.max(SCULPTURE_MIN_RADIUS, SCULPTURE_BASE_RADIUS + perceivedEnergy * SCULPTURE_SENSITIVITY)
+		);
+
+		// Distribute energy across angles using Gaussian distribution
+		for (let angleIdx = 0; angleIdx < angleResolution; angleIdx++) {
+			const segAngle = angleIdx * angleStep;
+
+			// Calculate angular distance (wrap around)
+			let angleDiff = Math.abs(segAngle - frameAngle);
+			if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+
+			// Gaussian falloff
+			const sigma = spread * spiralIntensity;
+			const gaussian = Math.exp(-(angleDiff * angleDiff) / (2 * sigma * sigma));
+
+			// Weight by spiral intensity (allows blending to cylinder)
+			const weight = gaussian * spiralIntensity + (1 - spiralIntensity) * 0.3;
+
+			// Accumulate radius at this angle (use max for additive feel)
+			const idx = heightIdx * angleResolution + angleIdx;
+			if (idx >= 0 && idx < angularRadii.length) {
+				const currentRadius = angularRadii[idx] ?? SCULPTURE_BASE_RADIUS;
+				angularRadii[idx] = Math.max(currentRadius, radius * weight);
+			}
+		}
+	}
+
+	// Generate automatic colors from frames
+	const colors = generateAutoColors(frames, heightResolution);
+
+	// Generate roughness from spectral centroid
+	const roughness = generateAutoRoughness(frames);
+
+	return {
+		angularRadii,
+		colors,
+		roughness,
+		heightResolution,
+		angleResolution
+	};
+}
+
+/**
+ * Map pitch to angle (0-2π)
+ * Low pitch = 0°, High pitch = 360°
+ */
+function mapPitchToAngle(pitch: number): number {
+	if (pitch <= 0) return 0;
+
+	const minPitch = MIN_PITCH_HZ;
+	const maxPitch = MAX_PITCH_HZ;
+
+	// Use semitone mapping for perceptual linearity
+	const semitones = 12 * Math.log2(pitch / minPitch);
+	const maxSemitones = 12 * Math.log2(maxPitch / minPitch);
+
+	const normalized = Math.max(0, Math.min(1, semitones / maxSemitones));
+	return normalized * Math.PI * 2;
+}
 
 // ============================================================================
 // GENERATIVE PERFORMANCE: BEAT-DRIVEN DEFORMATION
@@ -142,8 +290,8 @@ export function generateLathe(
 			// Convert Hz to semitones (perceptually linear)
 			// A4 (440 Hz) = 0 semitones
 			const hzToSemitones = (hz: number) => 12 * Math.log2(hz / 440);
-			const minSemitones = hzToSemitones(MIN_PITCH_HZ); // ~-29 for 80Hz
-			const maxSemitones = hzToSemitones(MAX_PITCH_HZ); // ~+5 for 600Hz
+			const minSemitones = hzToSemitones(HUMAN_VOICE_PITCH_MIN); // C3 = ~-15 semitones (comfortable low)
+			const maxSemitones = hzToSemitones(HUMAN_VOICE_PITCH_MAX); // C5 = ~+3 semitones (comfortable high)
 			const semitones = hzToSemitones(pitch);
 			const normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
 
@@ -172,8 +320,10 @@ export function generateLathe(
 			} else {
 				// Additive: Build up from base
 				// High energy = more material = larger radius
-				// B1: Volume -> Ridge Depth (more sensitivity with power-law)
-				radius = BASE_RADIUS + perceivedEnergy * (SENSITIVITY * 1.5);
+				// B1: Volume -> Ridge Depth (power-law scaling)
+				radius = BASE_RADIUS + perceivedEnergy * SENSITIVITY;
+				// Ensure radius never exceeds maximum
+				radius = Math.min(MAX_RADIUS, radius);
 			}
 		}
 
@@ -721,5 +871,99 @@ export function createSculptureFromFrames(
 			orientation: 'vertical', // Default: vertical (pottery wheel)
 			sculptMode: mode // Default: 'additive'
 		}
+	};
+}
+
+/**
+ * NEW: Create an ANGULAR sculpture from audio frames
+ *
+ * This is the redesigned approach that creates spirals instead of cylinders.
+ * Uses the AngularGeometryManager for 3D geometry with angular variation.
+ *
+ * @param frames - Audio analysis frames with angle/spread data
+ * @param profile - User calibration profile
+ * @param name - Optional sculpture name
+ * @param options - Spiral/spread intensity options
+ */
+export function createAngularSculptureFromFrames(
+	frames: AnalysisFrame[],
+	profile?: UserProfile,
+	name?: string,
+	options?: {
+		spiralIntensity?: number;
+		spreadIntensity?: number;
+		heightResolution?: number;
+		angleResolution?: number;
+	}
+): {
+	sculpture: SculptureDefinition;
+	angularRadii: Float32Array;
+	colors: Float32Array;
+	roughness: number;
+} {
+	// Generate angular sculpture data
+	const angularData = generateAngularSculpture(frames, profile, options);
+
+	// Convert angular radii to a legacy-compatible format for storage
+	// We store both the angular data AND a downsampled profile for compatibility
+	const heightResolution = angularData.heightResolution;
+	const angleResolution = angularData.angleResolution;
+
+	// Create a "representative" profile by averaging angles at each height
+	// This allows backward compatibility with existing export code
+	const profileData = new Float32Array(heightResolution);
+	for (let h = 0; h < heightResolution; h++) {
+		let sum = 0;
+		for (let a = 0; a < angleResolution; a++) {
+			sum += angularData.angularRadii[h * angleResolution + a] ?? SCULPTURE_BASE_RADIUS;
+		}
+		profileData[h] = sum / angleResolution;
+	}
+
+	// Create radius curve for compatibility
+	const radiusCurve: LathePoint[] = [];
+	for (let i = 0; i < heightResolution; i++) {
+		radiusCurve.push({
+			x: profileData[i] ?? SCULPTURE_BASE_RADIUS,
+			y: i / (heightResolution - 1 || 1)
+		});
+	}
+
+	// Create base layer with both profile and angular data
+	const baseLayer: SculptureLayer = {
+		id: crypto.randomUUID(),
+		name: 'Base Layer',
+		type: 'base',
+		visible: true,
+		locked: false,
+		blendMode: 'overwrite',
+		opacity: 1.0,
+		data: profileData,
+		mask: new Float32Array(heightResolution).fill(1.0),
+		sourceFrames: frames,
+		sourceFrameCount: frames.length
+	};
+
+	const sculpture: SculptureDefinition = {
+		id: crypto.randomUUID(),
+		name: name || `Sculpture ${new Date().toLocaleString()}`,
+		createdAt: Date.now(),
+		layers: [baseLayer],
+		baseShape: 'lathe',
+		radiusCurve,
+		physical: {
+			height: DEFAULT_HEIGHT_MM,
+			units: 'mm',
+			wallThickness: undefined,
+			orientation: 'vertical',
+			sculptMode: 'additive'
+		}
+	};
+
+	return {
+		sculpture,
+		angularRadii: angularData.angularRadii,
+		colors: angularData.colors,
+		roughness: angularData.roughness
 	};
 }

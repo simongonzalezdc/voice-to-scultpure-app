@@ -3,7 +3,7 @@
 // ============================================================================
 // PHASE 3.1: MATERIAL DEFAULTS (Centralized Constants)
 // ============================================================================
-export const DEFAULT_MATERIAL_CERAMIC = '#E0C9A6'; // Warm beige/clay tone
+export const DEFAULT_MATERIAL_CERAMIC = '#F5E6D3'; // Warm porcelain white
 export const DEFAULT_MATERIAL_PLASTIC = '#3080ff'; // Deep blue
 
 export interface LathePoint {
@@ -122,6 +122,7 @@ export interface MultiProviderAPIKeys {
 	ollama?: string; // Not typically needed (local), but here for consistency
 	together?: string;
 	deepseek?: string;
+	zhipu?: string;
 }
 
 export interface AppSettings {
@@ -158,6 +159,9 @@ export interface AnalysisFrame {
 		spectralCentroid: number;
 		zcr: number; // Zero crossing rate
 		spectralFlux: number;
+		// NEW: Angular distribution features
+		spectralFlatness?: number; // 0-1: 0=tone (harmonic), 1=noise (breathy/harsh)
+		mfcc?: number[]; // 13 coefficients for spectral shape (vowel character)
 	};
 	beat?: boolean; // Beat detection flag (Generative Performance)
 	// Song Mode: Formant data for Phonetic Geometry (#3)
@@ -167,6 +171,9 @@ export interface AnalysisFrame {
 		openness: number; // Normalized 0-1 (closed → open)
 		frontness: number; // Normalized 0-1 (back → front)
 	};
+	// NEW: Angular position for spiral geometry
+	angle?: number; // 0-2π: Where on the circumference this frame contributes
+	spread?: number; // 0-1: How wide the angular distribution is (tone=narrow, noise=wide)
 }
 
 export interface ProjectMetadata {

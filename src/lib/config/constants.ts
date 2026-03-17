@@ -7,23 +7,66 @@
 export const AUDIO_SAMPLE_RATE = 44100;
 export const AUDIO_RING_BUFFER_CAPACITY_SECONDS = 10; // 10 seconds of audio capacity
 
-// Pitch Detection Range (Human Vocal Range)
-export const MIN_PITCH_HZ = 80; // Low male voice
+// =============================================================================
+// HUMAN-SCALE VOICE SCULPTING
+// =============================================================================
+
+// Human Singing Voice Range (C3-C5, comfortable singing range)
+// Full vocal range (80-600Hz) includes growls/falsetto extremes which distort sculpture
+export const HUMAN_VOICE_PITCH_MIN = 130; // C3 - comfortable low note
+export const HUMAN_VOICE_PITCH_MAX = 520; // C5 - comfortable high note
+
+// Aliases for consistency
+export const HUMAN_VOICE_PITCH_MIN_HZ = HUMAN_VOICE_PITCH_MIN;
+export const HUMAN_VOICE_PITCH_MAX_HZ = HUMAN_VOICE_PITCH_MAX;
+
+// Legacy full range (kept for backward compatibility)
+export const MIN_PITCH_HZ = 80; // Low male voice (bass)
 export const MAX_PITCH_HZ = 600; // High soprano
 
 // Pitch Detection Thresholds
 export const MIN_PITCH_HZ_THRESHOLD = 50; // Minimum valid pitch (below this is noise)
-export const MIN_ENERGY_FOR_PITCH = 0.05; // Need at least 5% energy to trust pitch
+export const MIN_ENERGY_FOR_PITCH = 0.02; // Lowered from 0.05 - trust quiet singing
 
 // Noise Gate Configuration
-export const NOISE_GATE_THRESHOLD = 0.15; // Ignore anything below 15% (background noise)
-export const NOISE_FLOOR_DEFAULT = 0.02; // Default noise floor for energy range
+export const NOISE_GATE_THRESHOLD = 0.08; // Lowered from 0.15 - don't gate soft singing
+export const NOISE_FLOOR_DEFAULT = 0.003; // Lowered from 0.02 - capture quiet breaths
 export const SILENCE_THRESHOLD_MULTIPLIER = 1.5; // Add 50% safety margin to noise floor
 
 // Audio Sensitivity
 export const MIC_SENSITIVITY_MULTIPLIER = 3.0; // Increase mic sensitivity (1.0 = normal, 3.0 = 3x boost)
-export const SMOOTHING_FACTOR = 0.15; // Volume smoothing (lower = smoother, 0.1-0.3 is good range)
-export const SIGNAL_THRESHOLD = 0.02; // Minimum RMS for pitch detection (was 0.05, lowered for sensitivity)
+export const SMOOTHING_FACTOR = 0.08; // Lowered from 0.15 - smoother for human perception
+export const SIGNAL_THRESHOLD = 0.003; // Lowered from 0.02 - catch soft singing
+
+// =============================================================================
+// TEMPORAL SMOOTHING - Human perception needs smooth curves, not high-freq noise
+// =============================================================================
+
+// Live Preview Update Rate (Human perception ~10fps is enough for preview)
+export const LIVE_PREVIEW_FPS = 10;
+export const LIVE_PREVIEW_FRAME_TIME_MS = 1000 / LIVE_PREVIEW_FPS; // 100ms
+
+// Final Sculpture Update Rate (Slower, more beautiful)
+export const SCULPTURE_UPDATE_FPS = 8;
+export const SCULPTURE_UPDATE_FRAME_TIME_MS = 1000 / SCULPTURE_UPDATE_FPS; // 125ms
+
+// Heavy Smoothing Time Constants (milliseconds)
+// Human singing is slow - beautiful vibrato is 5-8Hz, not 30Hz
+export const PITCH_SMOOTHING_ATTACK_MS = 300; // Attack: How fast pitch responds (300ms = natural)
+export const PITCH_SMOOTHING_RELEASE_MS = 500; // Release: How fast pitch decays (500ms = smooth)
+export const ENERGY_SMOOTHING_MS = 400; // Energy smoothing for visual beauty
+export const TIMBRE_SMOOTHING_MS = 350; // Timbre smoothing
+
+// Exponential smoothing factors (derived from time constants at 30fps)
+// Formula: alpha = 1 - exp(-frameTime / timeConstant)
+// At 33ms frame: alpha = 1 - exp(-0.033 / 0.300) ≈ 0.10
+export const PITCH_SMOOTHING_ALPHA = 0.10; // Heavy smoothing (was 0.3)
+export const ENERGY_SMOOTHING_ALPHA = 0.08; // Heavy smoothing for energy
+export const TIMBRE_SMOOTHING_ALPHA = 0.09; // Heavy smoothing for timbre
+
+// Pitch Confidence Threshold (for autocorrelation quality)
+export const PITCH_CONFIDENCE_MIN = 0.5; // Minimum correlation to trust pitch
+export const PITCH_CONFIDENCE_DECAY = 0.9; // Decay rate when pitch is lost
 
 // Sculpture Geometry Constants
 // FIX: Proper proportions for vase-like shapes (taller than wide)

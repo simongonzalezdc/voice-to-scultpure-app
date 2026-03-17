@@ -34,12 +34,29 @@ let lastBeatTime = 0;
 const BEAT_COOLDOWN_MS = 150; // Minimum time between beats (150ms = ~400 BPM max)
 
 // ============================================================================
-// TEMPORAL SMOOTHING: Reduce jitter for musical gestures
+// TEMPORAL SMOOTHING: Heavy smoothing for beautiful human-scale sculpture
 // ============================================================================
+// Human singing is slow - beautiful vibrato is 5-8Hz, not 30Hz
+// These values create smooth curves instead of jittery noise
 let smoothedPitch = 0;
 let smoothedSpectralCentroid = 0;
-const PITCH_SMOOTHING = 0.3; // Higher = more responsive, lower = smoother (0.3 = ~100ms smoothing at 30fps)
-const TIMBRE_SMOOTHING = 0.25; // Timbre can be even smoother (0.25 = ~130ms smoothing)
+let smoothedEnergy = 0;
+
+// Heavy smoothing factors (lower = smoother)
+// At 30fps: alpha=0.10 gives ~300ms smoothing (natural vocal response)
+const PITCH_SMOOTHING_ATTACK = 0.10; // Attack: smooth pitch changes
+const PITCH_SMOOTHING_RELEASE = 0.06; // Release: even smoother decay
+const TIMBRE_SMOOTHING = 0.09; // Heavy timbre smoothing
+const ENERGY_SMOOTHING = 0.08; // Heavy energy smoothing
+
+// Pitch confidence tracking for better detection
+let pitchConfidence = 0;
+let lastValidPitch = 0;
+
+// Human-scale pitch range (C3-C5, comfortable singing voice)
+// Full range (80-600Hz) includes growls/falsetto extremes which distort sculpture
+const HUMAN_PITCH_MIN = 130; // C3 - comfortable low note
+const HUMAN_PITCH_MAX = 520; // C5 - comfortable high note
 
 // Song Mode: Formant smoothing
 let smoothedF1 = 500; // Default F1 (neutral vowel)
@@ -52,13 +69,18 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	}
 
 	// Extract features using stateless API with raw Float32Array
-	const features = Meyda.extract(['rms', 'zcr', 'spectralCentroid'], audioData);
+	// NEW: Add spectralFlatness and mfcc for angular distribution mapping
+	const features = Meyda.extract(
+		['rms', 'zcr', 'spectralCentroid', 'spectralFlatness', 'mfcc'],
+		audioData
+	);
 
 	if (!features) {
 		return null;
 	}
 
-	const energy = features.rms || 0;
+	// Guard against NaN and undefined from Meyda
+	const energy = features.rms !== undefined && Number.isFinite(features.rms) ? features.rms : 0;
 
 	// GENERATIVE PERFORMANCE: Beat Detection
 	const beat = detectBeat(energy);
@@ -72,22 +94,60 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		pitch = quantizePitch(rawPitch, 'major'); // Use major scale by default
 	}
 
-	// TEMPORAL SMOOTHING: Apply exponential smoothing to reduce jitter
-	// Only smooth if we have a valid pitch (don't smooth toward zero during silence)
+	// HUMAN-SCALE TEMPORAL SMOOTHING: Heavy smoothing for beautiful sculpture
+	// Human singing is slow - use attack/release curves for natural response
+	// Attack = fast response to new notes, Release = smooth decay
+
+	// Pitch smoothing with attack/release asymmetry
 	if (pitch > 0) {
-		smoothedPitch = smoothedPitch + (pitch - smoothedPitch) * PITCH_SMOOTHING;
+		// ATTACK: New pitch detected - use faster response for note changes
+		// But still smooth enough to avoid jitter (300ms time constant)
+		const smoothingFactor = smoothedPitch > 0 ? PITCH_SMOOTHING_ATTACK : 0.3; // Jump to new pitch faster if starting from zero
+		smoothedPitch = smoothedPitch + (pitch - smoothedPitch) * smoothingFactor;
+		lastValidPitch = pitch;
+		pitchConfidence = Math.min(1.0, pitchConfidence + 0.2); // Build confidence
 	} else {
-		// During silence, decay smoothed pitch toward zero more slowly
-		smoothedPitch = smoothedPitch * 0.95;
+		// RELEASE: No pitch detected - smooth decay toward zero
+		// Use even slower smoothing (500ms) for graceful fade
+		smoothedPitch = smoothedPitch + (0 - smoothedPitch) * PITCH_SMOOTHING_RELEASE;
+		pitchConfidence = Math.max(0, pitchConfidence - 0.1); // Decay confidence
 	}
 
-	// Smooth spectral centroid (timbre)
-	const rawSpectralCentroid = features.spectralCentroid || 0;
+	// Energy smoothing (heavily smoothed for visual beauty)
+	smoothedEnergy = smoothedEnergy + (energy - smoothedEnergy) * ENERGY_SMOOTHING;
+
+	// Smooth spectral centroid (timbre) - heavy smoothing for consistent texture
+	const rawSpectralCentroid =
+		features.spectralCentroid !== undefined && Number.isFinite(features.spectralCentroid)
+			? features.spectralCentroid
+			: 0;
 	smoothedSpectralCentroid =
 		smoothedSpectralCentroid + (rawSpectralCentroid - smoothedSpectralCentroid) * TIMBRE_SMOOTHING;
 
 	// SONG MODE: Estimate formants for Phonetic Geometry (#3)
 	const formant = estimateFormants(audioData, sampleRate, energy);
+
+	// NEW: Angular distribution features
+	// spectralFlatness: 0 = pure tone (harmonic), 1 = noise (breathy/harsh)
+	// Guard against NaN from Meyda
+	const rawSpectralFlatness = features.spectralFlatness;
+	const spectralFlatness: number =
+		rawSpectralFlatness !== undefined && Number.isFinite(rawSpectralFlatness)
+			? rawSpectralFlatness
+			: 0;
+
+	// MFCC: 13 coefficients representing spectral shape (vowel character)
+	const mfcc = features.mfcc || [];
+
+	// Calculate angular position and spread for spiral geometry
+	// Pitch maps to angle (low=0°, high=360°)
+	const pitchForAngle = smoothedPitch > 0 ? smoothedPitch : 220; // Default to A3
+	const angle = mapPitchToAngle(pitchForAngle);
+
+	// Spectral flatness maps to spread (tone=narrow, noise=wide)
+	// Pure tone (flatness≈0) = narrow spread = focused angular contribution
+	// Noise/breath (flatness≈1) = wide spread = diffuse angular contribution
+	const spread = 0.1 + spectralFlatness * 0.4; // Range: 0.1 to 0.5 radians
 
 	return {
 		time: Date.now() / 1000,
@@ -95,11 +155,15 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		energy,
 		timbre: {
 			spectralCentroid: smoothedSpectralCentroid, // Use smoothed value
-			zcr: features.zcr || 0,
-			spectralFlux: 0 // Calculate if needed
+			zcr: features.zcr !== undefined && Number.isFinite(features.zcr) ? features.zcr : 0,
+			spectralFlux: 0, // Calculate if needed
+			spectralFlatness, // NEW: For angular spread
+			mfcc: mfcc ? [...mfcc] : [] // NEW: For profile variation
 		},
 		beat, // GENERATIVE PERFORMANCE: Beat flag
-		formant // SONG MODE: Formant data for phonetic sculpting
+		formant, // SONG MODE: Formant data for phonetic sculpting
+		angle, // NEW: Angular position (0-2π)
+		spread // NEW: Angular distribution spread
 	};
 }
 
@@ -259,7 +323,8 @@ function detectBeat(energy: number): boolean {
  * @returns Quantized pitch in Hz
  */
 function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 'major'): number {
-	if (pitch <= 0) return 0;
+	// Guard against NaN, zero, or negative values which cause -Infinity in Math.log2
+	if (!Number.isFinite(pitch) || pitch <= 0) return 0;
 
 	// Define scale intervals (semitones from root)
 	const scales = {
@@ -307,7 +372,8 @@ function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 
  * @returns Hue value (0-360)
  */
 function pitchToHue(pitch: number, palette: 'earth' | 'neon' | 'ocean' = 'earth'): number {
-	if (pitch <= 0) return 0;
+	// Guard against NaN, zero, or negative values which cause -Infinity in Math.log2
+	if (!Number.isFinite(pitch) || pitch <= 0) return 0;
 
 	// Map pitch to chromatic scale position (0-11 semitones)
 	const midiNote = 12 * Math.log2(pitch / 440) + 69;
@@ -321,6 +387,35 @@ function pitchToHue(pitch: number, palette: 'earth' | 'neon' | 'ocean' = 'earth'
 	};
 
 	return palettes[palette]?.[semitone] ?? 0;
+}
+
+/**
+ * ANGULAR DISTRIBUTION: Pitch to Angle Mapper
+ * Maps pitch to angular position on the sculpture (0-2π)
+ * This creates the spiral effect - low pitches at 0°, high pitches at 360°
+ *
+ * @param pitch - Pitch in Hz
+ * @returns Angle in radians (0-2π)
+ */
+function mapPitchToAngle(pitch: number): number {
+	// Guard against NaN, zero, or negative values which cause -Infinity in Math.log2
+	if (!Number.isFinite(pitch) || pitch <= 0) return 0;
+
+	// Map pitch range (80-600 Hz) to angle (0-2π)
+	// Using logarithmic scaling for perceptual linearity
+	const minPitch = 80; // Low male voice
+	const maxPitch = 600; // High soprano
+
+	// Convert to semitones for perceptual mapping
+	const semitones = 12 * Math.log2(pitch / minPitch);
+	const maxSemitones = 12 * Math.log2(maxPitch / minPitch);
+
+	// Normalize to 0-1 range
+	const normalized = Math.max(0, Math.min(1, semitones / maxSemitones));
+
+	// Map to angle (0-2π) - creates spiral
+	// One full rotation per octave
+	return normalized * Math.PI * 2;
 }
 
 function estimatePitch(audioData: Float32Array, sampleRate: number): number | null {

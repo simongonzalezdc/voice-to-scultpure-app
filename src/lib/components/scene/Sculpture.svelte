@@ -25,11 +25,12 @@
 		Color
 	} from 'three';
 	import { useTask } from '@threlte/core';
-	import type { SculptureDefinition, LathePoint } from '$lib/types';
+	import type { SculptureDefinition, LathePoint, AnalysisFrame, SculptureLayer } from '$lib/types';
 	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
 	import { generateLathe, generateGlaze, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
 import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
+import { generateAutoColors } from '$lib/engine/colorMapping';
 	import { applyFormModes, type FormModeConfig } from '$lib/engine/formModes';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
@@ -57,7 +58,12 @@ import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 		FORCE_MODE_PITCH_MAX_HZ,
 		FORCE_MODE_MIC_LEVEL_THRESHOLD,
 		FORCE_MODE_FALLBACK_RADIUS,
-		getSegmentsForFacetStyle
+		getSegmentsForFacetStyle,
+		// HUMAN-SCALE VOICE SCULPTING
+		LIVE_PREVIEW_FRAME_TIME_MS,
+		SCULPTURE_UPDATE_FRAME_TIME_MS,
+		HUMAN_VOICE_PITCH_MIN,
+		HUMAN_VOICE_PITCH_MAX
 	} from '$lib/config/constants';
 	import {
 		createGeometryFromProfile,
@@ -68,6 +74,7 @@ import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 		deriveProfileWithTransforms
 	} from '$lib/engine/geometryFactory';
 import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
+import { AngularGeometryManager } from '$lib/engine/AngularGeometryManager';
 import { songModeStore } from '$lib/stores/songModeStore.svelte';
 import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
 import {
@@ -92,6 +99,9 @@ import {
 	let meshRef = $state<Mesh | undefined>(undefined);
 	let ghostMeshRef = $state<Mesh | undefined>(undefined);
 
+	// IDLE ANIMATION: Subtle rotation to make sculpture feel alive
+	let idleRotation = $state(0);
+
 	// Buffer Pooling to prevent GC thrashing
 	let colorBuffer: Float32Array | null = null;
 	let heatmapBuffer: Float32Array | null = null;
@@ -112,7 +122,9 @@ import {
 	// OPTIMIZATION: Dynamic geometry manager for real-time updates
 	// Uses DynamicDrawUsage for GPU-optimized buffer updates
 	let dynamicGeoManager: DynamicGeometryManager | null = null;
+	let angularGeoManager: AngularGeometryManager | null = null;
 	let useDynamicGeometry = $state(true); // Enable by default for recording
+	let useAngularGeometry = $derived(uiStore.angularMode.spiralIntensity > 0);
 
 	// Initialize dynamic geometry manager on mount
 	// Pre-allocate for max expected resolution to avoid runtime buffer resizing
@@ -129,11 +141,28 @@ import {
 			console.log(`🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts, ${initialSegments} segments for "${uiStore.facetStyle}" style)`);
 		}
 
+		// Initialize angular geometry manager for spiral mode
+		if (!angularGeoManager && useAngularGeometry) {
+			const initialSegments = getSegmentsForFacetStyle(uiStore.facetStyle);
+			angularGeoManager = new AngularGeometryManager({
+				radialSegments: initialSegments,
+				profileResolution: 512,
+				dynamic: true,
+				spiralIntensity: uiStore.angularMode.spiralIntensity,
+				spreadIntensity: uiStore.angularMode.spreadIntensity
+			});
+			console.log(`🌀 [SCULPTURE] Angular geometry manager initialized (spiral mode)`);
+		}
+
 		// AUDIT FIX: Comprehensive cleanup to prevent memory leaks
 		return () => {
 			if (dynamicGeoManager) {
 				dynamicGeoManager.dispose();
 				dynamicGeoManager = null;
+			}
+			if (angularGeoManager) {
+				angularGeoManager.dispose();
+				angularGeoManager = null;
 			}
 			// Dispose live geometry if it exists
 			if (liveGeometry) {
@@ -154,15 +183,26 @@ import {
 	// FACET STYLE: Update geometry manager when facet style changes
 	// This recreates buffers with the new segment count
 	$effect(() => {
-		if (!dynamicGeoManager) return;
-		
 		const targetSegments = getSegmentsForFacetStyle(uiStore.facetStyle);
-		const changed = dynamicGeoManager.setRadialSegments(targetSegments);
-		
-		if (changed) {
-			// Force geometry to re-render with new segment count
-			sculptureStore.geometryDirty = true;
-			console.log(`💎 [SCULPTURE] Facet style changed to "${uiStore.facetStyle}" (${targetSegments} segments)`);
+
+		if (dynamicGeoManager) {
+			const changed = dynamicGeoManager.setRadialSegments(targetSegments);
+			if (changed) {
+				sculptureStore.geometryDirty = true;
+				console.log(`💎 [SCULPTURE] Facet style changed to "${uiStore.facetStyle}" (${targetSegments} segments)`);
+			}
+		}
+
+		if (angularGeoManager) {
+			angularGeoManager.setRadialSegments(targetSegments);
+		}
+	});
+
+	// ANGULAR MODE: Update spiral/spread intensities
+	$effect(() => {
+		if (angularGeoManager) {
+			angularGeoManager.setSpiralIntensity(uiStore.angularMode.spiralIntensity);
+			angularGeoManager.setSpreadIntensity(uiStore.angularMode.spreadIntensity);
 		}
 	});
 
@@ -194,6 +234,17 @@ import {
 		const hasColors = glazeLayer ? glazeLayer.data.length > 0 : false;
 
 		return deriveMaterialColor(isGlazeMode, hasColors, isPlastic);
+	});
+
+	// Check if current geometry has vertex colors (for beautiful default experience)
+	let hasVertexColors = $derived.by(() => {
+		// Check live geometry for color attribute
+		if (liveGeometry) {
+			const colorAttr = liveGeometry.getAttribute('color');
+			return !!colorAttr;
+		}
+		// Also check if recording - colors are being generated
+		return recordingStore.state === 'recording';
 	});
 
 	let ghostMaterialColor = $derived(deriveGhostMaterialColor(!!sculptureStore.ghostSculpture));
@@ -241,9 +292,18 @@ import {
 	let lastProfileVectors = $state<Vector2[]>([]);
 
 	// Frame rate limiting for smoother, less jittery updates
+	// HUMAN-SCALE: Use slower update rate for beautiful, non-jittery sculpture
 	let lastUpdateTime = 0;
 	let lastRenderLogTime = 0; // Rate-limit render loop logs
 	const RENDER_LOG_INTERVAL_MS = 3000; // Log at most every 3 seconds
+
+	// HUMAN-SCALE: Get adaptive frame time based on recording state
+	// Live preview: 10fps (100ms) - smooth but responsive enough
+	// Final sculpture: 8fps (125ms) - beautiful, slow updates
+	const getAdaptiveFrameTime = () => {
+		const isRecording = recordingStore.state === 'recording';
+		return isRecording ? LIVE_PREVIEW_FRAME_TIME_MS : SCULPTURE_UPDATE_FRAME_TIME_MS;
+	};
 	
 	// Track constraint/modifier changes for non-destructive updates
 	let lastConstraintMode = $state<string>(uiStore.constraintMode);
@@ -260,10 +320,12 @@ import {
 			return;
 		}
 
-		// Frame rate limiting - skip frames to maintain target FPS
+		// Frame rate limiting - HUMAN-SCALE: slower updates for beautiful sculpture
+		// Human perception doesn't need 30fps - 10fps is plenty for voice response
 		const now = Date.now();
-		if (now - lastUpdateTime < COMPOSITOR_FRAME_TIME_MS) {
-			return; // Skip this frame
+		const targetFrameTime = getAdaptiveFrameTime();
+		if (now - lastUpdateTime < targetFrameTime) {
+			return; // Skip this frame - human perception doesn't need high frequency updates
 		}
 		lastUpdateTime = now;
 
@@ -404,8 +466,8 @@ import {
 			// OPTIMIZATION: Use DynamicGeometryManager for ALL geometry updates
 			// This ensures the final sculpture looks identical to the preview
 			// (Both use the same 32-segment faceted lathe)
-			let geometry: BufferGeometry;
-			let vectors: Vector2[];
+			let geometry: BufferGeometry | undefined;
+			let vectors: Vector2[] | undefined;
 
 			// DEBUG: Log profile dimensions (rate-limited)
 			if (shouldLogRender && profile.length > 0) {
@@ -416,8 +478,41 @@ import {
 				console.log(`🎨 [PROFILE] ${profile.length} pts, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)}, mode=${effectiveConstraint}, quantize=${uiStore.modifiers?.quantize ?? false}`);
 			}
 
-			// FIX: Always use DynamicGeometryManager to ensure preview matches final
-			if (dynamicGeoManager && useDynamicGeometry) {
+			// ANGULAR MODE: Use spiral geometry when enabled
+			const useSpiral = useAngularGeometry && isRecording && angularGeoManager;
+			if (useSpiral && angularGeoManager) {
+				// Capture manager in local const for TypeScript narrowing
+				const manager = angularGeoManager;
+				// Get captured frames for angular distribution
+				const frames = getCapturedFrames();
+				if (frames && frames.length > 5) {
+					const updated = manager.updateFromFrames(frames);
+					if (updated) {
+						geometry = manager.getGeometry();
+						vectors = profile.map((p) => new Vector2(p?.x ?? 0.5, p?.y ?? 0));
+
+						// AUTO-COLOR: Generate colors from audio if enabled
+						if (uiStore.angularMode.colorAuto) {
+							const vertexCount = manager.getVertexCount();
+							const colors = generateAutoColors(frames, vertexCount);
+							manager.updateColors(colors);
+						}
+					} else {
+						return; // No change
+					}
+				} else {
+					// Not enough frames yet, use profile-based geometry
+					if (dynamicGeoManager && useDynamicGeometry) {
+						const updated = dynamicGeoManager.updateFromProfile(profile);
+						if (updated) {
+							geometry = dynamicGeoManager.getGeometry();
+							vectors = profile.map((p) => new Vector2(p?.x ?? 0.5, p?.y ?? 0));
+						} else {
+							return;
+						}
+					}
+				}
+			} else if (dynamicGeoManager && useDynamicGeometry) {
 				// Use optimized dynamic geometry (updates buffers in-place)
 				const updated = dynamicGeoManager.updateFromProfile(profile);
 				if (updated) {
@@ -434,41 +529,36 @@ import {
 				vectors = result.vectors;
 			}
 
-			if (!geometry) {
+			if (!geometry || !vectors) {
 				return;
 			}
 
-			// GENERATE VERTEX COLORS if in glaze mode and recording
-			if (isGlazeMode && isRecording) {
-				const frames = getCapturedFrames();
-				if (frames && frames.length > 0) {
-					const colors = generateGlaze(frames, uiStore.activeGlaze);
+			// GENERATE VERTEX COLORS - During recording AND for completed sculptures
+			// Map: Pitch → Hue, Volume → Saturation, Brightness → Lightness
+			let framesForColors: AnalysisFrame[] | null = null;
+
+			if (isRecording) {
+				// Live recording - use captured frames
+				framesForColors = getCapturedFrames();
+			} else if (sculpture?.layers) {
+				// Completed sculpture - use sourceFrames from first layer
+				const baseLayer = sculpture.layers.find((l: SculptureLayer) => l.type === 'base' && l.sourceFrames?.length);
+				if (baseLayer?.sourceFrames && baseLayer.sourceFrames.length > 0) {
+					framesForColors = baseLayer.sourceFrames;
+				}
+			}
+
+			if (framesForColors && framesForColors.length > 0) {
+				const positionAttr = geometry.getAttribute('position');
+				if (positionAttr) {
+					const vertexCount = positionAttr.count;
+					const colors = generateAutoColors(framesForColors, vertexCount);
+
 					// Apply colors using factory function or dynamic manager
 					if (dynamicGeoManager && useDynamicGeometry) {
 						dynamicGeoManager.updateColors(colors);
 					} else {
 						colorBuffer = applyGlazeColors(geometry, colors, colorBuffer) ?? colorBuffer;
-					}
-					console.log(
-						`🎨 [GLAZE] Applied ${colors.length / 3} vertex colors from ${frames.length} frames`
-					);
-				} else {
-					// No frames yet - apply base glaze color uniformly
-					const positionAttr = geometry.getAttribute('position');
-					if (positionAttr) {
-						const vertexCount = positionAttr.count;
-						const baseColor = new Color(uiStore.activeGlaze.color);
-						const uniformColors = new Float32Array(vertexCount * 3);
-						for (let i = 0; i < vertexCount; i++) {
-							uniformColors[i * 3] = baseColor.r;
-							uniformColors[i * 3 + 1] = baseColor.g;
-							uniformColors[i * 3 + 2] = baseColor.b;
-						}
-						if (dynamicGeoManager && useDynamicGeometry) {
-							dynamicGeoManager.updateColors(uniformColors);
-						} else {
-							colorBuffer = applyGlazeColors(geometry, uniformColors, colorBuffer) ?? colorBuffer;
-						}
 					}
 				}
 			}
@@ -496,6 +586,11 @@ import {
 				trackError('stateUnsafeMutation');
 			}
 		}
+	});
+
+	// IDLE ANIMATION: Subtle rotation to make sculpture feel alive
+	useTask((delta) => {
+		idleRotation += delta * 0.2; // Slow rotation
 	});
 
 	// Initial geometry creation (reactive, but pure - no side effects)
@@ -859,9 +954,11 @@ import {
 
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
-	<T.Group 
-		scale.y={heightScale} 
+	<!-- IDLE ANIMATION: Subtle rotation to make sculpture feel alive -->
+	<T.Group
+		scale.y={heightScale}
 		position={[0, 0, 0]}
+		rotation.y={idleRotation}
 	>
 		<!-- LATHE MODE: Pottery wheel sculpture -->
 		{#if currentGeometry}
@@ -880,7 +977,7 @@ import {
 					transparent={uiStore.view.mode === 'xray' || (materialProps.transmission ?? 0) > 0}
 					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
 					wireframe={uiStore.view.mode === 'wireframe'}
-					vertexColors={uiStore.view.mode === 'heatmap' || uiStore.workspace === 'glaze'}
+					vertexColors={recordingStore.state === 'recording' || hasVertexColors || uiStore.view.mode === 'heatmap' || uiStore.workspace === 'glaze'}
 					clearcoat={materialProps.clearcoat ?? 0}
 					clearcoatRoughness={materialProps.clearcoatRoughness ?? 0}
 					sheen={materialProps.sheen ?? 0}

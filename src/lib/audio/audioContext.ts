@@ -1,8 +1,9 @@
 import {
 	MIC_SENSITIVITY_MULTIPLIER,
-	SMOOTHING_FACTOR,
 	SIGNAL_THRESHOLD,
-	AUDIO_SAMPLE_RATE
+	AUDIO_SAMPLE_RATE,
+	NOISE_GATE_THRESHOLD,
+	ENERGY_SMOOTHING_ALPHA
 } from '$lib/config/constants';
 
 let audioContext: AudioContext | null = null;
@@ -227,14 +228,15 @@ export async function startVisualizerBypass(): Promise<void> {
 		// Apply sensitivity boost
 		rms = Math.min(1.0, rms * MIC_SENSITIVITY_MULTIPLIER);
 
-		// CRITICAL FIX: Exponential Moving Average smoothing to prevent jitter
-		// This prevents wild 0-100 jumps by gradually following the signal
-		smoothedMicLevel = smoothedMicLevel + SMOOTHING_FACTOR * (rms - smoothedMicLevel);
+		// HUMAN-SCALE: Heavy smoothing to prevent jitter
+		// Lower alpha = smoother response, more beautiful output
+		// ENERGY_SMOOTHING_ALPHA (0.08) gives ~400ms smoothing at 30fps
+		smoothedMicLevel = smoothedMicLevel + ENERGY_SMOOTHING_ALPHA * (rms - smoothedMicLevel);
 
-		// DIRECTIVE 3: Add signal threshold for pitch detection
-		// Don't guess pitch for silence (prevents false positives from noise)
+		// HUMAN-SCALE: Lower threshold to capture soft singing
+		// Don't gate quiet vocals - let them through for beautiful sculpture
 		if (smoothedMicLevel < SIGNAL_THRESHOLD) {
-			// Too quiet - just update mic level with smoothed value
+			// Very quiet - still update mic level but don't process pitch
 			analysisStoreModule.updateMicLevel(smoothedMicLevel);
 			return;
 		}
@@ -309,20 +311,20 @@ export function startAudioCapture(): void {
 	try {
 		// Use webm/opus format with HIGH QUALITY bitrate for clear playback
 		// 128kbps is high quality for voice (CD quality is 1411kbps for stereo)
-		const options: MediaRecorderOptions = { 
-			mimeType: 'audio/webm;codecs=opus',
-			audioBitsPerSecond: 128000  // 128 kbps - high quality for voice
-		};
-		
+		let mimeType: string = 'audio/webm;codecs=opus';
+		const audioBitsPerSecond = 128000;  // 128 kbps - high quality for voice
+
 		// Fallback to other formats if webm not supported
-		if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+		if (!MediaRecorder.isTypeSupported(mimeType)) {
 			const fallbacks = ['audio/webm', 'audio/ogg', 'audio/mp4'];
 			const supported = fallbacks.find(type => MediaRecorder.isTypeSupported(type));
-			if (supported) {
-				options.mimeType = supported;
+			if (supported !== undefined) {
+				mimeType = supported;
 			}
 		}
-		
+
+		const options: MediaRecorderOptions = { mimeType, audioBitsPerSecond };
+
 		mediaRecorder = new MediaRecorder(mediaStream, options);
 		
 		mediaRecorder.ondataavailable = (event) => {

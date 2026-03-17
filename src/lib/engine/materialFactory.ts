@@ -292,9 +292,14 @@ export function updateMaterialForGlazeMode(
 ): MaterialProps {
 	const updated = { ...props };
 
-	// Enable vertex colors if recording in glaze mode
+	// Enable vertex colors ONLY when actively painting in glaze mode
+	// This ensures the "glaze painting" effect is only visible when:
+	// 1. Recording (generating new colors)
+	// 2. In glaze mode (painting workspace)
+	// 3. Has vertex colors (colors exist on geometry)
 	if (isRecording && isInGlazeMode && hasVertexColors) {
 		updated.vertexColors = true;
+		console.log(`🎨 [MATERIAL] vertexColors=${updated.vertexColors} (isRecording=${isRecording}, isInGlazeMode=${isInGlazeMode}, hasVertexColors=${hasVertexColors})`);
 	}
 
 	return updated;
