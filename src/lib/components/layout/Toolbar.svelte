@@ -1,23 +1,11 @@
 <script lang="ts">
 	import { uiStore, togglePanel } from '$lib/stores/uiStore.svelte';
-	import { Folder, Bot, Settings, HelpCircle, Gem } from 'lucide-svelte';
+	import { Settings, HelpCircle, Gem } from 'lucide-svelte';
 
-	// Tool definitions
+	// Simplified toolbar - only essential controls
+	// Library removed: broken (no modal wrapper), projects auto-saved
+	// AI removed: requires API setup, confusing for core workflow
 	const tools = $derived([
-		{
-			id: 'projectList',
-			label: 'Library',
-			icon: Folder,
-			action: () => togglePanel('projectList'),
-			active: uiStore.panels.projectList
-		},
-		{
-			id: 'aiPanel',
-			label: 'AI Assistant',
-			icon: Bot,
-			action: () => togglePanel('aiPanel'),
-			active: uiStore.panels.aiPanel
-		},
 		{
 			id: 'settings',
 			label: 'Settings',

@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { appSettings, updateSettings, setReduceMotion, setFlashIntensity } from '$lib/stores/appSettingsStore.svelte';
 	import { resetCalibration } from '$lib/audio/calibration';
-	import { closePanel, togglePanel } from '$lib/stores/uiStore.svelte';
+	import { closePanel } from '$lib/stores/uiStore.svelte';
 	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
 	import VoiceCalibration from '$lib/components/onboarding/VoiceCalibration.svelte';
 	import { calibrationStore } from '$lib/stores/calibrationStore.svelte';
@@ -81,8 +82,6 @@
 				firstFocusableElement.focus();
 			}
 		}
-		// Check for Ollama
-		checkOllama();
 	});
 </script>
 
@@ -127,25 +126,6 @@
 				</select>
 			</div>
 
-			<!-- AI Provider Selection -->
-			<!-- AI Settings - redirect to AI Panel -->
-			<div class="border-t border-subtle pt-4">
-				<h3 class="text-sm font-semibold mb-2">🤖 AI Assistant</h3>
-				<p class="text-sm text-secondary mb-3">
-					Configure AI provider and API keys directly in the AI chat panel.
-				</p>
-				<button
-					type="button"
-					class="w-full px-3 py-2 rounded surface-panel-alt hover:bg-brand-primary/20 transition-colors text-sm flex items-center justify-center gap-2"
-					onclick={() => {
-						closePanel('settings');
-						togglePanel('aiPanel');
-					}}
-				>
-					<span>🤖</span>
-					<span>Open AI Chat & Settings</span>
-								</button>
-			</div>
 
 			<!-- Accessibility Settings -->
 			<div class="border-t border-subtle pt-4">
