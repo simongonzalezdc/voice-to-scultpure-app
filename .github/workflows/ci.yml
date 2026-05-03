@@ -17,6 +17,6 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run format
-      - run: prettier --write .
+      - run: npx prettier --write .
       - run: npm run lint
       - run: npm test
