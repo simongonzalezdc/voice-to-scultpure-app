@@ -1,5 +1,1 @@
-node_modules
-build
-dist
-playwright-report
-.svelte-kit
+DEV Docs/newfeatures.md
