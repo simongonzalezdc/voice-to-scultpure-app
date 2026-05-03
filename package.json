@@ -30,7 +30,7 @@
 		"eslint-plugin-svelte": "^2.35.0",
 		"jsdom": "^27.2.0",
 		"lucide-svelte": "^0.554.0",
-		"postcss": "^8.4.32",
+		"postcss": "^8.5.13",
 		"prettier": "^3.2.5",
 		"prettier-plugin-svelte": "^3.2.0",
 		"svelte": "^5.0.0",
