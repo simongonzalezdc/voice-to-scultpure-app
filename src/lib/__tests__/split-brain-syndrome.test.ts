@@ -11,7 +11,7 @@ describe('Split Brain Syndrome Fixes', () => {
 		recordingStore.duration = 0;
 	});
 
-	it('should handle save handoff when worker fails', () => {
+	it('should handle save handoff when worker fails', async () => {
 		// Mock empty frames to simulate worker failure
 		const _mockFrames: AnalysisFrame[] = [];
 
@@ -24,7 +24,7 @@ describe('Split Brain Syndrome Fixes', () => {
 		recordingStore.startTime = Date.now();
 
 		// Stop recording (should trigger save handoff with no frames)
-		stopRecording();
+		await stopRecording();
 
 		// Verify no frames warning was logged
 		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('No frames captured'));
@@ -36,7 +36,7 @@ describe('Split Brain Syndrome Fixes', () => {
 		consoleLogSpy.mockRestore();
 	});
 
-	it('should have live bridge during recording', () => {
+	it('should have live bridge during recording', async () => {
 		// This tests the live bridge in Sculpture.svelte useTask loop
 		// The live bridge bypasses recordingStore.frames and uses analysisStore.micLevel directly
 
@@ -62,13 +62,13 @@ describe('Split Brain Syndrome Fixes', () => {
 		expect(analysisStore.latestFrame?.pitch).toBe(mockPitch);
 
 		// Stop recording
-		stopRecording();
+		await stopRecording();
 
 		// Verify state transitioned to complete
 		expect(recordingStore.state).toBe('complete');
 	});
 
-	it('should amplify visuals for live feedback', () => {
+	it('should amplify visuals for live feedback', async () => {
 		// This tests the visual amplification in the live bridge
 		// The deformFactor of 5.0 should make the breathing effect more visible
 
@@ -98,13 +98,13 @@ describe('Split Brain Syndrome Fixes', () => {
 		// This means the sculpture should breathe 5x larger than normal
 
 		// Stop recording
-		stopRecording();
+		await stopRecording();
 
 		// Verify state transitioned to complete
 		expect(recordingStore.state).toBe('complete');
 	});
 
-	it('should handle edge cases during recording', () => {
+	it('should handle edge cases during recording', async () => {
 		// Test behavior with null/undefined values
 
 		// Start recording
@@ -120,7 +120,7 @@ describe('Split Brain Syndrome Fixes', () => {
 		expect(analysisStore.latestFrame).toBeNull();
 
 		// Stop recording should not crash
-		expect(() => stopRecording()).not.toThrow();
+		await expect(stopRecording()).resolves.toBeUndefined();
 
 		// Verify state transitioned to complete
 		expect(recordingStore.state).toBe('complete');

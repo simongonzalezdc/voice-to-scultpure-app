@@ -375,7 +375,7 @@ export function getConstraintDescription(mode: ConstraintMode): string {
 			// DIRECTIVE 3: Enhanced description with actual constraints
 			return 'Pottery wheel physics: Hand Access 70mm (Min Width), Clay Smoothing (SMA), Prevents Collapse (45° max), Stable Base.';
 		case '3d_print':
-			return 'Minimal FDM constraints: ensures wall thickness and bed adhesion. Add supports in slicer for overhangs.';
+			return 'Minimal FDM (3D printer) constraints: ensures wall thickness and bed adhesion. Add supports in slicer for overhangs.';
 		default:
 			return 'Unknown constraint mode';
 	}

@@ -118,8 +118,19 @@ describe('Fabrication Constraints', () => {
 			const originalMiddle = curve[1];
 			expect(middlePoint).toBeDefined();
 			expect(originalMiddle).toBeDefined();
-			if (middlePoint && originalMiddle) {
-				expect(middlePoint.x).toBeLessThanOrEqual(originalMiddle.x); // Clamped
+			// Ceramic base-stability legitimately widens points in the base zone, so the
+			// middle radius can grow. The real overhang guarantee is that no outward
+			// segment exceeds the max overhang angle (~45°).
+			for (let k = 1; k < constrained.length; k++) {
+				const prev = constrained[k - 1];
+				const curr = constrained[k];
+				if (!prev || !curr) continue;
+				const dx = curr.x - prev.x;
+				const dy = Math.abs(curr.y - prev.y);
+				if (dx > 0 && dy > 0) {
+					const angle = Math.atan(dx / dy) * (180 / Math.PI);
+					expect(angle).toBeLessThanOrEqual(46);
+				}
 			}
 		});
 
