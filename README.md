@@ -23,7 +23,7 @@ npm run build
 npm run preview
 ```
 
-> **Requirements:** Node.js 18+, a microphone, and a Chromium-based or Firefox browser. WebGPU is recommended for local AI acceleration (falls back to WebGL). SharedArrayBuffer features need COOP/COEP headers; Safari support is limited because SharedArrayBuffer is unavailable.
+> **Requirements:** Node.js 20.19+ or 22.12+ (required by Vite 8), a microphone, and a Chromium-based or Firefox browser. WebGPU is recommended for local AI acceleration (falls back to WebGL). SharedArrayBuffer features need COOP/COEP headers; Safari support is limited because SharedArrayBuffer is unavailable.
 
 ## Usage
 
