@@ -68,7 +68,8 @@ function getDefaultModelForProvider(provider: CloudProvider): string {
 		openrouter: 'meta-llama/llama-3.3-70b-instruct',
 		ollama: 'llama3.2:3b',
 		together: 'meta-llama/Llama-3.2-3B-Instruct-Turbo', // Free tier
-		deepseek: 'deepseek-chat'
+		deepseek: 'deepseek-chat',
+		zhipu: 'glm-4.6'
 	};
 	return defaults[provider] || 'gpt-4o-mini';
 }

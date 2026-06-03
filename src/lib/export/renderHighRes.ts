@@ -40,7 +40,8 @@ import { createCeramicMaterialProps } from '$lib/engine/materialFactory';
 
 const ENVIRONMENT_MAPS = {
 	studio: '/environments/studio_small_03_1k.hdr',
-	neon: '/environments/royal_esplanade_1k.hdr'
+	neon: '/environments/royal_esplanade_1k.hdr',
+	darkroom: '/environments/studio_small_03_1k.hdr'
 } as const;
 
 export async function renderHighRes(

@@ -349,7 +349,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	for (let i = 0; i < constrained.length; i++) {
 		const point = safeArrayAccess(constrained, i);
 		if (point) {
-			point.x = Math.max(point.x, smoothedRadii[i]);
+			point.x = Math.max(point.x, smoothedRadii[i] ?? point.x);
 		}
 	}
 

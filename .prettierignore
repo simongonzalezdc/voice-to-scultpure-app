@@ -1,3 +1,10 @@
+node_modules/
+.svelte-kit/
+dist/
+build/
+.omx/
+playwright-report/
+test-results/
 DEV Docs/newfeatures.md
 
 # Build output and dependencies

@@ -5,10 +5,15 @@
 	 * Offers: Add Layer, Color, Export buttons
 	 */
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore } from '$lib/stores/recording.svelte';
+	import {
+		getCapturedFrames,
+		recordingStore,
+		resetRecording
+	} from '$lib/stores/recording.svelte';
 	import { setWorkspace } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 	import { ChevronRight, X } from 'lucide-svelte';
+	import type { AnalysisFrame } from '$lib/types';
 
 	interface SummaryStats {
 		height: number;
@@ -24,7 +29,7 @@
 		}
 
 		const height = sculpture.physical?.height ?? DEFAULT_HEIGHT_MM;
-		const frames = recordingStore.capturedFrames || [];
+		const frames: AnalysisFrame[] = getCapturedFrames();
 		const duration = frames.length > 0 ? Math.round((frames.length / 30) * 10) / 10 : 0; // ~30 fps
 
 		// Count beats and phrases from analysis
@@ -42,7 +47,7 @@
 	function handleAddLayer() {
 		dismissSummary();
 		// Reset for next layer
-		recordingStore.resetRecording?.();
+		resetRecording();
 	}
 
 	function handleColor() {

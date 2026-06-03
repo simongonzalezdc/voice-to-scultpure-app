@@ -47,6 +47,7 @@
 
 		for (let i = 0; i < frames.length; i++) {
 			const frame = frames[i];
+			if (!frame) continue;
 
 			// Track highest pitch
 			if ((frame.pitch || 0) > maxPitch) {

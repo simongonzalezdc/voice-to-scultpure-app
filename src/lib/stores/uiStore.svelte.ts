@@ -88,6 +88,11 @@ export const uiStore = $state<{
 	musicalDetailIntensity: number;
 	// GENERATIVE PERFORMANCE: Wizard mode
 	performanceWizardActive: boolean;
+	angularMode: {
+		spiralIntensity: number;
+		spreadIntensity: number;
+		colorAuto: boolean;
+	};
 	// FORM FIDELITY MODES: Optional voice-sculpture enhancements
 	// Silhouette Core is ALWAYS the default foundation (no beat/phrase rings)
 	formModes: {
@@ -95,11 +100,6 @@ export const uiStore = $state<{
 		profileFinsBaseRadius: number;
 		envelopeSmoothEnabled: boolean;
 		envelopeSmoothAmount: number;
-	};
-	angularMode: {
-		spiralIntensity: number;
-		spreadIntensity: number;
-		colorAuto: boolean;
 	};
 }>({
 	panels: {
@@ -168,17 +168,17 @@ export const uiStore = $state<{
 	profileStyle: 'natural', // Default: natural (no additional transformations)
 	musicalDetailIntensity: 0.5, // Default: 50% musical detail (balanced)
 	performanceWizardActive: false, // GENERATIVE PERFORMANCE: Wizard overlay
+	angularMode: {
+		spiralIntensity: 0,
+		spreadIntensity: 0.5,
+		colorAuto: true
+	},
 	// FORM FIDELITY MODES: Optional enhancements on top of default Silhouette Core
 	formModes: {
 		profileFinsEnabled: false,
 		profileFinsBaseRadius: 0.3,
 		envelopeSmoothEnabled: false,
 		envelopeSmoothAmount: 0.5
-	},
-	angularMode: {
-		spiralIntensity: 0,
-		spreadIntensity: 1,
-		colorAuto: false
 	}
 });
 

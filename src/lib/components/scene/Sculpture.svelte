@@ -124,10 +124,10 @@
 			angularGeoManager = new AngularGeometryManager({
 				radialSegments: initialSegments,
 				profileResolution: 512,
-				dynamic: true,
-				spiralIntensity: uiStore.angularMode.spiralIntensity,
-				spreadIntensity: uiStore.angularMode.spreadIntensity
+				dynamic: true
 			});
+			angularGeoManager.setSpiralIntensity(uiStore.angularMode.spiralIntensity);
+			angularGeoManager.setSpreadIntensity(uiStore.angularMode.spreadIntensity);
 			console.log(`🌀 [SCULPTURE] Angular geometry manager initialized (spiral mode)`);
 		}
 

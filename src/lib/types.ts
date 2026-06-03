@@ -173,6 +173,7 @@ export interface AnalysisFrame {
 		mfcc?: number[]; // 13 coefficients for spectral shape (vowel character)
 	};
 	beat?: boolean; // Beat detection flag (Generative Performance)
+	phraseStart?: boolean; // Phrase boundary marker for recording summaries
 	// Song Mode: Formant data for Phonetic Geometry (#3)
 	formant?: {
 		f1: number; // First formant (vowel openness) - 300-800 Hz

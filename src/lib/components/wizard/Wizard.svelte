@@ -300,7 +300,7 @@
 						</button>
 					{/if}
 
-					{#if !isRecording && currentStep !== 'export'}
+					{#if !isRecording}
 						<button
 							class="flex items-center gap-2 px-4 py-3 rounded-full border border-white/20 text-xs text-white/70 hover:bg-white/10 hover:border-white/40 transition-colors"
 							onclick={skipToExport}

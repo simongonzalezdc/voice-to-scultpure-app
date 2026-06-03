@@ -4,6 +4,7 @@
 	import {
 		BlendFunction,
 		BloomEffect,
+		type Effect,
 		EffectComposer,
 		EffectPass,
 		KernelSize,
@@ -53,7 +54,7 @@
 		if (settings.ssao) {
 			normalPass = new NormalPass(scene, cam);
 			composer.addPass(normalPass);
-			ssaoEffect = new SSAOEffect(cam, normalPass.renderTarget.texture, {
+			ssaoEffect = new SSAOEffect(cam, normalPass.texture, {
 				blendFunction: BlendFunction.MULTIPLY,
 				samples: settings.ssao.samples,
 				radius: settings.ssao.radius,
@@ -74,7 +75,7 @@
 		});
 
 		// Combine effects into a single pass for efficiency
-		const effects = ssaoEffect ? [ssaoEffect, bloomEffect] : [bloomEffect];
+		const effects: Effect[] = ssaoEffect ? [ssaoEffect, bloomEffect] : [bloomEffect];
 
 		// Vignette effect - subtle darkening at edges for focus
 		if (quality !== 'low') {

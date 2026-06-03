@@ -11,7 +11,7 @@ export interface PlaybackStore {
 	duration: number; // Total duration in seconds
 	audioContext: AudioContext | null;
 	audioBuffer: AudioBuffer | null;
-	sourceNode: AudioBufferAudioSourceNode | null;
+	sourceNode: AudioBufferSourceNode | null;
 	playStartTime: number; // AudioContext.currentTime when playback started
 	audioOffsetAtPlay: number; // The offset we passed to source.start()
 }
