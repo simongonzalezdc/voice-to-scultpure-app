@@ -68,7 +68,7 @@ describe('Fabrication Constraints', () => {
 
 		it('should allow thin rim (top 5%)', () => {
 			const curve: LathePoint[] = [
-				{ x: 0.25, y: 0.0 },  // Start above MIN_HAND_RADIUS
+				{ x: 0.25, y: 0.0 }, // Start above MIN_HAND_RADIUS
 				{ x: 0.25, y: 0.9 },
 				{ x: 0.1, y: 0.95 } // Thin rim is allowed (top 5% exempt from MIN_HAND_RADIUS)
 			];

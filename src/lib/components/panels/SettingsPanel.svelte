@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { appSettings, updateSettings, setReduceMotion, setFlashIntensity } from '$lib/stores/appSettingsStore.svelte';
+	import {
+		appSettings,
+		updateSettings,
+		setReduceMotion,
+		setFlashIntensity
+	} from '$lib/stores/appSettingsStore.svelte';
 	import { resetCalibration } from '$lib/audio/calibration';
 	import { closePanel } from '$lib/stores/uiStore.svelte';
 	import { setGraphicsQuality } from '$lib/stores/settings.svelte';
@@ -30,11 +35,11 @@
 			resetCalibration();
 		}
 	}
-	
+
 	function handleVoiceCalibration() {
 		showVoiceCalibration = true;
 	}
-	
+
 	function handleVoiceCalibrationComplete() {
 		showVoiceCalibration = false;
 	}
@@ -126,11 +131,10 @@
 				</select>
 			</div>
 
-
 			<!-- Accessibility Settings -->
 			<div class="border-t border-subtle pt-4">
 				<h3 class="text-sm font-semibold mb-2">♿ Accessibility</h3>
-				
+
 				<label class="flex items-center justify-between mb-3 cursor-pointer">
 					<span class="text-sm text-secondary">Reduce Motion</span>
 					<input
@@ -140,7 +144,9 @@
 						class="w-4 h-4 accent-brand-primary"
 					/>
 				</label>
-				<p class="text-xs text-secondary mb-4">Disable wave animations and use static indicators.</p>
+				<p class="text-xs text-secondary mb-4">
+					Disable wave animations and use static indicators.
+				</p>
 
 				<div>
 					<div class="flex items-center justify-between mb-1">
@@ -171,7 +177,7 @@
 			<!-- Calibration -->
 			<div class="border-t border-subtle pt-4">
 				<h3 class="text-sm font-semibold mb-2">🎙️ Voice Calibration</h3>
-				
+
 				<!-- P0: Enhanced Voice Calibration -->
 				<div class="mb-3">
 					{#if hasVoiceCalibration}
@@ -184,7 +190,7 @@
 							⚠️ No voice calibration. For best results, calibrate your voice.
 						</p>
 					{/if}
-					
+
 					<button
 						class="button-primary px-4 py-2 w-full mb-2"
 						type="button"
@@ -196,7 +202,7 @@
 						Personalizes the sculpture mapping to your unique vocal range.
 					</p>
 				</div>
-				
+
 				<button
 					class="button-secondary px-4 py-2 w-full"
 					type="button"
@@ -206,7 +212,7 @@
 				</button>
 			</div>
 		</div>
-		
+
 		<!-- P0: Voice Calibration Modal -->
 		{#if showVoiceCalibration}
 			<VoiceCalibration onComplete={handleVoiceCalibrationComplete} />

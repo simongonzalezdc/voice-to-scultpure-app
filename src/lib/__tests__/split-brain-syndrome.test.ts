@@ -27,9 +27,7 @@ describe('Split Brain Syndrome Fixes', () => {
 		stopRecording();
 
 		// Verify no frames warning was logged
-		expect(consoleWarnSpy).toHaveBeenCalledWith(
-			expect.stringContaining('No frames captured')
-		);
+		expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('No frames captured'));
 
 		// Verify state transitioned to complete (graceful handling)
 		expect(recordingStore.state).toBe('complete');

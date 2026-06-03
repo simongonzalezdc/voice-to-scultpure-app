@@ -1,6 +1,7 @@
 # Pull Request
 
 <!-- EMPOWER_ORCHESTRATOR:START -->
+
 ## Empower Orchestrator checklist
 
 - [ ] I checked whether this PR reveals a repeatable task or recurring agent failure.

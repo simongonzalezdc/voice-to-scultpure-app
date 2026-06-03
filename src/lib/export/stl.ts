@@ -34,17 +34,17 @@ function validateAndRepairGeometry(geometry: BufferGeometry): ManifoldReport {
 		zeroAreaTriangles: 0,
 		repaired: false
 	};
-	
+
 	const positions = geometry.getAttribute('position');
 	if (!positions) {
 		console.error('❌ [MANIFOLD] No position attribute found');
 		report.isValid = false;
 		return report;
 	}
-	
+
 	const posArray = positions.array as Float32Array;
 	const vertexCount = positions.count;
-	
+
 	// Check for NaN/Infinity values and repair
 	for (let i = 0; i < posArray.length; i++) {
 		if (!Number.isFinite(posArray[i])) {
@@ -54,53 +54,54 @@ function validateAndRepairGeometry(geometry: BufferGeometry): ManifoldReport {
 			report.repaired = true;
 		}
 	}
-	
+
 	// Check triangles for degeneracy (zero area)
 	const EPSILON = 1e-10; // Minimum edge length squared
 	const triangleCount = vertexCount / 3;
-	
+
 	const v1 = new Vector3();
 	const v2 = new Vector3();
 	const v3 = new Vector3();
 	const edge1 = new Vector3();
 	const edge2 = new Vector3();
 	const cross = new Vector3();
-	
+
 	for (let t = 0; t < triangleCount; t++) {
 		const i = t * 3;
-		
+
 		v1.fromBufferAttribute(positions, i);
 		v2.fromBufferAttribute(positions, i + 1);
 		v3.fromBufferAttribute(positions, i + 2);
-		
+
 		// Check for duplicate vertices
-		if (v1.distanceToSquared(v2) < EPSILON ||
+		if (
+			v1.distanceToSquared(v2) < EPSILON ||
 			v2.distanceToSquared(v3) < EPSILON ||
-			v3.distanceToSquared(v1) < EPSILON) {
+			v3.distanceToSquared(v1) < EPSILON
+		) {
 			report.degenerateTriangles++;
 		}
-		
+
 		// Check for zero area (collinear points)
 		edge1.subVectors(v2, v1);
 		edge2.subVectors(v3, v1);
 		cross.crossVectors(edge1, edge2);
-		
+
 		const area = cross.lengthSq();
 		if (area < EPSILON) {
 			report.zeroAreaTriangles++;
 		}
 	}
-	
+
 	// Update validity
-	report.isValid = report.nanVertices === 0 && 
-	                 report.degenerateTriangles === 0 &&
-	                 report.zeroAreaTriangles === 0;
-	
+	report.isValid =
+		report.nanVertices === 0 && report.degenerateTriangles === 0 && report.zeroAreaTriangles === 0;
+
 	// Mark buffer as needing update if repaired
 	if (report.repaired) {
 		positions.needsUpdate = true;
 	}
-	
+
 	// Log report
 	if (!report.isValid || report.repaired) {
 		console.warn(`⚠️ [MANIFOLD] Geometry issues detected:`, {
@@ -112,7 +113,7 @@ function validateAndRepairGeometry(geometry: BufferGeometry): ManifoldReport {
 	} else {
 		console.log(`✅ [MANIFOLD] Geometry is valid (${triangleCount} triangles)`);
 	}
-	
+
 	return report;
 }
 
@@ -123,89 +124,83 @@ function validateAndRepairGeometry(geometry: BufferGeometry): ManifoldReport {
 function removeDegenerate(geometry: BufferGeometry): BufferGeometry {
 	const positions = geometry.getAttribute('position');
 	if (!positions) return geometry;
-	
+
 	const EPSILON = 1e-8;
 	const newPositions: number[] = [];
 	const newNormals: number[] = [];
 	const normals = geometry.getAttribute('normal');
-	
+
 	const v1 = new Vector3();
 	const v2 = new Vector3();
 	const v3 = new Vector3();
 	const edge1 = new Vector3();
 	const edge2 = new Vector3();
 	const cross = new Vector3();
-	
+
 	let removed = 0;
 	const triangleCount = positions.count / 3;
-	
+
 	for (let t = 0; t < triangleCount; t++) {
 		const i = t * 3;
-		
+
 		v1.fromBufferAttribute(positions, i);
 		v2.fromBufferAttribute(positions, i + 1);
 		v3.fromBufferAttribute(positions, i + 2);
-		
+
 		// Check edge lengths
 		const e1Len = v1.distanceToSquared(v2);
 		const e2Len = v2.distanceToSquared(v3);
 		const e3Len = v3.distanceToSquared(v1);
-		
+
 		if (e1Len < EPSILON || e2Len < EPSILON || e3Len < EPSILON) {
 			removed++;
 			continue; // Skip degenerate
 		}
-		
+
 		// Check area
 		edge1.subVectors(v2, v1);
 		edge2.subVectors(v3, v1);
 		cross.crossVectors(edge1, edge2);
-		
+
 		if (cross.lengthSq() < EPSILON) {
 			removed++;
 			continue; // Skip zero-area
 		}
-		
+
 		// Keep this triangle
 		newPositions.push(v1.x, v1.y, v1.z);
 		newPositions.push(v2.x, v2.y, v2.z);
 		newPositions.push(v3.x, v3.y, v3.z);
-		
+
 		if (normals) {
 			for (let vi = 0; vi < 3; vi++) {
 				const ni = i + vi;
-				newNormals.push(
-					normals.getX(ni),
-					normals.getY(ni),
-					normals.getZ(ni)
-				);
+				newNormals.push(normals.getX(ni), normals.getY(ni), normals.getZ(ni));
 			}
 		}
 	}
-	
+
 	if (removed > 0) {
 		console.log(`🔧 [MANIFOLD] Removed ${removed} degenerate triangles`);
-		
+
 		const cleanGeometry = new BufferGeometry();
-		cleanGeometry.setAttribute('position', 
-			new (geometry.getAttribute('position') as any).constructor(
-				new Float32Array(newPositions), 3
-			)
+		cleanGeometry.setAttribute(
+			'position',
+			new (geometry.getAttribute('position') as any).constructor(new Float32Array(newPositions), 3)
 		);
-		
+
 		if (newNormals.length > 0) {
-			cleanGeometry.setAttribute('normal',
-				new (geometry.getAttribute('normal') as any).constructor(
-					new Float32Array(newNormals), 3
-				)
+			cleanGeometry.setAttribute(
+				'normal',
+				new (geometry.getAttribute('normal') as any).constructor(new Float32Array(newNormals), 3)
 			);
 		} else {
 			cleanGeometry.computeVertexNormals();
 		}
-		
+
 		return cleanGeometry;
 	}
-	
+
 	return geometry;
 }
 
@@ -220,12 +215,15 @@ function removeDegenerate(geometry: BufferGeometry): BufferGeometry {
  * @param targetTriangleCount - Target number of triangles (aim for ~50K max)
  * @returns Simplified geometry
  */
-function simplifyGeometry(geometry: BufferGeometry, targetTriangleCount: number = 50000): BufferGeometry {
+function simplifyGeometry(
+	geometry: BufferGeometry,
+	targetTriangleCount: number = 50000
+): BufferGeometry {
 	const posAttr = geometry.getAttribute('position');
 	if (!posAttr) return geometry;
 
 	const currentTriangleCount = posAttr.count / 3;
-	
+
 	if (currentTriangleCount <= targetTriangleCount) {
 		console.log(`✅ [SIMPLIFY] Geometry already optimized: ${currentTriangleCount} triangles`);
 		return geometry;
@@ -233,17 +231,21 @@ function simplifyGeometry(geometry: BufferGeometry, targetTriangleCount: number 
 
 	// Calculate target vertex count (3 vertices per triangle)
 	const targetVertexCount = targetTriangleCount * 3;
-	
+
 	// Use SimplifyModifier to reduce geometry
 	try {
-		console.log(`🔄 [SIMPLIFY] Reducing from ${currentTriangleCount} to ~${targetTriangleCount} triangles...`);
-		
+		console.log(
+			`🔄 [SIMPLIFY] Reducing from ${currentTriangleCount} to ~${targetTriangleCount} triangles...`
+		);
+
 		const modifier = new SimplifyModifier();
 		const simplified = modifier.modify(geometry, targetVertexCount);
-		
+
 		const resultTriangleCount = simplified.getAttribute('position').count / 3;
-		console.log(`✅ [SIMPLIFY] Success: ${resultTriangleCount} triangles (${((resultTriangleCount/currentTriangleCount)*100).toFixed(1)}% of original)`);
-		
+		console.log(
+			`✅ [SIMPLIFY] Success: ${resultTriangleCount} triangles (${((resultTriangleCount / currentTriangleCount) * 100).toFixed(1)}% of original)`
+		);
+
 		return simplified;
 	} catch (err) {
 		console.warn(`⚠️ [SIMPLIFY] Simplification failed, using original:`, err);
@@ -259,32 +261,34 @@ function simplifyGeometry(geometry: BufferGeometry, targetTriangleCount: number 
  * Export the ACTUAL rendered mesh to STL format.
  * This guarantees 100% match with what the user sees because we export
  * the exact same geometry that Three.js is rendering.
- * 
+ *
  * @param sculpture - The sculpture definition (for height/scaling info)
  * @returns STL content as string
  */
 export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 	const mesh = sculptureStore.meshReference;
-	
+
 	if (!mesh || !mesh.geometry) {
 		throw new Error('No mesh reference available. Please ensure a sculpture is rendered.');
 	}
-	
+
 	console.log(`📦 [STL DIRECT] Exporting actual rendered mesh geometry`);
 	console.log(`📦 [STL DIRECT] Mesh type: ${mesh.type}, geometry type: ${mesh.geometry.type}`);
-	
+
 	// Clone the geometry to avoid modifying the original
 	let geometry = mesh.geometry.clone();
-	
+
 	// DEBUG: Check geometry details
 	const positions = geometry.getAttribute('position');
 	const index = geometry.getIndex();
 	const drawRange = geometry.drawRange;
-	
+
 	if (positions) {
-		console.log(`📦 [STL DEBUG] Vertex count: ${positions.count}, Indexed: ${!!index}, Index count: ${index?.count ?? 0}`);
+		console.log(
+			`📦 [STL DEBUG] Vertex count: ${positions.count}, Indexed: ${!!index}, Index count: ${index?.count ?? 0}`
+		);
 		console.log(`📦 [STL DEBUG] Draw range: start=${drawRange.start}, count=${drawRange.count}`);
-		
+
 		// Sample first few vertices to check Z values
 		const samples: string[] = [];
 		for (let i = 0; i < Math.min(5, positions.count); i++) {
@@ -294,7 +298,7 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 			samples.push(`[${x}, ${y}, ${z}]`);
 		}
 		console.log(`📦 [STL DEBUG] First vertices (before transforms): ${samples.join(', ')}`);
-		
+
 		// Sample some vertices at different angles to verify 3D
 		const midIdx = Math.floor(positions.count / 2);
 		const sample2: string[] = [];
@@ -305,10 +309,11 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 			sample2.push(`[${x}, ${y}, ${z}]`);
 		}
 		console.log(`📦 [STL DEBUG] Mid vertices (should have non-zero Z): ${sample2.join(', ')}`);
-		
+
 		// Check if geometry is flat (all Z near zero)
 		let hasNonZeroZ = false;
-		let zMin = Infinity, zMax = -Infinity;
+		let zMin = Infinity,
+			zMax = -Infinity;
 		for (let i = 0; i < positions.count; i++) {
 			const z = positions.getZ(i);
 			if (z < zMin) zMin = z;
@@ -318,99 +323,107 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 			}
 		}
 		console.log(`📦 [STL DEBUG] Z range: [${zMin.toFixed(3)}, ${zMax.toFixed(3)}]`);
-		
+
 		if (!hasNonZeroZ) {
-			console.error(`❌ [STL DEBUG] CRITICAL: All Z values are ~0! Geometry is flat/2D, not a 3D lathe!`);
-			console.error(`❌ [STL DEBUG] This means sculptureStore.meshReference is pointing to wrong geometry!`);
+			console.error(
+				`❌ [STL DEBUG] CRITICAL: All Z values are ~0! Geometry is flat/2D, not a 3D lathe!`
+			);
+			console.error(
+				`❌ [STL DEBUG] This means sculptureStore.meshReference is pointing to wrong geometry!`
+			);
 		} else {
 			console.log(`✅ [STL DEBUG] Geometry is 3D with proper Z variation`);
 		}
 	}
-	
+
 	// FIX: If geometry has drawRange limiting visibility, convert to non-indexed
 	// and trim to only include the visible portion
 	// STLExporter may not respect drawRange, causing garbage data export
 	if (index && drawRange.count !== Infinity && drawRange.count < index.count) {
-		console.log(`🔧 [STL FIX] Trimming geometry to drawRange (${drawRange.count} of ${index.count} indices)`);
-		
+		console.log(
+			`🔧 [STL FIX] Trimming geometry to drawRange (${drawRange.count} of ${index.count} indices)`
+		);
+
 		// Convert to non-indexed geometry (STLExporter handles this better)
 		const nonIndexedGeometry = geometry.toNonIndexed();
-		
+
 		// Now trim to only the active triangles
 		const triCount = Math.floor(drawRange.count / 3);
 		const vertexCount = triCount * 3;
-		
+
 		const newPositions = new Float32Array(vertexCount * 3);
 		const oldPositions = nonIndexedGeometry.getAttribute('position');
-		
+
 		for (let i = 0; i < vertexCount; i++) {
 			newPositions[i * 3] = oldPositions.getX(i);
 			newPositions[i * 3 + 1] = oldPositions.getY(i);
 			newPositions[i * 3 + 2] = oldPositions.getZ(i);
 		}
-		
+
 		const trimmedGeometry = new BufferGeometry();
 		trimmedGeometry.setAttribute('position', new Float32BufferAttribute(newPositions, 3));
 		trimmedGeometry.computeVertexNormals();
-		
+
 		// Replace geometry with trimmed version
 		geometry.dispose();
 		nonIndexedGeometry.dispose();
 		geometry = trimmedGeometry;
-		
+
 		console.log(`✅ [STL FIX] Trimmed to ${vertexCount} vertices (${triCount} triangles)`);
 	}
-	
+
 	// Apply the mesh's world matrix to bake in all transforms (including heightScale)
 	mesh.updateMatrixWorld(true);
 	geometry.applyMatrix4(mesh.matrixWorld);
-	
+
 	// Get the sculpture's target height in mm
 	const targetHeightMM = sculpture.physical?.height || DEFAULT_HEIGHT_MM;
-	
+
 	// Compute current bounding box to determine scale
 	geometry.computeBoundingBox();
 	const bbox = geometry.boundingBox;
 	if (!bbox) {
 		throw new Error('Could not compute bounding box');
 	}
-	
+
 	const currentHeight = bbox.max.y - bbox.min.y;
-	
+
 	// Scale to target height in mm
 	// The mesh is in normalized units (height ~1.0 * heightScale)
 	// We need to scale to actual millimeters
 	const scaleFactor = targetHeightMM / currentHeight;
-	
-	console.log(`📦 [STL DIRECT] Current height: ${currentHeight.toFixed(3)}, Target: ${targetHeightMM}mm, Scale: ${scaleFactor.toFixed(2)}x`);
-	
+
+	console.log(
+		`📦 [STL DIRECT] Current height: ${currentHeight.toFixed(3)}, Target: ${targetHeightMM}mm, Scale: ${scaleFactor.toFixed(2)}x`
+	);
+
 	// Apply scaling to convert to millimeters
 	const scaleMatrix = new Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
 	geometry.applyMatrix4(scaleMatrix);
-	
+
 	// ========================================================================
 	// MANIFOLD VALIDATION & REPAIR
 	// Ensures the mesh is watertight and slicer-compatible
 	// ========================================================================
 	console.log(`🔍 [STL DIRECT] Validating geometry for manifold integrity...`);
-	
+
 	// Step 1: Validate and repair NaN values
 	const report = validateAndRepairGeometry(geometry);
-	
+
 	// Step 2: Remove degenerate triangles (zero area, duplicate vertices)
 	if (report.degenerateTriangles > 0 || report.zeroAreaTriangles > 0) {
 		const cleanGeometry = removeDegenerate(geometry);
 		geometry.dispose();
 		geometry = cleanGeometry;
 	}
-	
+
 	// Log final status
 	if (report.repaired || report.degenerateTriangles > 0 || report.zeroAreaTriangles > 0) {
 		console.log(`🔧 [STL DIRECT] Geometry repaired for slicer compatibility`);
 	} else {
 		console.log(`✅ [STL DIRECT] Geometry is manifold-ready`);
 	}
-	
+
 	// STEP 3: Simplify geometry for 3D printing mode (slicer optimization)
 	// Only simplify if in 3D Print constraint mode
 	if (uiStore.constraintMode === '3d_print') {
@@ -419,19 +432,19 @@ export function exportMeshToSTL(sculpture: SculptureDefinition): string {
 		geometry.dispose();
 		geometry = simplified;
 	}
-	
+
 	// Create a temporary mesh for the exporter
 	const exportMesh = new Mesh(geometry);
-	
+
 	// Use Three.js STLExporter
 	const exporter = new STLExporter();
 	const stlContent = exporter.parse(exportMesh, { binary: false }) as string;
-	
+
 	// Cleanup
 	geometry.dispose();
-	
+
 	console.log(`📦 [STL DIRECT] Export complete - geometry matches app view exactly`);
-	
+
 	return stlContent;
 }
 
@@ -452,7 +465,7 @@ export function lathePointsToSTL(
 		deformation: options?.deformation,
 		scaleToMillimeters: options?.scaleToMillimeters ?? true // Default ON for STL
 	};
-	
+
 	console.log(`📦 [STL EXPORT] Options:`, {
 		autoFix: exportOptions.autoFixGeometry,
 		constraints: exportOptions.constraintMode,
@@ -467,19 +480,25 @@ export function lathePointsToSTL(
 	}
 
 	// DEBUG: Log export profile stats
-	const minY = Math.min(...points.map(p => p.y));
-	const maxY = Math.max(...points.map(p => p.y));
-	const minX = Math.min(...points.map(p => p.x));
-	const maxX = Math.max(...points.map(p => p.x));
+	const minY = Math.min(...points.map((p) => p.y));
+	const maxY = Math.max(...points.map((p) => p.y));
+	const minX = Math.min(...points.map((p) => p.x));
+	const maxX = Math.max(...points.map((p) => p.x));
 	console.log(`📦 [STL EXPORT] Profile: ${points.length} points`);
 	console.log(`📦 [STL EXPORT] Y range: ${minY.toFixed(1)} - ${maxY.toFixed(1)} (height in mm)`);
 	console.log(`📦 [STL EXPORT] X range: ${minX.toFixed(1)} - ${maxX.toFixed(1)} (radius in mm)`);
-	console.log(`📦 [STL EXPORT] First 3 points:`, points.slice(0, 3).map(p => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`));
-	console.log(`📦 [STL EXPORT] Last 3 points:`, points.slice(-3).map(p => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`));
+	console.log(
+		`📦 [STL EXPORT] First 3 points:`,
+		points.slice(0, 3).map((p) => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`)
+	);
+	console.log(
+		`📦 [STL EXPORT] Last 3 points:`,
+		points.slice(-3).map((p) => `(r=${p.x.toFixed(1)}, h=${p.y.toFixed(1)})`)
+	);
 
 	const triangles: string[] = [];
 	let skippedDegenerate = 0; // Count degenerate triangles removed
-	
+
 	// CRITICAL: Use the SAME segment count as the renderer (facet style)
 	// This ensures the STL matches the app view exactly (including the "fins" aesthetic)
 	const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
@@ -518,12 +537,20 @@ export function lathePointsToSTL(
 
 			// Two triangles per segment (skip degenerate)
 			// Triangle 1: current1, current2, next1
-			const tri1 = createTriangle({ x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 }, { x: x3, y: y3, z: z3 });
+			const tri1 = createTriangle(
+				{ x: x1, y: y1, z: z1 },
+				{ x: x2, y: y2, z: z2 },
+				{ x: x3, y: y3, z: z3 }
+			);
 			if (tri1) triangles.push(tri1);
 			else skippedDegenerate++;
 
 			// Triangle 2: current2, next2, next1
-			const tri2 = createTriangle({ x: x2, y: y2, z: z2 }, { x: x4, y: y4, z: z4 }, { x: x3, y: y3, z: z3 });
+			const tri2 = createTriangle(
+				{ x: x2, y: y2, z: z2 },
+				{ x: x4, y: y4, z: z4 },
+				{ x: x3, y: y3, z: z3 }
+			);
 			if (tri2) triangles.push(tri2);
 			else skippedDegenerate++;
 		}
@@ -545,9 +572,9 @@ export function lathePointsToSTL(
 			const z2 = Math.sin(angle2) * secondPoint.x;
 
 			const capTri = createTriangle(
-					{ x: 0, y: bottomY, z: 0 },
-					{ x: x2, y: bottomY, z: z2 },
-					{ x: x1, y: bottomY, z: z1 }
+				{ x: 0, y: bottomY, z: 0 },
+				{ x: x2, y: bottomY, z: z2 },
+				{ x: x1, y: bottomY, z: z1 }
 			);
 			if (capTri) triangles.push(capTri);
 		}
@@ -568,9 +595,9 @@ export function lathePointsToSTL(
 			const z2 = Math.sin(angle2) * secondLastPoint.x;
 
 			const topTri = createTriangle(
-					{ x: 0, y: topY, z: 0 },
-					{ x: x1, y: topY, z: z1 },
-					{ x: x2, y: topY, z: z2 }
+				{ x: 0, y: topY, z: 0 },
+				{ x: x1, y: topY, z: z1 },
+				{ x: x2, y: topY, z: z2 }
 			);
 			if (topTri) triangles.push(topTri);
 		}
@@ -578,7 +605,9 @@ export function lathePointsToSTL(
 
 	// Log manifold repair stats
 	if (skippedDegenerate > 0) {
-		console.log(`🔧 [STL EXPORT] Removed ${skippedDegenerate} degenerate triangles for manifold compliance`);
+		console.log(
+			`🔧 [STL EXPORT] Removed ${skippedDegenerate} degenerate triangles for manifold compliance`
+		);
 	}
 	console.log(`✅ [STL EXPORT] Final mesh: ${triangles.length} triangles (manifold-ready)`);
 
@@ -596,14 +625,14 @@ function createTriangle(
 ): string | null {
 	// Skip triangles with NaN/Infinity values
 	const values = [v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, v3.x, v3.y, v3.z];
-	if (values.some(v => !Number.isFinite(v))) {
+	if (values.some((v) => !Number.isFinite(v))) {
 		return null; // Skip invalid triangle
 	}
-	
+
 	// Calculate edge vectors
 	const u = { x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z };
 	const v = { x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z };
-	
+
 	// Calculate normal (cross product)
 	const normal = {
 		x: u.y * v.z - u.z * v.y,
@@ -613,17 +642,17 @@ function createTriangle(
 
 	// Calculate length (also area * 2 of triangle)
 	const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-	
+
 	// Skip degenerate triangles (zero area / collinear points)
 	const EPSILON = 1e-10;
 	if (length < EPSILON) {
 		return null; // Skip zero-area triangle
 	}
-	
+
 	// Normalize
-		normal.x /= length;
-		normal.y /= length;
-		normal.z /= length;
+	normal.x /= length;
+	normal.y /= length;
+	normal.z /= length;
 
 	return `facet normal ${normal.x} ${normal.y} ${normal.z}
   outer loop
@@ -645,4 +674,3 @@ export function downloadSTL(stlContent: string, filename: string): void {
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
-

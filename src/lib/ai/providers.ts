@@ -4,7 +4,16 @@
  * Defines all supported AI providers and their models.
  */
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek' | 'zhipu';
+export type CloudProvider =
+	| 'openai'
+	| 'anthropic'
+	| 'google'
+	| 'groq'
+	| 'openrouter'
+	| 'ollama'
+	| 'together'
+	| 'deepseek'
+	| 'zhipu';
 export type AIProviderType = CloudProvider | 'local';
 
 export interface ModelConfig {

@@ -16,7 +16,7 @@
  * - Handles segment count changes by recreating buffers (rare)
  */
 
-import { BufferGeometry, BufferAttribute, Vector2, DynamicDrawUsage, StaticDrawUsage } from 'three';
+import { BufferGeometry, BufferAttribute, DynamicDrawUsage, StaticDrawUsage } from 'three';
 import type { LathePoint } from '$lib/types';
 import { GEOMETRY_MIN_SEGMENTS, GEOMETRY_LATHE_SEGMENTS } from '$lib/config/constants';
 
@@ -78,26 +78,26 @@ export class DynamicGeometryManager {
 	 */
 	setRadialSegments(segments: number): boolean {
 		if (segments === this.radialSegments) return false;
-		
+
 		console.log(`💎 [DYNAMIC-GEO] Changing segments: ${this.radialSegments} → ${segments}`);
 		this.radialSegments = segments;
-		
+
 		// Reallocate buffers for new segment count
 		const maxVertexCount = this.calculateVertexCount(this.maxProfileResolution);
 		this.positionBuffer = new Float32Array(maxVertexCount * 3);
 		this.normalBuffer = new Float32Array(maxVertexCount * 3);
 		this.uvBuffer = new Float32Array(maxVertexCount * 2);
-		
+
 		// Recreate geometry with new buffers
 		this.geometry.dispose();
 		this.geometry = new BufferGeometry();
 		this.initializeAttributes();
 		this.geometry.setIndex(null); // Clear old indices
 		this.generateIndices(); // Regenerate indices for new segment count
-		
+
 		// Clear hash to force re-render
 		this.lastProfileHash = '';
-		
+
 		return true;
 	}
 
@@ -306,8 +306,6 @@ export class DynamicGeometryManager {
 			}
 		}
 	}
-
-
 
 	/**
 	 * Update vertex colors

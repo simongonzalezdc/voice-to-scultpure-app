@@ -31,7 +31,7 @@ export function oklchToHex(L: number, C: number, H: number): string {
 	// Convert LMS to linear RGB (using simplified inverse matrix)
 	const r = 4.0767416621 * l - 3.3077363322 * m + 0.2309101289 * s;
 	const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193761 * s;
-	const b = -0.004107344528 * l - 0.7034186147 * m + 1.7076147010 * s;
+	const b = -0.004107344528 * l - 0.7034186147 * m + 1.707614701 * s;
 
 	// Apply gamma correction (sRGB)
 	const toSrgb = (c: number) => {
@@ -108,10 +108,7 @@ export function hexToRgb(hex: string): [number, number, number] {
  * @param vertexCount - Number of vertices to generate colors for
  * @returns Float32Array of RGB values (3 values per vertex)
  */
-export function generateAutoColors(
-	frames: AnalysisFrame[],
-	vertexCount: number
-): Float32Array {
+export function generateAutoColors(frames: AnalysisFrame[], vertexCount: number): Float32Array {
 	if (!frames.length) {
 		// Return white if no frames
 		console.warn('🎨 [COLORS] No frames - returning white');
@@ -148,7 +145,10 @@ export function generateAutoColors(
 			const minSemitones = hzToSemitones(MIN_PITCH_HZ);
 			const maxSemitones = hzToSemitones(MAX_PITCH_HZ);
 			const semitones = hzToSemitones(pitch);
-			normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
+			normalizedPitch = Math.max(
+				0,
+				Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones))
+			);
 		}
 
 		// Energy maps to saturation (quiet=muted, loud=vibrant)
@@ -176,11 +176,18 @@ export function generateAutoColors(
 	// DEBUG: Log sample colors (use Math.round, not bitwise OR which truncates to 0)
 	const midIdx = Math.floor(vertexCount / 2) * 3;
 	// Bounds check to avoid undefined access
-	if (midIdx + 2 < colors.length && colors[0] !== undefined && colors[1] !== undefined && colors[2] !== undefined) {
+	if (
+		midIdx + 2 < colors.length &&
+		colors[0] !== undefined &&
+		colors[1] !== undefined &&
+		colors[2] !== undefined
+	) {
 		const midR = colors[midIdx] ?? 0;
 		const midG = colors[midIdx + 1] ?? 0;
 		const midB = colors[midIdx + 2] ?? 0;
-		console.log(`🎨 [COLORS] Sample colors: [0]=(${(colors[0]*255).toFixed(0)},${(colors[1]*255).toFixed(0)},${(colors[2]*255).toFixed(0)}) [mid]=(${(midR*255).toFixed(0)},${(midG*255).toFixed(0)},${(midB*255).toFixed(0)})`);
+		console.log(
+			`🎨 [COLORS] Sample colors: [0]=(${(colors[0] * 255).toFixed(0)},${(colors[1] * 255).toFixed(0)},${(colors[2] * 255).toFixed(0)}) [mid]=(${(midR * 255).toFixed(0)},${(midG * 255).toFixed(0)},${(midB * 255).toFixed(0)})`
+		);
 	}
 
 	return colors;
@@ -198,14 +205,14 @@ export function generateAutoRoughness(frames: AnalysisFrame[]): number {
 	if (!frames.length) return 0.5;
 
 	// Average spectral centroid
-	const avgCentroid = frames.reduce((sum, f) => {
-		return sum + (f.timbre?.spectralCentroid || 2500);
-	}, 0) / frames.length;
+	const avgCentroid =
+		frames.reduce((sum, f) => {
+			return sum + (f.timbre?.spectralCentroid || 2500);
+		}, 0) / frames.length;
 
 	// Normalize: 1000 Hz = rough (1.0), 5000 Hz = glossy (0.2)
 	const normalized = (avgCentroid - 1000) / 4000;
-	const roughness = 1.0 - (normalized * 0.8);
+	const roughness = 1.0 - normalized * 0.8;
 
 	return Math.max(0.2, Math.min(1.0, roughness));
 }
-

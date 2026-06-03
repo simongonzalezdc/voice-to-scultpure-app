@@ -60,7 +60,7 @@ export const TIMBRE_SMOOTHING_MS = 350; // Timbre smoothing
 // Exponential smoothing factors (derived from time constants at 30fps)
 // Formula: alpha = 1 - exp(-frameTime / timeConstant)
 // At 33ms frame: alpha = 1 - exp(-0.033 / 0.300) ≈ 0.10
-export const PITCH_SMOOTHING_ALPHA = 0.10; // Heavy smoothing (was 0.3)
+export const PITCH_SMOOTHING_ALPHA = 0.1; // Heavy smoothing (was 0.3)
 export const ENERGY_SMOOTHING_ALPHA = 0.08; // Heavy smoothing for energy
 export const TIMBRE_SMOOTHING_ALPHA = 0.09; // Heavy smoothing for timbre
 
@@ -154,13 +154,20 @@ export const FACET_STYLE_MINIMAL = 8; // Dramatic octagonal cross-section
 export const GEOMETRY_LATHE_SEGMENTS = FACET_STYLE_CRYSTALLINE;
 
 // Helper: Get segment count for a facet style
-export function getSegmentsForFacetStyle(style: 'smooth' | 'crystalline' | 'angular' | 'minimal'): number {
+export function getSegmentsForFacetStyle(
+	style: 'smooth' | 'crystalline' | 'angular' | 'minimal'
+): number {
 	switch (style) {
-		case 'smooth': return FACET_STYLE_SMOOTH;
-		case 'crystalline': return FACET_STYLE_CRYSTALLINE;
-		case 'angular': return FACET_STYLE_ANGULAR;
-		case 'minimal': return FACET_STYLE_MINIMAL;
-		default: return FACET_STYLE_CRYSTALLINE;
+		case 'smooth':
+			return FACET_STYLE_SMOOTH;
+		case 'crystalline':
+			return FACET_STYLE_CRYSTALLINE;
+		case 'angular':
+			return FACET_STYLE_ANGULAR;
+		case 'minimal':
+			return FACET_STYLE_MINIMAL;
+		default:
+			return FACET_STYLE_CRYSTALLINE;
 	}
 }
 export const GEOMETRY_RESOLUTION_COMPOSITOR = 2048; // Resolution used by compositor (was 256)
@@ -236,7 +243,7 @@ export const CERAMIC_BASE_HEIGHT_THRESHOLD = 0.15; // Bottom 15% is base zone (l
 // 3D Print Constraint Constants
 // 3D Print Constants (Minimal approach - slicer handles supports)
 export const PRINT_3D_MIN_RADIUS = 0.08; // 8% minimum radius to prevent thin walls
-export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.10; // 10% minimum first layer for bed adhesion (less aggressive)
+export const PRINT_3D_FIRST_LAYER_MIN_RADIUS = 0.1; // 10% minimum first layer for bed adhesion (less aggressive)
 
 // 3D Print Resolution & Geometry Constants
 // Optimized for slicer performance without sacrificing quality

@@ -425,7 +425,9 @@ export function setProfileStyle(style: ProfileStyle): void {
 // MUSICAL DETAIL: Set how much musical features affect geometry
 export function setMusicalDetailIntensity(intensity: number): void {
 	const clamped = Math.max(0, Math.min(1, intensity));
-	console.log(`🎵 [UI STORE] setMusicalDetailIntensity: ${(uiStore.musicalDetailIntensity * 100).toFixed(0)}% → ${(clamped * 100).toFixed(0)}%`);
+	console.log(
+		`🎵 [UI STORE] setMusicalDetailIntensity: ${(uiStore.musicalDetailIntensity * 100).toFixed(0)}% → ${(clamped * 100).toFixed(0)}%`
+	);
 	uiStore.musicalDetailIntensity = clamped;
 }
 

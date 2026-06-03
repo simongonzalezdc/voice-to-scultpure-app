@@ -1,14 +1,9 @@
 <script lang="ts">
 	import { sculptureStore, addLayer, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-	import {
-		recordingStore,
-		startRecording,
-		stopRecording,
-		getCapturedFrames
-	} from '$lib/stores/recording.svelte';
+	import { recordingStore, startRecording, stopRecording } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { Mic, Check, ChevronRight, ChevronLeft, Wand2, Activity } from 'lucide-svelte';
+	import { Mic, ChevronRight, ChevronLeft, Wand2, Activity } from 'lucide-svelte';
 	import LayerPanel from './LayerPanel.svelte';
 	import { generateLathe } from '$lib/engine/physicsMapping';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
@@ -28,13 +23,16 @@
 	const quantizedHue = $derived((latestFrame as any)?.quantizedPitch?.hue ?? null);
 
 	// Step Configurations
-	const STEPS: Record<Step, {
-		title: string;
-		prompt: string;
-		hint: string;
-		layerType: string | null;
-		action: () => void;
-	}> = {
+	const STEPS: Record<
+		Step,
+		{
+			title: string;
+			prompt: string;
+			hint: string;
+			layerType: string | null;
+			action: () => void;
+		}
+	> = {
 		shape: {
 			title: 'Define Silhouette',
 			prompt: 'Sing a long, steady tone to shape the vase profile.',
@@ -269,7 +267,7 @@
 							<span>BACK</span>
 						</button>
 					{/if}
-					
+
 					<button
 						class="flex items-center gap-2 px-6 py-3 rounded-full font-bold text-base transition-all hover:scale-105 active:scale-95
 						{isRecording
