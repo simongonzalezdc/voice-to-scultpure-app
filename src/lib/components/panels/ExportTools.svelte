@@ -58,6 +58,12 @@
 
 	// Local state for editing
 	let editingWallThickness = $state(0);
+	let physicalHeight = $derived(sculptureStore.currentSculpture?.physical.height ?? 0);
+	let physicalUnits = $derived(sculptureStore.currentSculpture?.physical.units ?? 'mm');
+	let wallThicknessLabel = $derived.by(() => {
+		const wallThickness = sculptureStore.currentSculpture?.physical.wallThickness;
+		return wallThickness && wallThickness > 0 ? `${wallThickness}${physicalUnits}` : 'Solid';
+	});
 
 	// Sync with sculpture changes
 	$effect(() => {
@@ -194,6 +200,23 @@
 		</div>
 	{:else}
 		<div class="p-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+			<div class="surface-panel-alt p-3 rounded" aria-label="Physical scale">
+				<div class="grid grid-cols-3 gap-3 text-xs">
+					<div>
+						<p class="text-secondary mb-1">Height</p>
+						<p class="text-primary font-semibold">{physicalHeight}{physicalUnits}</p>
+					</div>
+					<div>
+						<p class="text-secondary mb-1">Wall</p>
+						<p class="text-primary font-semibold">{wallThicknessLabel}</p>
+					</div>
+					<div>
+						<p class="text-secondary mb-1">Volume</p>
+						<p class="text-primary font-semibold">{uiStore.printVolumeMm}mm</p>
+					</div>
+				</div>
+			</div>
+
 			<!-- Export Options -->
 			<div>
 				<h3 class="text-sm font-semibold text-secondary mb-3">Export Options</h3>

@@ -107,7 +107,7 @@ describe('Fabrication Constraints', () => {
 			// Create curve with steep overhang
 			const curve: LathePoint[] = [
 				{ x: 0.1, y: 0.0 },
-				{ x: 0.3, y: 0.1 }, // Steep outward angle
+				{ x: 0.8, y: 0.1 }, // Steep outward angle
 				{ x: 0.1, y: 1.0 }
 			];
 

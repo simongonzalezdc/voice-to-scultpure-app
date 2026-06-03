@@ -96,6 +96,11 @@ export const uiStore = $state<{
 		envelopeSmoothEnabled: boolean;
 		envelopeSmoothAmount: number;
 	};
+	angularMode: {
+		spiralIntensity: number;
+		spreadIntensity: number;
+		colorAuto: boolean;
+	};
 }>({
 	panels: {
 		aiPanel: false,
@@ -169,6 +174,11 @@ export const uiStore = $state<{
 		profileFinsBaseRadius: 0.3,
 		envelopeSmoothEnabled: false,
 		envelopeSmoothAmount: 0.5
+	},
+	angularMode: {
+		spiralIntensity: 0,
+		spreadIntensity: 1,
+		colorAuto: false
 	}
 });
 
