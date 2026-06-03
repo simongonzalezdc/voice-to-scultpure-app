@@ -3,12 +3,12 @@ name: Agent Law
 on:
   pull_request:
     paths:
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - "docs/agent-law/**"
-      - ".github/pull_request_template.md"
-      - ".github/PULL_REQUEST_TEMPLATE.md"
-      - ".github/workflows/agent-law.yml"
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'docs/agent-law/**'
+      - '.github/pull_request_template.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/workflows/agent-law.yml'
   workflow_dispatch:
 
 permissions:

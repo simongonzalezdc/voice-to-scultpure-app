@@ -5,7 +5,7 @@ import type { SculptureLayer, LathePoint } from '$lib/types';
  * Merges layers into a final mesh profile in real-time.
  *
  * Pure function: No side effects, can be called from $derived blocks
- * 
+ *
  * CRITICAL FIX: Auto-detects resolution from first visible layer's data length.
  * This ensures Song Mode (512 points) and Coil Mode (256 points) work correctly.
  */
@@ -14,29 +14,37 @@ import type { SculptureLayer, LathePoint } from '$lib/types';
 let lastCompositorLogTime = 0;
 const COMPOSITOR_LOG_INTERVAL_MS = 2000; // Log at most once every 2 seconds
 
-export function computeProfile(layers: SculptureLayer[], explicitResolution?: number): LathePoint[] {
+export function computeProfile(
+	layers: SculptureLayer[],
+	explicitResolution?: number
+): LathePoint[] {
 	// Find the first visible layer to determine target resolution
-	const firstVisibleLayer = layers.find(l => l.visible && l.data && l.data.length > 0);
-	
+	const firstVisibleLayer = layers.find((l) => l.visible && l.data && l.data.length > 0);
+
 	// Use explicit resolution if provided, otherwise auto-detect from first layer, fallback to 128
 	const resolution = explicitResolution ?? firstVisibleLayer?.data.length ?? 128;
-	
+
 	// DEBUG: Log all layers being processed (rate-limited)
 	const now = Date.now();
 	const shouldLog = now - lastCompositorLogTime > COMPOSITOR_LOG_INTERVAL_MS;
-	
-	const visibleLayers = layers.filter(l => l.visible);
+
+	const visibleLayers = layers.filter((l) => l.visible);
 	if (shouldLog && visibleLayers.length > 0) {
 		lastCompositorLogTime = now;
-		console.log(`🎭 [COMPOSITOR] Processing ${visibleLayers.length} visible layers (resolution: ${resolution}):`);
+		console.log(
+			`🎭 [COMPOSITOR] Processing ${visibleLayers.length} visible layers (resolution: ${resolution}):`
+		);
 		visibleLayers.forEach((l, idx) => {
-			const avgData = l.data && l.data.length > 0 
-				? Array.from(l.data).reduce((a, b) => a + b, 0) / l.data.length 
-				: 0;
-			console.log(`   [${idx}] "${l.name}" type=${l.type} blend=${l.blendMode} avgData=${avgData.toFixed(3)} pts=${l.data?.length ?? 0}`);
+			const avgData =
+				l.data && l.data.length > 0
+					? Array.from(l.data).reduce((a, b) => a + b, 0) / l.data.length
+					: 0;
+			console.log(
+				`   [${idx}] "${l.name}" type=${l.type} blend=${l.blendMode} avgData=${avgData.toFixed(3)} pts=${l.data?.length ?? 0}`
+			);
 		});
 	}
-	
+
 	// 1. Start with a base profile (default cylinder)
 	// We use Float32Array for performance during accumulation
 	const profile = new Float32Array(resolution).fill(0.5); // Base radius 0.5
@@ -49,7 +57,7 @@ export function computeProfile(layers: SculptureLayer[], explicitResolution?: nu
 		// Get layer data, resampling if necessary
 		let layerData: Float32Array;
 		let layerMask: Float32Array | undefined;
-		
+
 		if (layer.data.length === resolution) {
 			// Perfect match - use directly
 			layerData = layer.data;
@@ -104,11 +112,13 @@ export function computeProfile(layers: SculptureLayer[], explicitResolution?: nu
 				}
 			}
 		}
-		
+
 		// DEBUG: Log the effect of this layer (only if logging)
 		if (shouldLog) {
 			const afterAvg = Array.from(profile).reduce((a, b) => a + b, 0) / resolution;
-			console.log(`   ➡️ "${layer.name}": before=${beforeAvg.toFixed(3)} → after=${afterAvg.toFixed(3)} (diff=${(afterAvg - beforeAvg).toFixed(3)})`);
+			console.log(
+				`   ➡️ "${layer.name}": before=${beforeAvg.toFixed(3)} → after=${afterAvg.toFixed(3)} (diff=${(afterAvg - beforeAvg).toFixed(3)})`
+			);
 		}
 	}
 
@@ -118,10 +128,10 @@ export function computeProfile(layers: SculptureLayer[], explicitResolution?: nu
 		x: Math.max(0.01, r), // Minimum radius constraint
 		y: i / (resolution - 1) // Normalized height 0 to 1
 	}));
-	
+
 	// FIX 5: Removed excessive logging from hot path (was logging every frame)
 	// Debug logging moved to rate-limited section above
-	
+
 	return result;
 }
 
@@ -132,30 +142,30 @@ export function computeProfile(layers: SculptureLayer[], explicitResolution?: nu
 function resampleData(source: Float32Array, targetLength: number): Float32Array {
 	const result = new Float32Array(targetLength);
 	const sourceLength = source.length;
-	
+
 	if (sourceLength === 0) {
 		result.fill(0.5);
 		return result;
 	}
-	
+
 	if (sourceLength === 1) {
 		result.fill(source[0] ?? 0.5);
 		return result;
 	}
-	
+
 	for (let i = 0; i < targetLength; i++) {
 		// Map target index to source index
 		const sourcePos = (i / (targetLength - 1)) * (sourceLength - 1);
 		const sourceLow = Math.floor(sourcePos);
 		const sourceHigh = Math.min(sourceLow + 1, sourceLength - 1);
 		const t = sourcePos - sourceLow;
-		
+
 		// Linear interpolation
 		const valLow = source[sourceLow] ?? 0;
 		const valHigh = source[sourceHigh] ?? 0;
 		result[i] = valLow * (1 - t) + valHigh * t;
 	}
-	
+
 	return result;
 }
 
@@ -164,6 +174,6 @@ function resampleData(source: Float32Array, targetLength: number): Float32Array 
  * Useful for pre-checking or debugging.
  */
 export function getEffectiveResolution(layers: SculptureLayer[]): number {
-	const firstVisibleLayer = layers.find(l => l.visible && l.data && l.data.length > 0);
+	const firstVisibleLayer = layers.find((l) => l.visible && l.data && l.data.length > 0);
 	return firstVisibleLayer?.data.length ?? 128;
 }

@@ -6,7 +6,7 @@
  */
 
 import type { LathePoint } from '$lib/types';
-import { safeArrayAccess, isValidIndex } from '$lib/utils/arrayHelpers';
+import { safeArrayAccess } from '$lib/utils/arrayHelpers';
 import {
 	CONSTRAINT_DIFF_THRESHOLD,
 	CERAMIC_MIN_HAND_RADIUS,
@@ -37,7 +37,7 @@ export function applyConstraints(
 	physicalHeightMm: number = DEFAULT_HEIGHT_MM
 ): LathePoint[] {
 	console.log(`🔧 [CONSTRAINTS] Applying "${mode}" constraints to ${curve.length} points`);
-	
+
 	if (curve.length < 2) {
 		console.log(`🔧 [CONSTRAINTS] Skipped: curve has < 2 points`);
 		return curve;
@@ -131,7 +131,7 @@ function applyCeramicConstraints(curve: LathePoint[], physicalHeightMm: number):
 	const heightMm = Math.max(1, physicalHeightMm || DEFAULT_HEIGHT_MM);
 	const minHandRadius = Math.max(
 		CERAMIC_MIN_HAND_RADIUS,
-		(CERAMIC_MIN_HAND_ACCESS_MM / heightMm) / 2
+		CERAMIC_MIN_HAND_ACCESS_MM / heightMm / 2
 	);
 
 	// RULE A: Hand Access - Ensure minimum radius for hand entry
@@ -220,7 +220,10 @@ function applyCeramicConstraints(curve: LathePoint[], physicalHeightMm: number):
 	const averageRadius = constrained.reduce((sum, p) => sum + p.x, 0) / constrained.length;
 	const minDetectedRadius = Math.min(...constrained.map((p) => p.x));
 	// Only boost if the shape is dangerously narrow (would collapse)
-	if (averageRadius < CERAMIC_CRITICAL_MIN_RADIUS || minDetectedRadius < CERAMIC_CRITICAL_MIN_RADIUS / 2) {
+	if (
+		averageRadius < CERAMIC_CRITICAL_MIN_RADIUS ||
+		minDetectedRadius < CERAMIC_CRITICAL_MIN_RADIUS / 2
+	) {
 		// Boost entire shape to ensure it forms a viable vessel
 		const boostAmount = Math.max(0, CERAMIC_CRITICAL_MIN_RADIUS - minDetectedRadius);
 		console.log(
@@ -262,9 +265,11 @@ function applyCeramicConstraints(curve: LathePoint[], physicalHeightMm: number):
 			}
 		}
 	}
-	
+
 	if (basePointsAdjusted > 0) {
-		console.log(`🏺 [CERAMIC] Base stability: adjusted ${basePointsAdjusted} points to minRadius=${minBaseRadius.toFixed(3)}`);
+		console.log(
+			`🏺 [CERAMIC] Base stability: adjusted ${basePointsAdjusted} points to minRadius=${minBaseRadius.toFixed(3)}`
+		);
 	}
 
 	return constrained;
@@ -305,7 +310,7 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	// Wall thickness = 2 * radius (diameter)
 	// PRINT_3D_MIN_WALL_MM = 1.2mm (3x nozzle width for 0.4mm nozzle)
 	// For 150mm tall sculpture: normalized units = sculpture height
-	const minWallRadiusNormalized = (PRINT_3D_MIN_WALL_MM / 2.0) / DEFAULT_HEIGHT_MM;
+	const minWallRadiusNormalized = PRINT_3D_MIN_WALL_MM / 2.0 / DEFAULT_HEIGHT_MM;
 	const wallThicknessMinRadius = Math.max(PRINT_3D_MIN_RADIUS, minWallRadiusNormalized);
 
 	for (let i = 0; i < constrained.length; i++) {
@@ -349,7 +354,9 @@ function apply3DPrintConstraints(curve: LathePoint[]): LathePoint[] {
 	}
 
 	if (wallThicknessMinRadius > PRINT_3D_MIN_RADIUS) {
-		console.log(`🖨️ [3D PRINT] Enforced minimum wall thickness: ${(PRINT_3D_MIN_WALL_MM).toFixed(2)}mm (radius=${wallThicknessMinRadius.toFixed(3)})`);
+		console.log(
+			`🖨️ [3D PRINT] Enforced minimum wall thickness: ${PRINT_3D_MIN_WALL_MM.toFixed(2)}mm (radius=${wallThicknessMinRadius.toFixed(3)})`
+		);
 	}
 
 	return constrained;
@@ -368,7 +375,7 @@ export function getConstraintDescription(mode: ConstraintMode): string {
 			// DIRECTIVE 3: Enhanced description with actual constraints
 			return 'Pottery wheel physics: Hand Access 70mm (Min Width), Clay Smoothing (SMA), Prevents Collapse (45° max), Stable Base.';
 		case '3d_print':
-			return 'Minimal FDM constraints: ensures wall thickness and bed adhesion. Add supports in slicer for overhangs.';
+			return 'Minimal FDM (3D printer) constraints: ensures wall thickness and bed adhesion. Add supports in slicer for overhangs.';
 		default:
 			return 'Unknown constraint mode';
 	}

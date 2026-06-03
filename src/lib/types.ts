@@ -44,10 +44,10 @@ export interface SculptureLayer {
 
 	// Optional metadata
 	sourceFrameCount?: number; // Number of audio frames used to generate this layer
-	
+
 	// STORE RAW FRAMES (Best Quality)
 	// Allows re-generating geometry with different settings without data loss
-	sourceFrames?: AnalysisFrame[]; 
+	sourceFrames?: AnalysisFrame[];
 }
 
 export interface SculptureDefinition {
@@ -99,7 +99,16 @@ export interface UserProfile {
 	attackThreshold: number; // Dynamic threshold for detecting sharp attacks (chisel effect)
 }
 
-export type CloudProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'openrouter' | 'ollama' | 'together' | 'deepseek' | 'zhipu';
+export type CloudProvider =
+	| 'openai'
+	| 'anthropic'
+	| 'google'
+	| 'groq'
+	| 'openrouter'
+	| 'ollama'
+	| 'together'
+	| 'deepseek'
+	| 'zhipu';
 export type AIProviderType = CloudProvider | 'local';
 
 // Legacy alias for backward compatibility

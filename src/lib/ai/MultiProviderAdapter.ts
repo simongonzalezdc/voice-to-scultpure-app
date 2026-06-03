@@ -88,7 +88,7 @@ export async function callProvider(
 			case 'openrouter':
 			case 'together':
 			case 'deepseek':
-		case 'zhipu':
+			case 'zhipu':
 			default:
 				({ response, content } = await callOpenAICompatible(
 					config,

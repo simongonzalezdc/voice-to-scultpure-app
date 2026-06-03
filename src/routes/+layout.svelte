@@ -2,7 +2,6 @@
 	import '../app.postcss';
 	import Toast from '$lib/components/overlay/Toast.svelte';
 	import AudioStateVisualizer from '$lib/components/debug/AudioStateVisualizer.svelte';
-	import { uiStore } from '$lib/stores/uiStore.svelte';
 </script>
 
 <div class="min-h-screen bg-app text-primary relative">

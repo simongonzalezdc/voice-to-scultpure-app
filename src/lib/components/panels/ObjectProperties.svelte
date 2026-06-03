@@ -1,10 +1,32 @@
 <script lang="ts">
-import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
-import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, type FacetStyle, type ProfileStyle } from '$lib/stores/uiStore.svelte';
+	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
+	import {
+		uiStore,
+		setFacetStyle,
+		setProfileStyle,
+		setMusicalDetailIntensity,
+		type FacetStyle,
+		type ProfileStyle
+	} from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
 	import type { BaseShape } from '$lib/types';
 	import { getConstraintDescription, getConstraintIcon } from '$lib/engine/constraints';
-	import { Cylinder, Circle, Box, FileText, Ruler, AlertTriangle, Check, Diamond, Gem, Hexagon, Octagon, Layers, Waves, Music, Shell } from 'lucide-svelte';
+	import {
+		Cylinder,
+		Circle,
+		Box,
+		FileText,
+		Ruler,
+		AlertTriangle,
+		Check,
+		Gem,
+		Hexagon,
+		Octagon,
+		Layers,
+		Waves,
+		Music,
+		Shell
+	} from 'lucide-svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
 	// Reactive state from current sculpture
@@ -71,7 +93,7 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 
 	const sculptureMaxWidthMm = $derived(() => {
 		if (!currentSculpture || !currentSculpture.radiusCurve?.length) return 0;
-		const maxRadius = Math.max(...currentSculpture.radiusCurve.map(p => p.x));
+		const maxRadius = Math.max(...currentSculpture.radiusCurve.map((p) => p.x));
 		// Width = diameter = 2 * radius * height ratio
 		return Math.round(maxRadius * 2 * sculptureHeightMm());
 	});
@@ -109,10 +131,14 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 
 	function getFacetStyleSegments(style: FacetStyle): number {
 		switch (style) {
-			case 'smooth': return 96;
-			case 'crystalline': return 32;
-			case 'angular': return 16;
-			case 'minimal': return 8;
+			case 'smooth':
+				return 96;
+			case 'crystalline':
+				return 32;
+			case 'angular':
+				return 16;
+			case 'minimal':
+				return 8;
 		}
 	}
 
@@ -134,9 +160,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 	}
 
 	// Musical detail intensity - current value from uiStore
-	const musicalDetail = $derived(uiStore.musicalDetailIntensity ?? 0.5);
 	let localMusicalDetail = $state(0.5);
-	
+
 	// Sync local state with store
 	$effect(() => {
 		localMusicalDetail = uiStore.musicalDetailIntensity ?? 0.5;
@@ -227,14 +252,13 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				<Gem size={14} />
 				Facet Style
 			</h3>
-			<p class="text-xs text-secondary opacity-75 mb-3">
-				Controls angular vs. smooth aesthetic
-			</p>
-			
+			<p class="text-xs text-secondary opacity-75 mb-3">Controls angular vs. smooth aesthetic</p>
+
 			<div class="grid grid-cols-2 gap-2 mb-2">
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'smooth'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle ===
+					'smooth'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setFacetStyle('smooth')}
@@ -245,7 +269,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'crystalline'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle ===
+					'crystalline'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setFacetStyle('crystalline')}
@@ -256,7 +281,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'angular'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle ===
+					'angular'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setFacetStyle('angular')}
@@ -267,7 +293,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle === 'minimal'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {facetStyle ===
+					'minimal'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setFacetStyle('minimal')}
@@ -277,9 +304,11 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 					<span>Minimal</span>
 				</button>
 			</div>
-			
+
 			<div class="bg-surface-alt p-2 rounded text-xs text-secondary">
-				<span class="font-mono text-primary">{getFacetStyleSegments(facetStyle)}</span> facets · {getFacetStyleDescription(facetStyle)}
+				<span class="font-mono text-primary">{getFacetStyleSegments(facetStyle)}</span> facets · {getFacetStyleDescription(
+					facetStyle
+				)}
 			</div>
 		</div>
 
@@ -292,11 +321,12 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 			<p class="text-xs text-secondary opacity-75 mb-3">
 				How much musical features affect the shape
 			</p>
-			
+
 			<div class="space-y-2">
 				<div class="flex justify-between text-xs">
 					<span class="text-secondary">Subtle</span>
-					<span class="text-primary font-semibold">{getMusicalDetailLabel(localMusicalDetail)}</span>
+					<span class="text-primary font-semibold">{getMusicalDetailLabel(localMusicalDetail)}</span
+					>
 					<span class="text-secondary">Dramatic</span>
 				</div>
 				<input
@@ -312,7 +342,7 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 					<span class="font-mono text-primary">{(localMusicalDetail * 100).toFixed(0)}%</span> intensity
 				</div>
 			</div>
-			
+
 			<div class="bg-surface-alt p-2 rounded text-xs text-secondary mt-2">
 				Beat ridges, phrase markers, and pitch contours scale with this setting.
 			</div>
@@ -324,14 +354,13 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				<Waves size={14} />
 				Profile Style
 			</h3>
-			<p class="text-xs text-secondary opacity-75 mb-3">
-				Silhouette shape transformation
-			</p>
-			
+			<p class="text-xs text-secondary opacity-75 mb-3">Silhouette shape transformation</p>
+
 			<div class="grid grid-cols-2 gap-2 mb-2">
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'natural'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle ===
+					'natural'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setProfileStyle('natural')}
@@ -342,7 +371,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'terraced'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle ===
+					'terraced'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setProfileStyle('terraced')}
@@ -353,7 +383,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'spiral'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle ===
+					'spiral'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setProfileStyle('spiral')}
@@ -364,7 +395,8 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				</button>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle === 'rippled'
+					class="px-3 py-2 text-sm rounded transition-colors flex items-center justify-center gap-2 {profileStyle ===
+					'rippled'
 						? 'bg-brand-primary text-white'
 						: 'bg-surface-alt text-secondary hover:text-primary hover:bg-surface-panel-alt'}"
 					onclick={() => setProfileStyle('rippled')}
@@ -374,7 +406,7 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 					<span>Rippled</span>
 				</button>
 			</div>
-			
+
 			<div class="bg-surface-alt p-2 rounded text-xs text-secondary">
 				{getProfileStyleDescription(profileStyle)}
 			</div>
@@ -404,9 +436,13 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 					<span class="text-white font-mono">{uiStore.printVolumeMm} mm³</span>
 				</div>
 			</div>
-			
+
 			{#if uiStore.constraintMode === '3d_print'}
-				<div class="mt-2 p-2 rounded text-xs flex items-center gap-2 {fitsInPrintVolume() ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}">
+				<div
+					class="mt-2 p-2 rounded text-xs flex items-center gap-2 {fitsInPrintVolume()
+						? 'bg-green-900/30 text-green-400'
+						: 'bg-red-900/30 text-red-400'}"
+				>
 					{#if fitsInPrintVolume()}
 						<Check size={14} />
 						<span>Fits in print volume</span>
@@ -521,9 +557,7 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 				/>
 				<div class="flex flex-col flex-1">
 					<span class="text-sm text-primary font-medium">Profile-Following Fins</span>
-					<span class="text-[10px] text-secondary">
-						Fin length maps to voice intensity
-					</span>
+					<span class="text-[10px] text-secondary"> Fin length maps to voice intensity </span>
 				</div>
 			</label>
 
@@ -544,7 +578,9 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 								}}
 								class="flex-1 accent-brand-primary"
 							/>
-							<span class="text-white font-mono w-8">{uiStore.formModes.profileFinsBaseRadius.toFixed(2)}</span>
+							<span class="text-white font-mono w-8"
+								>{uiStore.formModes.profileFinsBaseRadius.toFixed(2)}</span
+							>
 						</div>
 					</label>
 				</div>
@@ -586,14 +622,19 @@ import { uiStore, setFacetStyle, setProfileStyle, setMusicalDetailIntensity, typ
 								}}
 								class="flex-1 accent-brand-primary"
 							/>
-							<span class="text-white font-mono w-8">{Math.round(uiStore.formModes.envelopeSmoothAmount * 100)}%</span>
+							<span class="text-white font-mono w-8"
+								>{Math.round(uiStore.formModes.envelopeSmoothAmount * 100)}%</span
+							>
 						</div>
 					</label>
 				</div>
 			{/if}
 
 			<div class="bg-surface-alt p-2 rounded mt-2 text-xs text-secondary leading-relaxed">
-				<p><strong>Foundation:</strong> All sculptures use clean pitch-to-width mapping (no beat rings or phrase markers). These options add optional visual enhancements on top.</p>
+				<p>
+					<strong>Foundation:</strong> All sculptures use clean pitch-to-width mapping (no beat rings
+					or phrase markers). These options add optional visual enhancements on top.
+				</p>
 			</div>
 		</div>
 	</div>

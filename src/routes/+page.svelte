@@ -1,10 +1,9 @@
 <script lang="ts">
 	console.log('🔴🔴🔴 [PAGE] +page.svelte LOADED at', new Date().toLocaleTimeString());
-	
+
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import MainScene from '$lib/components/scene/MainScene.svelte';
-	import Transport from '$lib/components/controls/Transport.svelte';
 	import { Canvas } from '@threlte/core';
 	import AIPanel from '$lib/components/panels/AIPanel.svelte';
 	import ProjectList from '$lib/components/library/ProjectList.svelte';
@@ -22,12 +21,11 @@
 		uiStore,
 		startOnboarding,
 		togglePanel,
-		setOrientation,
 		setWorkspace,
-		setBaseShape,
-		setRecordingMode
+		setRecordingMode,
+		closePerformanceWizard
 	} from '$lib/stores/uiStore.svelte';
-	import { appSettings, resetCalibration } from '$lib/stores/appSettingsStore.svelte';
+	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import {
 		recordingStore,
@@ -37,8 +35,7 @@
 	import type { SculptureDefinition, SculptureLayer } from '$lib/types';
 	import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMapping';
 	import ViewportControls from '$lib/components/scene/ViewportControls.svelte';
-	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
-	import { X, Menu, ChevronUp } from 'lucide-svelte';
+	import { X, Menu } from 'lucide-svelte';
 
 	// Mobile menu state
 	let mobileMenuOpen = $state(false);
@@ -47,9 +44,8 @@
 		mobileMenuOpen = !mobileMenuOpen;
 	}
 	import { resetVoiceLinks } from '$lib/stores/voiceLinksStore.svelte';
-	import { clearLayers } from '$lib/stores/sculptureStore.svelte';
 	import GoldenGuide from '$lib/components/overlay/GoldenGuide.svelte';
-	import { undo, redo, pushHistory } from '$lib/stores/historyStore.svelte';
+	import { undo, redo } from '$lib/stores/historyStore.svelte';
 	import { showToast } from '$lib/stores/toastStore.svelte';
 
 	// Gatekeeper: Check if user has calibrated
@@ -69,7 +65,13 @@
 		}));
 
 		// Use uiStore.constraintMode to ensure consistency with recording
-		const profile = generateLathe(defaultFrames, undefined, 'additive', undefined, uiStore.constraintMode);
+		const profile = generateLathe(
+			defaultFrames,
+			undefined,
+			'additive',
+			undefined,
+			uiStore.constraintMode
+		);
 		const resolution = 128;
 		const layerData = new Float32Array(resolution);
 
@@ -175,7 +177,7 @@
 							// Reserved for future use
 							break;
 						case 's':
-						case 'S':
+						case 'S': {
 							// Cycle recording mode: standard → song → standard
 							const modes: ('standard' | 'song')[] = ['standard', 'song'];
 							const currentMode = uiStore.recordingMode ?? 'standard';
@@ -184,6 +186,7 @@
 							setRecordingMode(nextMode);
 							showToast(`Recording: ${nextMode}`, 'info');
 							break;
+						}
 					}
 				}
 			};
@@ -398,25 +401,39 @@
 				{/if}
 			</div>
 
-		<!-- Modals & Panels -->
+			<!-- Modals & Panels -->
 			{#if uiStore.panels.aiPanel}
-			<!-- AI Panel as centered modal - doesn't block sidebar -->
-			<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-				<div class="relative w-full max-w-lg h-[70vh] max-h-[600px] bg-surface rounded-xl shadow-2xl border border-subtle overflow-hidden flex flex-col">
-					<!-- Close button -->
-					<button
-						class="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-surface-alt hover:bg-red-500/30 text-secondary hover:text-white transition-colors"
-						onclick={() => togglePanel('aiPanel')}
-						aria-label="Close AI Panel"
+				<!-- AI Panel as centered modal - doesn't block sidebar -->
+				<div
+					class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+				>
+					<div
+						class="relative w-full max-w-lg h-[70vh] max-h-[600px] bg-surface rounded-xl shadow-2xl border border-subtle overflow-hidden flex flex-col"
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-					</button>
-					<AIPanel />
+						<!-- Close button -->
+						<button
+							class="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-surface-alt hover:bg-red-500/30 text-secondary hover:text-white transition-colors"
+							onclick={() => togglePanel('aiPanel')}
+							aria-label="Close AI Panel"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg
+							>
+						</button>
+						<AIPanel />
+					</div>
 				</div>
-			</div>
 			{/if}
 			{#if uiStore.panels.projectList}
-			<ProjectList />
+				<ProjectList />
 			{/if}
 			{#if uiStore.panels.settings}
 				<SettingsPanel />
@@ -435,7 +452,6 @@
 			isOpen={showKeyboardShortcuts}
 			onClose={() => (showKeyboardShortcuts = false)}
 		/>
-
 
 		<DebugOverlay />
 	</ErrorBoundary>
@@ -621,7 +637,7 @@
 		justify-content: center;
 		align-items: center;
 		flex-shrink: 0;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 	}
 
 	/* Mobile drag handle for bottom sheet */
@@ -674,7 +690,7 @@
 			content: '';
 			position: fixed;
 			inset: 0;
-			background: rgba(0,0,0,0.5);
+			background: rgba(0, 0, 0, 0.5);
 			opacity: 0;
 			pointer-events: none;
 			transition: opacity 0.3s ease;

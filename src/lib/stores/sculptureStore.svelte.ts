@@ -1,10 +1,4 @@
-import type {
-	SculptureDefinition,
-	SculptureLayer,
-	LayerType,
-	LathePoint,
-	BlendMode
-} from '$lib/types';
+import type { SculptureDefinition, SculptureLayer, LayerType, LathePoint } from '$lib/types';
 import { Vector3, type Mesh } from 'three';
 import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
@@ -51,7 +45,10 @@ function ensureCurrentSculpture(): SculptureDefinition {
 }
 
 export function setCurrentSculpture(sculpture: SculptureDefinition | null): void {
-	console.log('🔴🔴🔴 [SCULPTURE STORE] setCurrentSculpture() called with:', sculpture ? `${sculpture.name}, ${sculpture.layers?.length || 0} layers` : 'null');
+	console.log(
+		'🔴🔴🔴 [SCULPTURE STORE] setCurrentSculpture() called with:',
+		sculpture ? `${sculpture.name}, ${sculpture.layers?.length || 0} layers` : 'null'
+	);
 	console.trace('🔴🔴🔴 [SCULPTURE STORE] Call stack:');
 	sculptureStore.currentSculpture = sculpture;
 	if (sculpture) {

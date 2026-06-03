@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		songModeStore,
-		enableSongMode,
-		disableSongMode
-	} from '$lib/stores/songModeStore.svelte';
+	import { songModeStore, enableSongMode, disableSongMode } from '$lib/stores/songModeStore.svelte';
 	import { Music, Mic } from 'lucide-svelte';
 
 	// Derived states
@@ -56,9 +52,7 @@
 			     - Material Metaphor
 			-->
 			<div class="p-3 bg-surface-panel-alt rounded border border-subtle text-center">
-				<p class="text-sm text-secondary">
-					Song Mode layers temporarily disabled for maintenance.
-				</p>
+				<p class="text-sm text-secondary">Song Mode layers temporarily disabled for maintenance.</p>
 			</div>
 
 			<!-- Status Indicators -->
@@ -102,9 +96,7 @@
 			<!-- Disabled State -->
 			<div class="p-4 bg-surface-panel-alt rounded border border-subtle text-center">
 				<Music size={32} class="mx-auto text-secondary opacity-50 mb-2" />
-				<p class="text-sm text-secondary">
-					Enable Song Mode to sculpt with your lyrics
-				</p>
+				<p class="text-sm text-secondary">Enable Song Mode to sculpt with your lyrics</p>
 				<p class="text-xs text-secondary mt-2">
 					Your voice shapes the form, your words color the soul
 				</p>
@@ -128,4 +120,3 @@
 		background: #555;
 	}
 </style>
-

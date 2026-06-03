@@ -6,9 +6,8 @@ import type {
 	UserProfile,
 	BaseShape
 } from '$lib/types';
-import { Color } from 'three';
 import { pitchToColor, hexToRgb, generateAutoColors, generateAutoRoughness } from './colorMapping';
-import { applyConstraints, type ConstraintMode } from './constraints';
+import { type ConstraintMode } from './constraints';
 import {
 	SCULPTURE_BASE_RADIUS,
 	SCULPTURE_MAX_RADIUS,
@@ -49,15 +48,15 @@ export function generateAngularSculpture(
 	frames: AnalysisFrame[],
 	profile?: UserProfile,
 	options?: {
-		spiralIntensity?: number;  // 0=disabled (cylinder), 1=full spiral
-		spreadIntensity?: number;  // 0=uniform, 1=organic
+		spiralIntensity?: number; // 0=disabled (cylinder), 1=full spiral
+		spreadIntensity?: number; // 0=uniform, 1=organic
 		heightResolution?: number;
 		angleResolution?: number;
 	}
 ): {
-	angularRadii: Float32Array;  // [height][angle] = radius
-	colors: Float32Array;        // RGB per vertex
-	roughness: number;           // Material roughness
+	angularRadii: Float32Array; // [height][angle] = radius
+	colors: Float32Array; // RGB per vertex
+	roughness: number; // Material roughness
 	heightResolution: number;
 	angleResolution: number;
 } {
@@ -98,7 +97,7 @@ export function generateAngularSculpture(
 		const heightIdx = Math.floor(heightT * (heightResolution - 1));
 
 		// Get audio features
-		let energy = frame.energy || 0;
+		const energy = frame.energy || 0;
 		if (energy < silenceThreshold) continue; // Skip silence
 
 		const pitch = frame.pitch || 220;
@@ -116,7 +115,10 @@ export function generateAngularSculpture(
 		const perceivedEnergy = Math.pow(safeEnergy, 0.6);
 		const radius = Math.min(
 			SCULPTURE_MAX_RADIUS,
-			Math.max(SCULPTURE_MIN_RADIUS, SCULPTURE_BASE_RADIUS + perceivedEnergy * SCULPTURE_SENSITIVITY)
+			Math.max(
+				SCULPTURE_MIN_RADIUS,
+				SCULPTURE_BASE_RADIUS + perceivedEnergy * SCULPTURE_SENSITIVITY
+			)
 		);
 
 		// Distribute energy across angles using Gaussian distribution
@@ -227,9 +229,9 @@ export function generateLathe(
 	profile?: UserProfile,
 	mode: 'additive' | 'subtractive' = 'additive',
 	zone?: { min: number; max: number }, // DIRECTIVE 4: Zone Sculpting
-	constraintMode: ConstraintMode = 'digital', // Fabrication constraints
+	_constraintMode: ConstraintMode = 'digital', // Fabrication constraints
 	controlMode: 'standard' | 'melodic' = 'standard', // DIRECTIVE 1: Virtuoso Mode
-	baseShape: BaseShape = 'lathe', // GENERATIVE PERFORMANCE: Shape-specific beat response
+	_baseShape: BaseShape = 'lathe', // GENERATIVE PERFORMANCE: Shape-specific beat response
 	maxPoints?: number // Optional: Override max points (for live recording with unlimited resolution)
 ): LathePoint[] {
 	// LIVE GUARD: If frames are missing/sparse, return a visible default cylinder
@@ -259,8 +261,6 @@ export function generateLathe(
 	const MIN_RADIUS = SCULPTURE_MIN_RADIUS;
 
 	// Phrase detection state
-	let lastFrameTime = sampledFrames[0]?.time ?? 0;
-	const PHRASE_GAP_THRESHOLD = 300; // ms
 
 	// 3. Map Frames to Points (Raw curve from audio)
 	const rawCurve = sampledFrames.map((frame, index) => {
@@ -273,8 +273,6 @@ export function generateLathe(
 		}
 
 		// GENERATIVE PERFORMANCE: Beat-driven impulse
-		const beatMultiplier = getBeatImpulse(frame);
-		const isBeat = frame.beat || false;
 
 		// Calculate radius based on mode
 		let radius: number;
@@ -286,31 +284,34 @@ export function generateLathe(
 			// One octave up = same radius change, regardless of starting note
 
 			const pitch = frame.pitch || 220; // Default to A3 (middle of range) if no pitch
-			
+
 			// Convert Hz to semitones (perceptually linear)
 			// A4 (440 Hz) = 0 semitones
 			const hzToSemitones = (hz: number) => 12 * Math.log2(hz / 440);
 			const minSemitones = hzToSemitones(HUMAN_VOICE_PITCH_MIN); // C3 = ~-15 semitones (comfortable low)
 			const maxSemitones = hzToSemitones(HUMAN_VOICE_PITCH_MAX); // C5 = ~+3 semitones (comfortable high)
 			const semitones = hzToSemitones(pitch);
-			const normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
+			const normalizedPitch = Math.max(
+				0,
+				Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones))
+			);
 
 			// Exaggerated Range for drama
 			// Low pitch (0) = MAX_RADIUS * 1.3 (Very wide base)
 			// High pitch (1) = MIN_RADIUS * 0.5 (Very narrow neck)
 			const exaggeratedMax = MAX_RADIUS * 1.3;
 			const exaggeratedMin = MIN_RADIUS * 0.5;
-			
+
 			// Linear mapping in perceptual space (semitones are already linear in perception)
 			const targetRadius = exaggeratedMax - normalizedPitch * (exaggeratedMax - exaggeratedMin);
-			
+
 			radius = Math.max(exaggeratedMin, targetRadius);
 		} else {
 			// Standard Mode (Volume -> Radius)
 			// PERCEPTUAL FIX: Use power-law (Stevens' Law)
 			// Perceived loudness ∝ amplitude^0.6
 			const perceivedEnergy = Math.pow(Math.max(0, energy), 0.6);
-			
+
 			if (mode === 'subtractive') {
 				// Subtractive: Carve into the block
 				// High energy = more carving = smaller radius
@@ -337,21 +338,20 @@ export function generateLathe(
 				normalizedRoughness = Math.max(0, Math.min(1, (rawCentroid - tMin) / (tMax - tMin)));
 			}
 		}
-		
+
 		// Deterministic hash function using voice features
 		const voiceHash = (seed: number) => {
 			const x = Math.sin(seed * 12.9898) * 43758.5453;
 			return x - Math.floor(x); // Returns 0-1
 		};
-		
+
 		const timbreSeed = (frame.timbre?.spectralCentroid ?? 1000) * 0.001;
-		const pitchSeed = (frame.pitch ?? 220) * 0.01;
 		const indexSeed = index * 0.1;
-		
+
 		// MUSICAL DETAIL INTENSITY: Amplifies texture features
 		const musicalIntensityLocal = uiStore.musicalDetailIntensity ?? 0.5;
-		const textureMultiplier = 0.25 + (musicalIntensityLocal * 1.75); // Range: 0.25x to 2x
-		
+		const textureMultiplier = 0.25 + musicalIntensityLocal * 1.75; // Range: 0.25x to 2x
+
 		const timbreTexture =
 			(voiceHash(timbreSeed + indexSeed) - 0.5) *
 			normalizedRoughness *
@@ -382,31 +382,24 @@ export function generateLathe(
 
 			if (pitchRange > 0) {
 				const normalizedPitch = Math.max(0, Math.min(1, (frame.pitch - pitchMin) / pitchRange));
-				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4); 
+				const pitchWave = Math.sin(normalizedPitch * Math.PI * 4);
 				pitchModulation = pitchWave * normalizedPitch * 0.15 * textureMultiplier;
 			}
 		}
 
 		const totalJitter = timbreTexture + attackJitter + pitchModulation;
 
-	// MUSICAL DETAIL INTENSITY: Amplifies how much musical features affect geometry
-	// 0 = subtle (0.25x), 0.5 = balanced (1x), 1.0 = dramatic (2x)
-	const musicalIntensity = uiStore.musicalDetailIntensity ?? 0.5;
-	const intensityMultiplier = 0.25 + (musicalIntensity * 1.75); // Range: 0.25x to 2x
+		// SILHOUETTE CORE (DEFAULT): Disable beat/phrase deformation for clean pitch-driven shapes
+		// This is now the DEFAULT foundation for all sculptures.
+		// Beat ridges and phrase markers create the "spark plug" appearance which we've removed.
+		// The result: voice data flows directly as the silhouette without visual noise.
+		const beatDeformation = 0;
+		// Beat deformation is DISABLED (was: 0.25 * intensityMultiplier)
 
-	// SILHOUETTE CORE (DEFAULT): Disable beat/phrase deformation for clean pitch-driven shapes
-	// This is now the DEFAULT foundation for all sculptures.
-	// Beat ridges and phrase markers create the "spark plug" appearance which we've removed.
-	// The result: voice data flows directly as the silhouette without visual noise.
-	let beatDeformation = 0;
-	// Beat deformation is DISABLED (was: 0.25 * intensityMultiplier)
-	
-	// Phrase ring structure is DISABLED
-	// This was creating horizontal rings that obscured the voice-to-form relationship
-	let phraseRing = 0;
-	// Phrase ring is DISABLED (was: 0.35 * intensityMultiplier)
-	
-	lastFrameTime = frame.time;
+		// Phrase ring structure is DISABLED
+		// This was creating horizontal rings that obscured the voice-to-form relationship
+		const phraseRing = 0;
+		// Phrase ring is DISABLED (was: 0.35 * intensityMultiplier)
 
 		// DIRECTIVE 4: Calculate Y based on index, respecting zone if provided
 		let normalizedHeight: number;
@@ -444,10 +437,12 @@ export function generateLathe(
 	const now = Date.now();
 	if (sanitizedCurve.length > 0 && now - lastLatheLogTime > LOG_INTERVAL_MS) {
 		lastLatheLogTime = now;
-		const minY = Math.min(...sanitizedCurve.map(p => p.y));
-		const maxY = Math.max(...sanitizedCurve.map(p => p.y));
+		const minY = Math.min(...sanitizedCurve.map((p) => p.y));
+		const maxY = Math.max(...sanitizedCurve.map((p) => p.y));
 		const avgX = sanitizedCurve.reduce((sum, p) => sum + p.x, 0) / sanitizedCurve.length;
-		console.log(`📏 [LATHE] RAW Profile: ${sanitizedCurve.length} points, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)} (EXAGGERATED MODE)`);
+		console.log(
+			`📏 [LATHE] RAW Profile: ${sanitizedCurve.length} points, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)} (EXAGGERATED MODE)`
+		);
 	}
 
 	return sanitizedCurve;
@@ -464,17 +459,19 @@ export function applyModifiers(
 	modifiers?: { quantize?: boolean }
 ): LathePoint[] {
 	const safeHeightScale = Math.max(0.0001, heightScale || 1);
-	
+
 	// Rate-limited logging
 	const now = Date.now();
 	const shouldLog = modifiers?.quantize && now - lastModifierLogTime > LOG_INTERVAL_MS;
-	
+
 	if (shouldLog && curve.length > 0) {
 		lastModifierLogTime = now;
 		const beforeAvg = curve.reduce((sum, p) => sum + (p?.x ?? 0.5), 0) / curve.length;
-		console.log(`🔢 [QUANTIZE] Applying to ${curve.length} points (beforeAvg=${beforeAvg.toFixed(3)})`);
+		console.log(
+			`🔢 [QUANTIZE] Applying to ${curve.length} points (beforeAvg=${beforeAvg.toFixed(3)})`
+		);
 	}
-	
+
 	const result = curve.map((point) => {
 		if (!point) {
 			return { x: 0.5, y: 0 }; // Fallback point
@@ -498,13 +495,13 @@ export function applyModifiers(
 			y: scaledY
 		};
 	});
-	
+
 	// DEBUG: Log after quantize (rate-limited)
 	if (shouldLog && result.length > 0) {
 		const afterAvg = result.reduce((sum, p) => sum + (p?.x ?? 0.5), 0) / result.length;
 		console.log(`🔢 [QUANTIZE] After: avgRadius=${afterAvg.toFixed(3)}`);
 	}
-	
+
 	return result;
 }
 
@@ -519,18 +516,15 @@ export function applyModifiers(
  * @param style - Profile style to apply
  * @returns Transformed curve
  */
-export function applyProfileStyle(
-	curve: LathePoint[],
-	style?: ProfileStyle
-): LathePoint[] {
+export function applyProfileStyle(curve: LathePoint[], style?: ProfileStyle): LathePoint[] {
 	const effectiveStyle = style ?? uiStore.profileStyle ?? 'natural';
-	
+
 	// Guard: No transformation needed for empty, single-point, or natural curves
 	// Single-point would cause division by zero: index / (curve.length - 1)
 	if (effectiveStyle === 'natural' || curve.length <= 1) {
 		return curve;
 	}
-	
+
 	switch (effectiveStyle) {
 		case 'terraced':
 			return applyTerracedStyle(curve);
@@ -549,26 +543,24 @@ export function applyProfileStyle(
  */
 function applyTerracedStyle(curve: LathePoint[]): LathePoint[] {
 	if (curve.length <= 1) return curve; // Guard: nothing to terrace
-	
+
 	// Determine number of terraces based on curve length
 	const numTerraces = Math.min(12, Math.max(4, Math.floor(curve.length / 20)));
-	
+
 	// Find radius range
-	const radii = curve.map(p => p.x);
+	const radii = curve.map((p) => p.x);
 	const minRadius = Math.min(...radii);
 	const maxRadius = Math.max(...radii);
 	const radiusRange = maxRadius - minRadius;
-	
+
 	if (radiusRange < 0.01) return curve; // No variation to terrace
-	
-	const terraceHeight = radiusRange / numTerraces;
-	
-	return curve.map(point => {
+
+	return curve.map((point) => {
 		// Quantize radius to nearest terrace level
 		const normalizedRadius = (point.x - minRadius) / radiusRange;
 		const terraceLevel = Math.round(normalizedRadius * numTerraces);
 		const terracedRadius = minRadius + (terraceLevel / numTerraces) * radiusRange;
-		
+
 		return {
 			x: terracedRadius,
 			y: point.y
@@ -582,21 +574,21 @@ function applyTerracedStyle(curve: LathePoint[]): LathePoint[] {
  */
 function applySpiralStyle(curve: LathePoint[]): LathePoint[] {
 	if (curve.length <= 1) return curve; // Guard: prevent division by zero
-	
+
 	// Find center radius for reference
 	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
 	const lengthMinusOne = curve.length - 1; // Cache to avoid repeated calculation
-	
+
 	return curve.map((point, index) => {
 		const normalizedHeight = index / lengthMinusOne;
-		
+
 		// Spiral wave: oscillates more at top than bottom
 		// This creates a subtle spiral bulge pattern
 		const spiralFrequency = 3; // Number of spiral turns
 		const spiralAmplitude = 0.15 * normalizedHeight; // Stronger at top
 		const spiralPhase = normalizedHeight * spiralFrequency * Math.PI * 2;
 		const spiralOffset = Math.sin(spiralPhase) * spiralAmplitude * avgRadius;
-		
+
 		return {
 			x: Math.max(0.05, point.x + spiralOffset),
 			y: point.y
@@ -610,24 +602,24 @@ function applySpiralStyle(curve: LathePoint[]): LathePoint[] {
  */
 function applyRippledStyle(curve: LathePoint[]): LathePoint[] {
 	if (curve.length <= 1) return curve; // Guard: prevent division by zero
-	
+
 	const avgRadius = curve.reduce((sum, p) => sum + p.x, 0) / curve.length;
 	const lengthMinusOne = curve.length - 1; // Cache to avoid repeated calculation
-	
+
 	// Musical detail intensity affects ripple prominence
 	const intensity = uiStore.musicalDetailIntensity ?? 0.5;
 	const rippleAmplitude = 0.08 * (0.5 + intensity); // 0.04 to 0.12 range
-	
+
 	return curve.map((point, index) => {
 		const normalizedHeight = index / lengthMinusOne;
-		
+
 		// Multiple overlapping ripple frequencies for organic feel
 		const ripple1 = Math.sin(normalizedHeight * Math.PI * 16) * rippleAmplitude;
 		const ripple2 = Math.sin(normalizedHeight * Math.PI * 7) * (rippleAmplitude * 0.5);
 		const ripple3 = Math.sin(normalizedHeight * Math.PI * 23) * (rippleAmplitude * 0.25);
-		
+
 		const totalRipple = (ripple1 + ripple2 + ripple3) * avgRadius;
-		
+
 		return {
 			x: Math.max(0.05, point.x + totalRipple),
 			y: point.y
@@ -721,7 +713,7 @@ export function deriveSurfaceParameters(
  */
 export function generateGlaze(
 	frames: AnalysisFrame[],
-	activeGlaze: {
+	_activeGlaze: {
 		color: string;
 		roughness: number;
 		transmission?: number;
@@ -747,7 +739,7 @@ export function generateGlaze(
 		// OKLCH is better because colors appear equally spaced across the spectrum
 		// Convert pitch to normalized value (0-1) using semitones
 		const pitch = frame.pitch || 0;
-		
+
 		let normalizedPitch = 0;
 		if (pitch > 0) {
 			// Use logarithmic pitch mapping for perceptual linearity
@@ -755,7 +747,10 @@ export function generateGlaze(
 			const minSemitones = hzToSemitones(MIN_PITCH_HZ);
 			const maxSemitones = hzToSemitones(MAX_PITCH_HZ);
 			const semitones = hzToSemitones(pitch);
-			normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
+			normalizedPitch = Math.max(
+				0,
+				Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones))
+			);
 		}
 
 		// Get OKLCH-based color (Red for low → Blue for high)
@@ -807,7 +802,7 @@ export function createSculptureFromFrames(
 	// If resolution is set to 0 (or implied high), use 0 to tell generateLathe "no limit"
 	// However, we also want to store the FULL resolution data.
 	// Since we updated constants, 'resolution' passed here might be 2048.
-	
+
 	// Calculate effective resolution for storage
 	// If frames length is small (short recording), use frames length.
 	// If frames length is large, clamp to max resolution.
@@ -819,7 +814,7 @@ export function createSculptureFromFrames(
 		mode,
 		zone,
 		constraintMode,
-		controlMode, 
+		controlMode,
 		baseShape,
 		effectiveResolution // Pass through the desired resolution limit (or 2048)
 	);
@@ -828,7 +823,7 @@ export function createSculptureFromFrames(
 	// Compositor expects layer.data to be 1D array of radius values
 	// NOTE: If radiusCurve.length === effectiveResolution, this loop is effectively a copy, which is good.
 	// We prefer NOT to interpolate if we can help it.
-	
+
 	const layerData = new Float32Array(effectiveResolution);
 
 	// Resample: map radiusCurve points to resolution points

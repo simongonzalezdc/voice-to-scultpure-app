@@ -49,19 +49,19 @@ export async function renderHighRes(
 ): Promise<Blob> {
 	const baseSize = quality === 'high' ? 4096 : 2048;
 	const renderSize = baseSize * EXPORT_SUPER_SAMPLE_FACTOR; // Super-sample at 2x
-	
+
 	const canvas = document.createElement('canvas');
 	canvas.width = renderSize;
 	canvas.height = renderSize;
 
-	const renderer = new WebGLRenderer({ 
-		canvas, 
+	const renderer = new WebGLRenderer({
+		canvas,
 		antialias: true,
 		preserveDrawingBuffer: true,
 		powerPreference: 'high-performance'
 	});
 	renderer.setSize(renderSize, renderSize);
-	
+
 	// AUDIT FIX: Proper tone mapping and color space
 	renderer.toneMapping = ACESFilmicToneMapping;
 	renderer.toneMappingExposure = EXPORT_TONE_MAPPING_EXPOSURE;
@@ -72,18 +72,18 @@ export async function renderHighRes(
 	scene.background = new Color(0xf5f5f5); // Light gray background
 
 	// AUDIT FIX: Professional 3-point lighting (matches MainScene)
-	const hemisphereLight = new HemisphereLight(0xFDFBF7, 0x4A4A6A, 0.4);
+	const hemisphereLight = new HemisphereLight(0xfdfbf7, 0x4a4a6a, 0.4);
 	scene.add(hemisphereLight);
-	
+
 	const keyLight = new DirectionalLight(0xffffff, 1.2);
 	keyLight.position.set(5, 8, 4);
 	scene.add(keyLight);
-	
-	const fillLight = new DirectionalLight(0xE8E4E0, 0.4);
+
+	const fillLight = new DirectionalLight(0xe8e4e0, 0.4);
 	fillLight.position.set(-3, 4, -2);
 	scene.add(fillLight);
-	
-	const rimLight = new DirectionalLight(0xD4E5F7, 0.25);
+
+	const rimLight = new DirectionalLight(0xd4e5f7, 0.25);
 	rimLight.position.set(0, 2, -5);
 	scene.add(rimLight);
 
@@ -100,13 +100,13 @@ export async function renderHighRes(
 	} else {
 		throw new Error('No sculpture data to render');
 	}
-	
+
 	const points = profile.map((p) => new Vector2(p.x, p.y));
 	const geometry = new LatheGeometry(
 		points,
 		quality === 'high' ? EXPORT_SEGMENTS_HIGH : Math.max(64, Math.floor(EXPORT_SEGMENTS_HIGH / 2))
 	);
-	
+
 	// AUDIT FIX: Ceramic material with full PBR properties (matches Sculpture.svelte)
 	const glazeRoughness = uiStore.activeGlaze.roughness ?? 0.35;
 	const glazeTransmission = uiStore.activeGlaze.transmission ?? 0;
@@ -136,7 +136,7 @@ export async function renderHighRes(
 		scene.add(mesh);
 
 		const zip = new JSZip();
-		
+
 		// Downsample canvas for final output
 		const finalCanvas = document.createElement('canvas');
 		finalCanvas.width = baseSize;
