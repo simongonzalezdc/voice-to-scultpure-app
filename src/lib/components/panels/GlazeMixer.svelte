@@ -5,7 +5,6 @@
 		setActiveGlaze,
 		uiStore,
 		setMaterialType,
-		setEmissiveEnabled,
 		setEmissiveBase,
 		setEmissiveReactivity,
 		setEmissiveColor
@@ -345,16 +344,22 @@
 		</div>
 
 		<!-- SYNERGY: Glaze Source Indicator -->
-		<div class="bg-[#1a1a1a] border border-[#333] rounded p-2 mb-3 flex items-center justify-between">
+		<div
+			class="bg-[#1a1a1a] border border-[#333] rounded p-2 mb-3 flex items-center justify-between"
+		>
 			<span class="text-xs text-[#888]">Color Source:</span>
 			<div class="flex items-center gap-2">
 				{#if glazeSource === 'ai-sentiment'}
-					<div class="flex items-center gap-1 text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded-full">
+					<div
+						class="flex items-center gap-1 text-purple-400 bg-purple-500/20 px-2 py-0.5 rounded-full"
+					>
 						<Brain size={12} />
 						<span class="text-xs font-bold">AI Sentiment</span>
 					</div>
 				{:else if glazeSource === 'voice'}
-					<div class="flex items-center gap-1 text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full animate-pulse">
+					<div
+						class="flex items-center gap-1 text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full animate-pulse"
+					>
 						<Mic size={12} />
 						<span class="text-xs font-bold">Voice Live</span>
 					</div>
@@ -413,13 +418,17 @@
 						🔮 Plastic
 					</button>
 					<button
-						class="p-2 rounded text-xs font-bold transition-colors relative {materialType === 'energy'
+						class="p-2 rounded text-xs font-bold transition-colors relative {materialType ===
+						'energy'
 							? 'bg-purple-600 text-white'
 							: 'bg-[#1a1a1a] text-[#888] hover:bg-[#2a2a2a]'}"
 						onclick={() => setMaterialType('energy')}
 					>
 						⚡ Energy
-						<span class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white">NEW</span>
+						<span
+							class="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-bold rounded bg-green-500 text-white"
+							>NEW</span
+						>
 					</button>
 				</div>
 			</div>
@@ -469,10 +478,10 @@
 					<!-- Voice Reactivity -->
 					<div class="space-y-1">
 						<div class="flex items-center justify-between">
-							<span class="text-xs text-[#888] flex items-center gap-1">
-								🎤 Voice Reactivity
-							</span>
-							<span class="text-xs font-mono text-[#888]">{(emissiveReactivity * 100).toFixed(0)}%</span>
+							<span class="text-xs text-[#888] flex items-center gap-1"> 🎤 Voice Reactivity </span>
+							<span class="text-xs font-mono text-[#888]"
+								>{(emissiveReactivity * 100).toFixed(0)}%</span
+							>
 						</div>
 						<input
 							type="range"
@@ -492,7 +501,9 @@
 					<!-- Live Intensity Display -->
 					<div class="bg-black/50 p-2 rounded flex items-center justify-between">
 						<span class="text-xs text-purple-300">Live Glow Intensity:</span>
-						<span class="text-sm font-bold text-white">{(liveEmissiveIntensity * 100).toFixed(0)}%</span>
+						<span class="text-sm font-bold text-white"
+							>{(liveEmissiveIntensity * 100).toFixed(0)}%</span
+						>
 					</div>
 				</div>
 			{:else}

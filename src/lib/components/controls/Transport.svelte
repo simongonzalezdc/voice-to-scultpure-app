@@ -89,14 +89,14 @@
 		pipelineMetrics.initAttempts++;
 		const maxRetries = 3;
 		let lastError: Error | null = null;
-		let justInitialized = false; // Track if we just created the pipeline in this call
+		let _justInitialized = false; // Track if we just created the pipeline in this call
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			console.log(`🔄 [TRANSPORT] Initialization attempt ${attempt}/${maxRetries}`);
 			try {
 				// Initialize if any pipeline component is missing
 				if (!ringBuffer || !workerClient) {
-					justInitialized = true; // Mark that we're creating a new pipeline
+					_justInitialized = true; // Mark that we're creating a new pipeline
 					console.log(
 						`🛠️ [TRANSPORT] Starting initialization... (ringBuffer: ${ringBuffer !== null}, workerClient: ${workerClient !== null})`
 					);

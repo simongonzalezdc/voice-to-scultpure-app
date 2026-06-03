@@ -3,9 +3,7 @@
  * Maps raw frequency to musical notes to ensure pleasing shapes.
  */
 
-const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-export function quantizePitch(hz: number, scale: 'chromatic' | 'major' = 'chromatic'): number {
+export function quantizePitch(hz: number, _scale: 'chromatic' | 'major' = 'chromatic'): number {
 	if (hz <= 0) return 0;
 
 	// 1. Convert Hz to MIDI Note Number

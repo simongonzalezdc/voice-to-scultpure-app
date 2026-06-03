@@ -51,10 +51,6 @@ test.describe('Critical Path: Record → Stop → Export', () => {
 
 	test('should show recording status indicator', async ({ page }) => {
 		// Look for audio state visualizer or recording indicator
-		const audioIndicator = page
-			.locator('[class*="audio"], [class*="indicator"], [class*="status"]')
-			.first();
-
 		// Visual indicator should exist (even if not immediately visible)
 		// This tests that the Audio State Visualizer is mounted
 		const indicator = page.locator('.audio-state-indicator').first();
@@ -302,8 +298,6 @@ test.describe('Critical Path: Record → Stop → Export', () => {
 	test('should never show white/blank screen after UI interaction', async ({ page }) => {
 		// This is the ultimate "no crash" test
 		// Interact with various UI elements and verify rendering never stops
-
-		const interactableElements = page.locator('button').first();
 
 		// Interact with 5 random buttons/controls
 		const buttons = await page.locator('button').count();

@@ -24,7 +24,6 @@ import {
 } from '$lib/stores/uiStore.svelte';
 import {
 	sculptureStore,
-	setCurrentSculpture,
 	addLayer,
 	removeLayer,
 	setLayerOpacity,
@@ -33,7 +32,7 @@ import {
 	clearLayers
 } from '$lib/stores/sculptureStore.svelte';
 import { startRecording, stopRecording } from '$lib/stores/recording.svelte';
-import type { SculptureDefinition, LayerType, BlendMode } from '$lib/types';
+import type { LayerType, BlendMode } from '$lib/types';
 
 export interface ExecutionResult {
 	success: boolean;

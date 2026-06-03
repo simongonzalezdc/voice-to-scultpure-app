@@ -19,13 +19,7 @@
 	 */
 	import { T, useTask } from '@threlte/core';
 	import { Text } from '@threlte/extras';
-	import {
-		RingGeometry,
-		MeshBasicMaterial,
-		Color,
-		DoubleSide,
-		AdditiveBlending
-	} from 'three';
+	import { Color, DoubleSide, AdditiveBlending } from 'three';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { recordingStore } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -71,7 +65,7 @@
 	}
 
 	let wavePool = $state<Wave[]>([]);
-	let nextWaveId = $state(0);
+	let _nextWaveId = $state(0);
 	let lastWaveTime = $state(0);
 
 	// Initialize wave pool
@@ -136,7 +130,7 @@
 		}
 
 		lastWaveTime = now;
-		nextWaveId++;
+		_nextWaveId++;
 	}
 
 	// ============================================================================
@@ -147,7 +141,6 @@
 		if (!config.enabled) return;
 
 		const isRecording = recordingStore.state === 'recording';
-		const isSongMode = songModeStore.enabled;
 
 		// Only animate when recording or in force mode
 		if (!isRecording && uiStore.workspace !== 'force') {
@@ -194,8 +187,7 @@
 
 	let activeWaves = $derived(wavePool.filter((w) => w.active));
 	let isVisible = $derived(
-		config.enabled &&
-			(recordingStore.state === 'recording' || uiStore.workspace === 'force')
+		config.enabled && (recordingStore.state === 'recording' || uiStore.workspace === 'force')
 	);
 
 	// Word flash from Song Mode lyrics
@@ -255,10 +247,7 @@
 
 	<!-- Word Flash (Song Mode) -->
 	{#if showWord && wordFlashOpacity > 0.01}
-		<T.Group 
-			position={[0, 1.8, 0]}
-			scale={[wordFlashScale, wordFlashScale, 1]}
-		>
+		<T.Group position={[0, 1.8, 0]} scale={[wordFlashScale, wordFlashScale, 1]}>
 			<Text
 				text={currentWord.toUpperCase()}
 				fontSize={0.15}
@@ -279,14 +268,8 @@
 		{#if analysisStore.micLevel > 0.1}
 			<T.Mesh position={[0, 0, -0.5]}>
 				<T.CircleGeometry args={[0.3 + analysisStore.micLevel * 0.2, 32]} />
-				<T.MeshBasicMaterial
-					color="#00ffff"
-					transparent={true}
-					opacity={0.3}
-					depthWrite={false}
-				/>
+				<T.MeshBasicMaterial color="#00ffff" transparent={true} opacity={0.3} depthWrite={false} />
 			</T.Mesh>
 		{/if}
 	{/if}
 {/if}
-

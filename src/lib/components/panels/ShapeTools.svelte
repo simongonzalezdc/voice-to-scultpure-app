@@ -11,11 +11,10 @@
 		setQuantizeEnabled,
 		setSymmetryCount
 	} from '$lib/stores/uiStore.svelte';
-	import { analysisStore } from '$lib/stores/analysisStore.svelte';
 	import { applyDeformation } from '$lib/engine/physicsMapping';
 	import { voiceLinksStore, toggleVoiceLink } from '$lib/stores/voiceLinksStore.svelte';
 	import { songModeStore, enableSongMode } from '$lib/stores/songModeStore.svelte';
-	import { Info, Link, Mic, Music, Sparkles, ChevronDown } from 'lucide-svelte';
+	import { Link, Music, Sparkles, ChevronDown } from 'lucide-svelte';
 
 	// Local state for sliders
 	let twist = $state(0);
@@ -106,7 +105,6 @@
 
 		const currentTwist = twist;
 		// REMOVED: currentVerticalStretch
-		const currentSmoothness = smoothness;
 
 		const radiusCurve = previewSculpture.radiusCurve || [];
 		if (radiusCurve.length === 0) return;
@@ -138,15 +136,18 @@
 
 <div class="h-full flex flex-col">
 	<div class="p-4 space-y-2 flex-1 overflow-y-auto custom-scrollbar">
-		
 		<!-- QUICK START -->
-		<details open class="group bg-surface-panel-alt rounded-lg overflow-hidden border border-subtle">
-			<summary class="px-3 py-2 font-bold text-sm text-white cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none">
+		<details
+			open
+			class="group bg-surface-panel-alt rounded-lg overflow-hidden border border-subtle"
+		>
+			<summary
+				class="px-3 py-2 font-bold text-sm text-white cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none"
+			>
 				<span class="flex items-center gap-2">🎯 Quick Start</span>
 				<ChevronDown size={16} class="text-subtle transition-transform group-open:rotate-180" />
 			</summary>
 			<div class="p-3 space-y-4 border-t border-subtle bg-surface-panel/50">
-				
 				<!-- Recording Mode: Song Mode is the standard -->
 				<div class="rounded border border-brand-primary/30 bg-brand-primary/5 p-3">
 					<div class="flex items-center gap-2">
@@ -169,7 +170,9 @@
 
 		<!-- DEFORMATION -->
 		<details class="group bg-surface-panel-alt rounded-lg overflow-hidden border border-subtle">
-			<summary class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none">
+			<summary
+				class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none"
+			>
 				<span class="flex items-center gap-2">🌪️ Deformation</span>
 				<ChevronDown size={16} class="text-subtle transition-transform group-open:rotate-180" />
 			</summary>
@@ -181,7 +184,10 @@
 						? 'Twisting is impossible in physical fabrication. Switch to Digital Mode to unlock.'
 						: ''}
 				>
-					<label for="twist-slider" class="text-sm text-secondary block mb-1 flex items-center gap-2">
+					<label
+						for="twist-slider"
+						class="text-sm text-secondary block mb-1 flex items-center gap-2"
+					>
 						Twist: {twist.toFixed(2)} ({(twist * (180 / Math.PI)).toFixed(0)}°)
 						<button
 							class="ml-auto p-1 rounded transition-colors {voiceLinksStore.twist === 'pitch'
@@ -243,7 +249,9 @@
 						>
 							<Link
 								size={14}
-								class={voiceLinksStore.roughness === 'timbre' ? 'opacity-100 stroke-2' : 'opacity-50'}
+								class={voiceLinksStore.roughness === 'timbre'
+									? 'opacity-100 stroke-2'
+									: 'opacity-50'}
 							/>
 						</button>
 					</label>
@@ -269,7 +277,9 @@
 
 		<!-- MODIFIERS -->
 		<details class="group bg-surface-panel-alt rounded-lg overflow-hidden border border-subtle">
-			<summary class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none">
+			<summary
+				class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none"
+			>
 				<span class="flex items-center gap-2">✨ Modifiers</span>
 				<ChevronDown size={16} class="text-subtle transition-transform group-open:rotate-180" />
 			</summary>
@@ -316,7 +326,9 @@
 
 		<!-- ADVANCED -->
 		<details class="group bg-surface-panel-alt rounded-lg overflow-hidden border border-subtle">
-			<summary class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none">
+			<summary
+				class="px-3 py-2 font-bold text-sm text-secondary cursor-pointer list-none flex items-center justify-between hover:bg-surface-alt select-none"
+			>
 				<span class="flex items-center gap-2">⚙️ Advanced</span>
 				<ChevronDown size={16} class="text-subtle transition-transform group-open:rotate-180" />
 			</summary>
@@ -359,7 +371,10 @@
 							if (sculptureStore.currentSculpture) {
 								setCurrentSculpture({
 									...sculptureStore.currentSculpture,
-									physical: { ...sculptureStore.currentSculpture.physical, sculptMode: 'subtractive' }
+									physical: {
+										...sculptureStore.currentSculpture.physical,
+										sculptMode: 'subtractive'
+									}
 								});
 							}
 						}}

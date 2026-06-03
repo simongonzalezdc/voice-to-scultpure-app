@@ -2,13 +2,16 @@
 	import { T, useTask } from '@threlte/core';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
-	import { playbackStore, getPlaybackProgress, updatePlaybackTime } from '$lib/stores/playbackStore.svelte';
+	import {
+		playbackStore,
+		getPlaybackProgress,
+		updatePlaybackTime
+	} from '$lib/stores/playbackStore.svelte';
 	import { pitchToColor, hexToRgb } from '$lib/engine/colorMapping';
 	import { MIN_PITCH_HZ, MAX_PITCH_HZ, DEFAULT_HEIGHT_MM } from '$lib/config/constants';
-	import type { AnalysisFrame } from '$lib/types';
 	import { TubeGeometry, Vector3, Color } from 'three';
 
-	let tubeGeometry: TubeGeometry | undefined;
+	let tubeGeometry = $state<TubeGeometry | undefined>(undefined);
 	let isVisible = $state(false);
 	let playheadPosition = $state(new Vector3());
 	let playheadColor = $state(new Color(0xffffff));
@@ -41,7 +44,6 @@
 		let maxPitch = 0;
 		let maxEnergy = 0;
 		let maxEnergyIdx = 0;
-		let beatCount = 0;
 
 		for (let i = 0; i < frames.length; i++) {
 			const frame = frames[i];
@@ -57,9 +59,6 @@
 				maxEnergy = frame.energy || 0;
 				maxEnergyIdx = i;
 			}
-
-			// Count beats
-			if (frame.beat) beatCount++;
 		}
 
 		// Calculate position for highest pitch marker
@@ -128,7 +127,10 @@
 			const minSemitones = hzToSemitones(MIN_PITCH_HZ);
 			const maxSemitones = hzToSemitones(MAX_PITCH_HZ);
 			const semitones = hzToSemitones(pitch);
-			const normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
+			const normalizedPitch = Math.max(
+				0,
+				Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones))
+			);
 
 			// Spiral around the sculpture (radius offset based on pitch)
 			const spiralAngle = (i / frames.length) * Math.PI * 2 * 3; // 3 turns around sculpture
@@ -194,7 +196,10 @@
 		const minSemitones = hzToSemitones(MIN_PITCH_HZ);
 		const maxSemitones = hzToSemitones(MAX_PITCH_HZ);
 		const semitones = hzToSemitones(pitch);
-		const normalizedPitch = Math.max(0, Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones)));
+		const normalizedPitch = Math.max(
+			0,
+			Math.min(1, (semitones - minSemitones) / (maxSemitones - minSemitones))
+		);
 
 		const spiralAngle = (frameIndex / frames.length) * Math.PI * 2 * 3;
 		const radiusAtHeight = 0.35 + normalizedPitch * 0.2;
@@ -228,7 +233,7 @@
 	useTask(() => {
 		// Sync playback time with actual audio context timing
 		updatePlaybackTime();
-		
+
 		// Update playhead visualization if playing
 		if (playbackStore.state === 'playing') {
 			updatePlayhead();
@@ -290,4 +295,3 @@
 		{/each}
 	</T.Group>
 {/if}
-

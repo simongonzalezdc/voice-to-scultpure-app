@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { uiStore, setWorkspace, type Workspace } from '$lib/stores/uiStore.svelte';
 	import type { ComponentType } from 'svelte';
-	import { Hammer, Hand, Palette, Download } from 'lucide-svelte';
+	import { Hammer, Palette, Download } from 'lucide-svelte';
 
 	const workspaces: { id: Workspace; label: string; icon: ComponentType }[] = [
 		{ id: 'sculpt', label: 'Sculpt', icon: Hammer },

@@ -44,19 +44,14 @@ let smoothedEnergy = 0;
 
 // Heavy smoothing factors (lower = smoother)
 // At 30fps: alpha=0.10 gives ~300ms smoothing (natural vocal response)
-const PITCH_SMOOTHING_ATTACK = 0.10; // Attack: smooth pitch changes
+const PITCH_SMOOTHING_ATTACK = 0.1; // Attack: smooth pitch changes
 const PITCH_SMOOTHING_RELEASE = 0.06; // Release: even smoother decay
 const TIMBRE_SMOOTHING = 0.09; // Heavy timbre smoothing
 const ENERGY_SMOOTHING = 0.08; // Heavy energy smoothing
 
 // Pitch confidence tracking for better detection
 let pitchConfidence = 0;
-let lastValidPitch = 0;
-
-// Human-scale pitch range (C3-C5, comfortable singing voice)
-// Full range (80-600Hz) includes growls/falsetto extremes which distort sculpture
-const HUMAN_PITCH_MIN = 130; // C3 - comfortable low note
-const HUMAN_PITCH_MAX = 520; // C5 - comfortable high note
+let _lastValidPitch = 0;
 
 // Song Mode: Formant smoothing
 let smoothedF1 = 500; // Default F1 (neutral vowel)
@@ -86,7 +81,7 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 	const beat = detectBeat(energy);
 
 	// Calculate pitch using autocorrelation
-	let rawPitch = estimatePitch(audioData, sampleRate);
+	const rawPitch = estimatePitch(audioData, sampleRate);
 
 	// GENERATIVE PERFORMANCE: Quantize pitch to musical scale
 	let pitch = 0;
@@ -104,7 +99,7 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 		// But still smooth enough to avoid jitter (300ms time constant)
 		const smoothingFactor = smoothedPitch > 0 ? PITCH_SMOOTHING_ATTACK : 0.3; // Jump to new pitch faster if starting from zero
 		smoothedPitch = smoothedPitch + (pitch - smoothedPitch) * smoothingFactor;
-		lastValidPitch = pitch;
+		_lastValidPitch = pitch;
 		pitchConfidence = Math.min(1.0, pitchConfidence + 0.2); // Build confidence
 	} else {
 		// RELEASE: No pitch detected - smooth decay toward zero
@@ -170,7 +165,7 @@ function analyzeFrame(audioData: Float32Array): AnalysisFrame | null {
 /**
  * SONG MODE: Formant Estimation for Phonetic Geometry (#3)
  * Estimates F1 (openness) and F2 (frontness) from audio spectrum
- * 
+ *
  * Vowel Formant Reference:
  * - "Ah" (father): F1 ~700Hz, F2 ~1100Hz (OPEN, BACK)
  * - "Ee" (see):    F1 ~300Hz, F2 ~2300Hz (CLOSED, FRONT)
@@ -362,31 +357,6 @@ function quantizePitch(pitch: number, scale: 'major' | 'minor' | 'pentatonic' = 
 	const quantizedPitch = 440 * Math.pow(2, (quantizedMidi - 69) / 12);
 
 	return quantizedPitch;
-}
-
-/**
- * GENERATIVE PERFORMANCE: Pitch to Hue Mapper
- * Maps quantized pitch to a specific hue in a pre-defined palette
- * @param pitch - Quantized pitch in Hz
- * @param palette - Color palette ('earth', 'neon', 'ocean')
- * @returns Hue value (0-360)
- */
-function pitchToHue(pitch: number, palette: 'earth' | 'neon' | 'ocean' = 'earth'): number {
-	// Guard against NaN, zero, or negative values which cause -Infinity in Math.log2
-	if (!Number.isFinite(pitch) || pitch <= 0) return 0;
-
-	// Map pitch to chromatic scale position (0-11 semitones)
-	const midiNote = 12 * Math.log2(pitch / 440) + 69;
-	const semitone = Math.floor(midiNote) % 12;
-
-	// Define color palettes (hue values for each semitone)
-	const palettes = {
-		earth: [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85], // Warm earth tones (yellow-green)
-		neon: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330], // Full spectrum
-		ocean: [180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290] // Cool blues/purples
-	};
-
-	return palettes[palette]?.[semitone] ?? 0;
 }
 
 /**

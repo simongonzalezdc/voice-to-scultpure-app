@@ -22,7 +22,7 @@
 	let previousGeometry: BufferGeometry | null = null;
 
 	let activeBlueprint = $derived(BLUEPRINTS[uiStore.view.blueprintId || 'amphora']);
-	let matchPercent = $derived.by(() => {
+	let _matchPercent = $derived.by(() => {
 		if (!uiStore.view.showBlueprint || !activeBlueprint) return 0;
 		const userProfile = getProfilePoints(sculptureStore.currentSculpture);
 		return calculateMatch(userProfile, activeBlueprint.points);
@@ -43,7 +43,7 @@
 		const pts = activeBlueprint.points.map((p) => new Vector3(p.x, p.y, 0));
 		newGeometry.setFromPoints(pts);
 		newGeometry.computeBoundingSphere();
-		
+
 		// Track for cleanup
 		previousGeometry = newGeometry;
 		lineGeometry = newGeometry;

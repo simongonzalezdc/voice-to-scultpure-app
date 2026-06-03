@@ -10,14 +10,13 @@
  */
 
 import { LatheGeometry, Vector2, BufferAttribute, BufferGeometry, CylinderGeometry } from 'three';
-import type { LathePoint, SculptureDefinition } from '$lib/types';
+import type { LathePoint } from '$lib/types';
 import { applyModifiers, applyDeformation } from './physicsMapping';
 import { applyConstraints, type ConstraintMode } from './constraints';
 import {
 	DEFAULT_CYLINDER_RADIUS,
 	DEFAULT_CYLINDER_SEGMENTS,
 	DEFAULT_HEIGHT_MM,
-	GEOMETRY_MIN_SEGMENTS,
 	getSegmentsForFacetStyle
 } from '$lib/config/constants';
 import { uiStore } from '$lib/stores/uiStore.svelte';
@@ -69,7 +68,7 @@ export function createGeometryFromProfile(profile: LathePoint[]): {
 		// CRITICAL: Use the SAME segment count as DynamicGeometryManager
 		// This ensures the faceted "fins" aesthetic is preserved in the final sculpture
 		const segments = getSegmentsForFacetStyle(uiStore.facetStyle);
-		
+
 		const geometry = new LatheGeometry(vectors, segments);
 
 		// Compute normals for proper lighting

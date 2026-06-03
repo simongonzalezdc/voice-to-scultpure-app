@@ -6,11 +6,7 @@
 		setInteractionPoint
 	} from '$lib/stores/sculptureStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import {
-		recordingStore,
-		getCapturedFrames,
-		type RecordingState
-	} from '$lib/stores/recording.svelte';
+	import { recordingStore, getCapturedFrames } from '$lib/stores/recording.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { playbackStore, getPlaybackProgress } from '$lib/stores/playbackStore.svelte';
 	import {
@@ -18,42 +14,31 @@
 		Vector3,
 		Mesh,
 		MeshPhysicalMaterial,
-		BufferAttribute,
 		BufferGeometry,
-		PlaneGeometry,
 		CylinderGeometry,
 		Color
 	} from 'three';
 	import { useTask } from '@threlte/core';
 	import type { SculptureDefinition, LathePoint, AnalysisFrame, SculptureLayer } from '$lib/types';
 	import { computeProfile, getEffectiveResolution } from '$lib/engine/compositor';
-	import { generateLathe, generateGlaze, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
-import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
+	import { generateLathe, applyModifiers, applyProfileStyle } from '$lib/engine/physicsMapping';
+	import { applyConstraints, analyzeConstraints } from '$lib/engine/constraints';
 	import { applyGlazeColors } from '$lib/engine/geometryFactory';
-import { generateAutoColors } from '$lib/engine/colorMapping';
+	import { generateAutoColors } from '$lib/engine/colorMapping';
 	import { applyFormModes, type FormModeConfig } from '$lib/engine/formModes';
 	import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { calculateStressColors } from '$lib/engine/analysis';
 	import { trackError } from '$lib/stores/metricsStore.svelte';
-	import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
+	import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 	import {
 		DEFAULT_HEIGHT_MM,
 		GHOST_OPACITY,
 		GHOST_ROUGHNESS,
 		DEFAULT_CYLINDER_RADIUS,
-		DEFAULT_CYLINDER_SEGMENTS,
-		DEFAULT_ICOSAHEDRON_RADIUS,
-		DEFAULT_ICOSAHEDRON_DETAIL,
-		RECORDING_IMPLOSION_SCALE,
-		COMPOSITOR_TARGET_FPS,
-		COMPOSITOR_FRAME_TIME_MS,
-		GEOMETRY_LATHE_SEGMENTS,
 		GEOMETRY_RESOLUTION_COMPOSITOR,
 		VOICE_REACTION_GLOW_BASE,
 		VOICE_REACTION_GLOW_MULTIPLIER,
 		EMISSION_SMOOTHING_FACTOR,
-		VOICE_REACTION_IDLE_PULSE_BASE,
-		VOICE_REACTION_IDLE_PULSE_AMPLITUDE,
 		FORCE_MODE_PITCH_MIN_HZ,
 		FORCE_MODE_PITCH_MAX_HZ,
 		FORCE_MODE_MIC_LEVEL_THRESHOLD,
@@ -61,36 +46,26 @@ import { generateAutoColors } from '$lib/engine/colorMapping';
 		getSegmentsForFacetStyle,
 		// HUMAN-SCALE VOICE SCULPTING
 		LIVE_PREVIEW_FRAME_TIME_MS,
-		SCULPTURE_UPDATE_FRAME_TIME_MS,
-		HUMAN_VOICE_PITCH_MIN,
-		HUMAN_VOICE_PITCH_MAX
+		SCULPTURE_UPDATE_FRAME_TIME_MS
 	} from '$lib/config/constants';
 	import {
 		createGeometryFromProfile,
 		applySymmetryDistortion,
-		applyHeatmapColors,
-		safeDisposeGeometry,
-		createFallbackGeometry,
-		deriveProfileWithTransforms
+		applyHeatmapColors
 	} from '$lib/engine/geometryFactory';
-import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
-import { AngularGeometryManager } from '$lib/engine/AngularGeometryManager';
-import { songModeStore } from '$lib/stores/songModeStore.svelte';
-import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
-import {
+	import { DynamicGeometryManager } from '$lib/engine/DynamicGeometryManager';
+	import { AngularGeometryManager } from '$lib/engine/AngularGeometryManager';
+	import { updateCinematicTransition } from '$lib/stores/uiStore.svelte';
+	import {
 		deriveMaterialColor,
 		deriveGhostMaterialColor,
-		createBaseMaterialProps,
 		createCeramicMaterialProps,
-		createEnergyMaterialProps,
 		updateMaterialForViewMode,
 		updateMaterialForGlazeMode,
 		calculateSmoothedEmission,
 		deriveEmissiveIntensity,
-		createGhostMaterialProps,
 		lerpEmissiveIntensity,
-		type MaterialProps,
-		type EnergyMaterialConfig
+		type MaterialProps
 	} from '$lib/engine/materialFactory';
 
 	let { sculpture } = $props<{ sculpture: SculptureDefinition | null }>();
@@ -138,7 +113,9 @@ import {
 				profileResolution: 512, // Pre-allocate for max - drawRange limits active portion
 				dynamic: true
 			});
-			console.log(`🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts, ${initialSegments} segments for "${uiStore.facetStyle}" style)`);
+			console.log(
+				`🚀 [SCULPTURE] Dynamic geometry manager initialized (512 pts, ${initialSegments} segments for "${uiStore.facetStyle}" style)`
+			);
 		}
 
 		// Initialize angular geometry manager for spiral mode
@@ -189,7 +166,9 @@ import {
 			const changed = dynamicGeoManager.setRadialSegments(targetSegments);
 			if (changed) {
 				sculptureStore.geometryDirty = true;
-				console.log(`💎 [SCULPTURE] Facet style changed to "${uiStore.facetStyle}" (${targetSegments} segments)`);
+				console.log(
+					`💎 [SCULPTURE] Facet style changed to "${uiStore.facetStyle}" (${targetSegments} segments)`
+				);
 			}
 		}
 
@@ -230,7 +209,9 @@ import {
 
 		const isGlazeMode = uiStore.workspace === 'glaze';
 		// Check if sculpture has glaze layer with vertex colors
-		const glazeLayer = sculpture.layers?.find((l: { type: string; visible: boolean }) => l.type === 'glaze' && l.visible);
+		const glazeLayer = sculpture.layers?.find(
+			(l: { type: string; visible: boolean }) => l.type === 'glaze' && l.visible
+		);
 		const hasColors = glazeLayer ? glazeLayer.data.length > 0 : false;
 
 		return deriveMaterialColor(isGlazeMode, hasColors, isPlastic);
@@ -253,15 +234,15 @@ import {
 	// Height grows with recording duration - longer recordings = taller sculptures
 	// DRAMATIC growth for obvious visual feedback
 	const MIN_HEIGHT_RATIO = 0.3; // Start at 30% height - makes growth more visible
-	
+
 	// Mode-specific settings - AGGRESSIVE rates for obvious feedback
 	const getHeightParams = () => {
 		if (uiStore.recordingMode === 'song') {
 			return { growthRate: 0.25, maxRatio: 10.0 }; // 25%/sec = 2x in 4 sec, 10x in ~40 sec
 		}
-		return { growthRate: 0.50, maxRatio: 6.0 }; // 50%/sec = 2x in 2 sec, 6x in ~12 sec
+		return { growthRate: 0.5, maxRatio: 6.0 }; // 50%/sec = 2x in 2 sec, 6x in ~12 sec
 	};
-	
+
 	let heightScale = $derived.by(() => {
 		// RECORDING: Height grows with duration (longer singing = taller sculpture)
 		if (recordingStore.state === 'recording') {
@@ -269,15 +250,17 @@ import {
 			const frameCount = recordingStore.frameCount;
 			const seconds = frameCount / 30; // ~30 fps
 			const { growthRate, maxRatio } = getHeightParams();
-			const growthRatio = MIN_HEIGHT_RATIO + (seconds * growthRate);
+			const growthRatio = MIN_HEIGHT_RATIO + seconds * growthRate;
 			const result = Math.min(maxRatio, growthRatio);
 			// Log every 2 seconds (60 frames)
 			if (frameCount > 0 && frameCount % 60 === 0) {
-				console.log(`📐 [HEIGHT SCALE] ${seconds.toFixed(1)}s → ${result.toFixed(2)}x (${((result-1)*100).toFixed(0)}% growth)`);
+				console.log(
+					`📐 [HEIGHT SCALE] ${seconds.toFixed(1)}s → ${result.toFixed(2)}x (${((result - 1) * 100).toFixed(0)}% growth)`
+				);
 			}
 			return result;
 		}
-		
+
 		// NOT RECORDING: Use stored physical height ratio
 		const height = sculpture?.physical.height;
 		if (!height || height <= 0 || !Number.isFinite(height) || Number.isNaN(height)) {
@@ -288,7 +271,6 @@ import {
 
 	// Live Geometry State - Updated by compositor
 	let liveGeometry = $state<BufferGeometry | null>(null);
-	let lastCompositionTime = 0;
 	let lastProfileVectors = $state<Vector2[]>([]);
 
 	// Frame rate limiting for smoother, less jittery updates
@@ -304,7 +286,7 @@ import {
 		const isRecording = recordingStore.state === 'recording';
 		return isRecording ? LIVE_PREVIEW_FRAME_TIME_MS : SCULPTURE_UPDATE_FRAME_TIME_MS;
 	};
-	
+
 	// Track constraint/modifier changes for non-destructive updates
 	let lastConstraintMode = $state<string>(uiStore.constraintMode);
 	let lastAutoFixGeometry = $state<boolean>(uiStore.autoFixGeometry);
@@ -332,22 +314,35 @@ import {
 		// Optimization: Only re-compute if layers changed, recording, or settings changed
 		const isRecording = recordingStore.state === 'recording';
 		const isGlazeMode = uiStore.workspace === 'glaze';
-		const constraintChanged = uiStore.constraintMode !== lastConstraintMode || uiStore.autoFixGeometry !== lastAutoFixGeometry;
+		const constraintChanged =
+			uiStore.constraintMode !== lastConstraintMode ||
+			uiStore.autoFixGeometry !== lastAutoFixGeometry;
 		const modifierChanged = (uiStore.modifiers?.quantize ?? false) !== lastQuantize;
 		const profileStyleChanged = (uiStore.profileStyle ?? 'natural') !== lastProfileStyle;
-		const musicalDetailChanged = Math.abs((uiStore.musicalDetailIntensity ?? 0.5) - lastMusicalDetail) > 0.01;
-		const needsUpdate = isRecording || sculptureStore.geometryDirty || constraintChanged || modifierChanged || profileStyleChanged || musicalDetailChanged;
+		const musicalDetailChanged =
+			Math.abs((uiStore.musicalDetailIntensity ?? 0.5) - lastMusicalDetail) > 0.01;
+		const needsUpdate =
+			isRecording ||
+			sculptureStore.geometryDirty ||
+			constraintChanged ||
+			modifierChanged ||
+			profileStyleChanged ||
+			musicalDetailChanged;
 
 		if (!needsUpdate) return;
-		
+
 		// Update tracked values AFTER the needsUpdate check
 		if (constraintChanged) {
-			console.log(`🔄 [RENDER] Constraint changed: ${lastConstraintMode}→${uiStore.constraintMode}, autoFix: ${lastAutoFixGeometry}→${uiStore.autoFixGeometry}`);
+			console.log(
+				`🔄 [RENDER] Constraint changed: ${lastConstraintMode}→${uiStore.constraintMode}, autoFix: ${lastAutoFixGeometry}→${uiStore.autoFixGeometry}`
+			);
 			lastConstraintMode = uiStore.constraintMode;
 			lastAutoFixGeometry = uiStore.autoFixGeometry;
 		}
 		if (modifierChanged) {
-			console.log(`🔢 [RENDER] Modifier changed: quantize ${lastQuantize}→${uiStore.modifiers?.quantize}`);
+			console.log(
+				`🔢 [RENDER] Modifier changed: quantize ${lastQuantize}→${uiStore.modifiers?.quantize}`
+			);
 			lastQuantize = uiStore.modifiers?.quantize ?? false;
 		}
 		if (profileStyleChanged) {
@@ -355,7 +350,9 @@ import {
 			lastProfileStyle = uiStore.profileStyle ?? 'natural';
 		}
 		if (musicalDetailChanged) {
-			console.log(`🎵 [RENDER] Musical detail changed: ${(lastMusicalDetail * 100).toFixed(0)}%→${((uiStore.musicalDetailIntensity ?? 0.5) * 100).toFixed(0)}%`);
+			console.log(
+				`🎵 [RENDER] Musical detail changed: ${(lastMusicalDetail * 100).toFixed(0)}%→${((uiStore.musicalDetailIntensity ?? 0.5) * 100).toFixed(0)}%`
+			);
 			lastMusicalDetail = uiStore.musicalDetailIntensity ?? 0.5;
 		}
 
@@ -381,10 +378,11 @@ import {
 				if (frames && frames.length > 5) {
 					// FIX 1: Use the SAME resolution for preview as will be used for final storage
 					// This ensures what you see during recording matches what you get after
-					const effectiveResolution = sculpture?.layers && sculpture.layers.length > 0
-						? getEffectiveResolution(sculpture.layers)
-						: GEOMETRY_RESOLUTION_COMPOSITOR;
-					
+					const effectiveResolution =
+						sculpture?.layers && sculpture.layers.length > 0
+							? getEffectiveResolution(sculpture.layers)
+							: GEOMETRY_RESOLUTION_COMPOSITOR;
+
 					// Generate lathe with limited resolution to match final output
 					// This prevents the "looks different after recording" problem
 					const radiusCurve = generateLathe(
@@ -431,7 +429,7 @@ import {
 
 			// Rate-limited logging for render loop
 			const shouldLogRender = now - lastRenderLogTime > RENDER_LOG_INTERVAL_MS;
-			
+
 			// NON-DESTRUCTIVE MODIFIERS: Apply quantize/symmetry at render time
 			// This allows users to toggle modifiers without re-recording
 			if (uiStore.modifiers?.quantize) {
@@ -472,10 +470,12 @@ import {
 			// DEBUG: Log profile dimensions (rate-limited)
 			if (shouldLogRender && profile.length > 0) {
 				lastRenderLogTime = now;
-				const minY = Math.min(...profile.map(p => p.y));
-				const maxY = Math.max(...profile.map(p => p.y));
+				const minY = Math.min(...profile.map((p) => p.y));
+				const maxY = Math.max(...profile.map((p) => p.y));
 				const avgX = profile.reduce((sum, p) => sum + p.x, 0) / profile.length;
-				console.log(`🎨 [PROFILE] ${profile.length} pts, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)}, mode=${effectiveConstraint}, quantize=${uiStore.modifiers?.quantize ?? false}`);
+				console.log(
+					`🎨 [PROFILE] ${profile.length} pts, Y=[${minY.toFixed(3)}-${maxY.toFixed(3)}], avgRadius=${avgX.toFixed(3)}, mode=${effectiveConstraint}, quantize=${uiStore.modifiers?.quantize ?? false}`
+				);
 			}
 
 			// ANGULAR MODE: Use spiral geometry when enabled
@@ -542,7 +542,9 @@ import {
 				framesForColors = getCapturedFrames();
 			} else if (sculpture?.layers) {
 				// Completed sculpture - use sourceFrames from first layer
-				const baseLayer = sculpture.layers.find((l: SculptureLayer) => l.type === 'base' && l.sourceFrames?.length);
+				const baseLayer = sculpture.layers.find(
+					(l: SculptureLayer) => l.type === 'base' && l.sourceFrames?.length
+				);
 				if (baseLayer?.sourceFrames && baseLayer.sourceFrames.length > 0) {
 					framesForColors = baseLayer.sourceFrames;
 				}
@@ -663,7 +665,7 @@ import {
 					constraintMode !== 'digital'
 						? mapConstraintRisksToColors(
 								analyzeConstraints(constraintProfile, constraintMode, physicalHeight)
-						  )
+							)
 						: null;
 
 				const heatmapColors =
@@ -708,7 +710,7 @@ import {
 			uiStore.activeGlaze.roughness ?? 0.35,
 			uiStore.activeGlaze.transmission ?? 0
 		);
-		
+
 		// Set emissive from glaze (spread to avoid reading materialProps)
 		const withEmissive = { ...ceramicBase, emissive: uiStore.activeGlaze.color };
 
@@ -735,7 +737,7 @@ import {
 	let smoothedEmission = $state(0);
 	let smoothedDazzlerIntensity = $state(0);
 	let beatFlashIntensity = $state(0); // Beat-triggered flash
-	
+
 	// Playback highlighting: Creates a glowing band that moves with playback position
 	let playbackEmissiveBoost = $state(0); // Extra emissive during playback (0-1)
 
@@ -745,7 +747,8 @@ import {
 
 		const isRecording = recordingStore.state === 'recording';
 		const isEnergyMaterial = uiStore.activeGlaze.materialType === 'energy';
-		const { emissiveEnabled, emissiveBase, emissiveReactivity, emissiveColor } = uiStore.activeGlaze;
+		const { emissiveEnabled, emissiveBase, emissiveReactivity, emissiveColor } =
+			uiStore.activeGlaze;
 
 		// SYNERGY: Beat detection flash (decays over time)
 		const isBeat = analysisStore.latestFrame?.beat ?? false;
@@ -778,7 +781,11 @@ import {
 			const targetIntensity = Math.min(3.0, baseTargetIntensity + beatFlashIntensity);
 
 			// Smooth the intensity to prevent flickering
-			smoothedDazzlerIntensity = lerpEmissiveIntensity(smoothedDazzlerIntensity, targetIntensity, 0.15);
+			smoothedDazzlerIntensity = lerpEmissiveIntensity(
+				smoothedDazzlerIntensity,
+				targetIntensity,
+				0.15
+			);
 
 			// Apply energy material properties
 			materialProps.color = '#111111'; // Dark base
@@ -855,7 +862,13 @@ import {
 		const targetY = minY + normalizedPitch * (maxY - minY);
 
 		// Get force parameters from UI
-		const { damping, hardness: uiHardness, radius: uiFocusRadius, strength, toolType } = uiStore.forceParams;
+		const {
+			damping,
+			hardness: uiHardness,
+			radius: uiFocusRadius,
+			strength,
+			toolType
+		} = uiStore.forceParams;
 		const isLanceMode = toolType.startsWith('lance');
 
 		// SONIC LANCE: Override parameters for precision mode
@@ -886,7 +899,7 @@ import {
 
 		let closestRadius = FORCE_MODE_FALLBACK_RADIUS;
 		let minYDiff = Infinity;
-		let closestIndex = 0;
+		let _closestIndex = 0;
 
 		// Find closest vertex and apply force to nearby vertices
 		for (let i = 0; i < positions.count; i++) {
@@ -900,7 +913,7 @@ import {
 				const x = positions.getX(i) ?? 0;
 				const z = positions.getZ(i) ?? 0;
 				closestRadius = Math.sqrt(x * x + z * z);
-				closestIndex = i;
+				_closestIndex = i;
 			}
 
 			// Apply force to vertices within the focus radius
@@ -955,11 +968,7 @@ import {
 {#if sculpture}
 	<!-- Parent Rig: All transforms applied here ensure Main and Ghost match perfectly -->
 	<!-- IDLE ANIMATION: Subtle rotation to make sculpture feel alive -->
-	<T.Group
-		scale.y={heightScale}
-		position={[0, 0, 0]}
-		rotation.y={idleRotation}
-	>
+	<T.Group scale.y={heightScale} position={[0, 0, 0]} rotation.y={idleRotation}>
 		<!-- LATHE MODE: Pottery wheel sculpture -->
 		{#if currentGeometry}
 			<T.Mesh
@@ -977,7 +986,10 @@ import {
 					transparent={uiStore.view.mode === 'xray' || (materialProps.transmission ?? 0) > 0}
 					opacity={uiStore.view.mode === 'xray' ? 0.3 : 1.0}
 					wireframe={uiStore.view.mode === 'wireframe'}
-					vertexColors={recordingStore.state === 'recording' || hasVertexColors || uiStore.view.mode === 'heatmap' || uiStore.workspace === 'glaze'}
+					vertexColors={recordingStore.state === 'recording' ||
+						hasVertexColors ||
+						uiStore.view.mode === 'heatmap' ||
+						uiStore.workspace === 'glaze'}
 					clearcoat={materialProps.clearcoat ?? 0}
 					clearcoatRoughness={materialProps.clearcoatRoughness ?? 0}
 					sheen={materialProps.sheen ?? 0}
@@ -1011,6 +1023,5 @@ import {
 				/>
 			</T.Mesh>
 		{/if}
-
 	</T.Group>
 {/if}

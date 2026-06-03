@@ -2,7 +2,6 @@ import {
 	MIC_SENSITIVITY_MULTIPLIER,
 	SIGNAL_THRESHOLD,
 	AUDIO_SAMPLE_RATE,
-	NOISE_GATE_THRESHOLD,
 	ENERGY_SMOOTHING_ALPHA
 } from '$lib/config/constants';
 
@@ -104,11 +103,11 @@ export async function startMicrophoneCapture(deviceId?: string): Promise<MediaSt
 	// noiseSuppression: Aggressively suppresses voice harmonics it considers "noise"
 	// autoGainControl: Causes volume fluctuations and dropouts
 	const audioConstraints: MediaTrackConstraints = {
-		echoCancellation: false,  // DISABLED: Causes voice cutoffs
-		noiseSuppression: false,  // DISABLED: Suppresses singing harmonics
-		autoGainControl: false,   // DISABLED: Causes volume fluctuations
+		echoCancellation: false, // DISABLED: Causes voice cutoffs
+		noiseSuppression: false, // DISABLED: Suppresses singing harmonics
+		autoGainControl: false, // DISABLED: Causes volume fluctuations
 		sampleRate: AUDIO_SAMPLE_RATE,
-		channelCount: 1,          // Mono is sufficient for voice
+		channelCount: 1 // Mono is sufficient for voice
 	};
 
 	if (deviceId) {
@@ -300,24 +299,24 @@ export function startAudioCapture(): void {
 		console.warn('⚠️ [AUDIO CAPTURE] No media stream available');
 		return;
 	}
-	
+
 	if (isRecordingAudio) {
 		console.warn('⚠️ [AUDIO CAPTURE] Already recording');
 		return;
 	}
-	
+
 	recordedChunks = [];
-	
+
 	try {
 		// Use webm/opus format with HIGH QUALITY bitrate for clear playback
 		// 128kbps is high quality for voice (CD quality is 1411kbps for stereo)
 		let mimeType: string = 'audio/webm;codecs=opus';
-		const audioBitsPerSecond = 128000;  // 128 kbps - high quality for voice
+		const audioBitsPerSecond = 128000; // 128 kbps - high quality for voice
 
 		// Fallback to other formats if webm not supported
 		if (!MediaRecorder.isTypeSupported(mimeType)) {
 			const fallbacks = ['audio/webm', 'audio/ogg', 'audio/mp4'];
-			const supported = fallbacks.find(type => MediaRecorder.isTypeSupported(type));
+			const supported = fallbacks.find((type) => MediaRecorder.isTypeSupported(type));
 			if (supported !== undefined) {
 				mimeType = supported;
 			}
@@ -326,20 +325,20 @@ export function startAudioCapture(): void {
 		const options: MediaRecorderOptions = { mimeType, audioBitsPerSecond };
 
 		mediaRecorder = new MediaRecorder(mediaStream, options);
-		
+
 		mediaRecorder.ondataavailable = (event) => {
 			if (event.data.size > 0) {
 				recordedChunks.push(event.data);
 			}
 		};
-		
+
 		mediaRecorder.onerror = (event) => {
 			console.error('❌ [AUDIO CAPTURE] MediaRecorder error:', event);
 		};
-		
+
 		mediaRecorder.start(100); // Capture in 100ms chunks
 		isRecordingAudio = true;
-		
+
 		console.log(`🎙️ [AUDIO CAPTURE] Started recording (${options.mimeType})`);
 	} catch (err) {
 		console.error('❌ [AUDIO CAPTURE] Failed to start:', err);
@@ -354,19 +353,21 @@ export async function stopAudioCapture(): Promise<Blob | null> {
 		console.warn('⚠️ [AUDIO CAPTURE] Not recording');
 		return null;
 	}
-	
+
 	return new Promise((resolve) => {
 		mediaRecorder!.onstop = () => {
 			const blob = new Blob(recordedChunks, { type: mediaRecorder!.mimeType });
-			console.log(`🎙️ [AUDIO CAPTURE] Stopped - ${blob.size} bytes (${(blob.size / 1024).toFixed(1)} KB)`);
-			
+			console.log(
+				`🎙️ [AUDIO CAPTURE] Stopped - ${blob.size} bytes (${(blob.size / 1024).toFixed(1)} KB)`
+			);
+
 			recordedChunks = [];
 			mediaRecorder = null;
 			isRecordingAudio = false;
-			
+
 			resolve(blob);
 		};
-		
+
 		mediaRecorder!.stop();
 	});
 }

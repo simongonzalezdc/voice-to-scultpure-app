@@ -9,42 +9,9 @@ describe('Material Optimization in Sculpture.svelte', () => {
 	});
 
 	it('should use consistent material properties without flashing', () => {
-		// Create a test sculpture
-		const testSculpture: SculptureDefinition = {
-			id: 'test-sculpture',
-			name: 'Test Sculpture',
-			createdAt: Date.now(),
-			layers: [],
-			radiusCurve: [
-				{ x: 0.5, y: 0 },
-				{ x: 0.3, y: 0.5 },
-				{ x: 0.2, y: 1 }
-			],
-			physical: {
-				height: 150,
-				sculptMode: 'additive',
-				units: 'mm',
-				orientation: 'vertical'
-			}
-		};
-
 		// Test that material properties are properly reactive
 		// This tests the optimization that prevents flashing by using
 		// a single material component with reactive props instead of conditional rendering
-
-		// Material properties should include:
-		// - roughness based on uiStore.activeGlaze.roughness
-		// - color based on material type
-		// - vertexColors flag based on workspace
-
-		const expectedProps = {
-			roughness: expect.any(Number),
-			color: expect.any(String),
-			metalness: expect.any(Number),
-			vertexColors: expect.any(Boolean),
-			opacity: expect.any(Number),
-			transparent: expect.any(Boolean)
-		};
 
 		// Verify the expected properties structure is correct
 		expect(uiStore.activeGlaze.roughness).toBeGreaterThanOrEqual(0);
@@ -73,15 +40,6 @@ describe('Material Optimization in Sculpture.svelte', () => {
 
 		// Plastic material properties are derived from uiStore settings
 		// Material color is determined by sculptMode in materialFactory
-
-		const expectedPlasticProps = {
-			color: expect.any(String),
-			roughness: expect.any(Number),
-			metalness: expect.any(Number),
-			vertexColors: expect.any(Boolean),
-			opacity: expect.any(Number),
-			transparent: expect.any(Boolean)
-		};
 
 		// Verify sculpture is in subtractive mode
 		expect(testSculpture.physical.sculptMode).toBe('subtractive');
