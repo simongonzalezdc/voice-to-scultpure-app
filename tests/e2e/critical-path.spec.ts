@@ -33,11 +33,54 @@ async function clickFirstVisible(locator: Locator): Promise<boolean> {
 	return false;
 }
 
+async function isExportPanelVisible(page: Page): Promise<boolean> {
+	const physicalScaleVisible = await page
+		.getByLabel('Physical scale')
+		.isVisible()
+		.catch(() => false);
+	const exportFormatsVisible = await page
+		.getByRole('heading', { name: /^Export Formats$/ })
+		.isVisible()
+		.catch(() => false);
+
+	return physicalScaleVisible || exportFormatsVisible;
+}
+
+async function clickUntilExportPanelVisible(page: Page, locator: Locator): Promise<boolean> {
+	const count = await locator.count();
+
+	for (let i = 0; i < count; i++) {
+		const candidate = locator.nth(i);
+		const isReady =
+			(await candidate.isVisible().catch(() => false)) &&
+			(await candidate.isEnabled().catch(() => false));
+
+		if (!isReady) continue;
+
+		await candidate.click();
+		await page.waitForTimeout(300);
+
+		if (await isExportPanelVisible(page)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 async function openExportWorkspace(page: Page): Promise<boolean> {
-	const openedViaTab = await clickFirstVisible(page.getByRole('tab', { name: /^Export$/ }));
+	if (await isExportPanelVisible(page)) return true;
+
+	const openedViaTab = await clickUntilExportPanelVisible(
+		page,
+		page.getByRole('tab', { name: /^Export$/ })
+	);
 	if (openedViaTab) return true;
 
-	return clickFirstVisible(page.getByRole('button', { name: /Export (\/ 3D Print|Options)/ }));
+	return clickUntilExportPanelVisible(
+		page,
+		page.getByRole('button', { name: /Export (\/ 3D Print|Options)/ })
+	);
 }
 
 test.describe('Critical Path: Record → Stop → Export', () => {
