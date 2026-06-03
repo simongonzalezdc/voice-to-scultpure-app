@@ -1,0 +1,18 @@
+# Voice-to-Sculpture Studio
+
+> Transform your voice into 3D ceramic sculptures using real-time audio analysis.
+
+Voice-to-Sculpture Studio turns singing, humming, or speech into 3D pottery in the browser. Real-time voice analysis (pitch, volume, timbre, beat) drives sculpture geometry through a non-destructive layer system (base shapes, deformations, glazes). It applies ceramic constraints (hand access, stable bases) and 3D-print constraints (max overhang, contiguous geometry), and exports STL (real millimeters), GLTF/GLB with PBR materials, and high-resolution 4K renders.
+
+## Tech
+- SvelteKit, Threlte (Three.js), Meyda (audio features), WebLLM; Vite dev server; Node 18+; modern browser (WebGPU recommended).
+
+## Run
+- `npm install`, then `npm run dev` (Vite). Node 18+; WebGPU-capable browser for local LLM features.
+
+## Links
+- Repository: https://github.com/simongonzalezdc/voice-to-scultpure-app
+- KyaniteLabs: https://kyanitelabs.tech
+
+## Best-fit searches
+voice to 3D, audio to sculpture, generative pottery, web 3D ceramics, STL export, SvelteKit Three.js, Threlte, voice-driven art, 3D printing pottery
