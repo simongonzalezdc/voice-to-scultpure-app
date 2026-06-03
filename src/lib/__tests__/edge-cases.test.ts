@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateLathe, applyDeformation } from '$lib/engine/physicsMapping';
 import { pitchToTwist, timbreToRoughness } from '$lib/stores/voiceLinksStore.svelte';
 import { computeCalibration } from '$lib/audio/calibration';
+import { GEOMETRY_MAX_POINTS } from '$lib/config/constants';
 import type { AnalysisFrame, LathePoint } from '$lib/types';
 
 describe('Edge Cases and Error Handling', () => {
@@ -309,7 +310,7 @@ describe('Edge Cases and Error Handling', () => {
 
 			expect(curve).toBeDefined();
 			expect(curve.length).toBeGreaterThan(0);
-			expect(curve.length).toBeLessThanOrEqual(400); // Should be limited by GEOMETRY_MAX_POINTS (was 200, now 400)
+			expect(curve.length).toBeLessThanOrEqual(GEOMETRY_MAX_POINTS);
 
 			// Should complete in reasonable time (less than 1 second)
 			expect(endTime - startTime).toBeLessThan(1000);

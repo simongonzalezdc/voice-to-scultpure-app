@@ -1,12 +1,18 @@
 <script lang="ts">
-	import { playbackStore, play, pause, stop, seek, getPlaybackProgress } from '$lib/stores/playbackStore.svelte';
+	import {
+		playbackStore,
+		play,
+		pause,
+		stop,
+		seek,
+		getPlaybackProgress
+	} from '$lib/stores/playbackStore.svelte';
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
 
 	let currentTimeDisplay = $state('0:00');
 	let durationDisplay = $state('0:00');
 	let progress = $state(0);
-	let isDragging = $state(false);
-	let slider: HTMLInputElement;
+	let slider = $state<HTMLInputElement | undefined>();
 
 	// Format time in MM:SS
 	function formatTime(seconds: number): string {
@@ -78,8 +84,6 @@
 				step="0.001"
 				value={progress}
 				oninput={handleSliderInput}
-				onmousedown={() => (isDragging = true)}
-				onmouseup={() => (isDragging = false)}
 				class="flex-1 h-1 bg-surface-darker rounded cursor-pointer appearance-none
 				         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3
 				         [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full
@@ -154,4 +158,3 @@
 		animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 	}
 </style>
-

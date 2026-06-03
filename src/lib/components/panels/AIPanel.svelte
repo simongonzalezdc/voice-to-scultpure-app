@@ -10,7 +10,6 @@
 		LOCAL_AI_CONFIG,
 		getModelsForProvider,
 		getProviderName,
-		validateApiKey,
 		type CloudProvider,
 		type AIProviderType
 	} from '$lib/ai/providers';

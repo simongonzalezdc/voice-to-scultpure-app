@@ -1,6 +1,6 @@
 /**
  * Song Mode Store - AI-Enhanced Lyrical Sculpting
- * 
+ *
  * The Song Mode Stack:
  * - Layer 1 (Shape): Formant-based geometry (real-time, no AI)
  * - Layer 2 (Color): AI sentiment → Glaze colors (5-10 sec buffer)
@@ -259,7 +259,9 @@ export function updateMood(mood: MoodClassification): void {
 	// Set target cinematic preset
 	songModeStore.targetPreset = CINEMATIC_PRESETS[mood.mood] ?? null;
 
-	console.log(`🎭 [SONG MODE] Mood: ${mood.mood} (${(mood.confidence * 100).toFixed(0)}% confidence)`);
+	console.log(
+		`🎭 [SONG MODE] Mood: ${mood.mood} (${(mood.confidence * 100).toFixed(0)}% confidence)`
+	);
 }
 
 export function updateMaterial(material: MaterialSuggestion): void {
@@ -354,4 +356,3 @@ export function formantToSculptParams(formant: FormantData): {
 		symmetryBoost: formant.openness < 0.3 && formant.frontness < 0.5 ? 2 : 0
 	};
 }
-

@@ -1,12 +1,12 @@
 /**
  * Centralized Logger Utility
- * 
+ *
  * Provides consistent logging across the application with:
  * - Log levels (debug, info, warn, error)
  * - Production mode filtering (debug disabled in prod)
  * - Emoji prefixes for visual scanning
  * - Optional module/component context
- * 
+ *
  * Usage:
  *   import { logger } from '$lib/utils/logger';
  *   logger.debug('MyComponent', 'Processing data', { count: 42 });
@@ -55,31 +55,36 @@ const LEVEL_COLORS: Record<LogLevel, string> = {
 
 function formatMessage(level: LogLevel, context: string | undefined, message: string): string {
 	const parts: string[] = [];
-	
+
 	if (config.showTimestamp) {
 		parts.push(`[${new Date().toISOString().slice(11, 23)}]`);
 	}
-	
+
 	parts.push(LEVEL_EMOJI[level]);
-	
+
 	if (config.showContext && context) {
 		parts.push(`[${context}]`);
 	}
-	
+
 	parts.push(message);
-	
+
 	return parts.join(' ');
 }
 
-function log(level: LogLevel, context: string | undefined, message: string, ...args: unknown[]): void {
+function log(
+	level: LogLevel,
+	context: string | undefined,
+	message: string,
+	...args: unknown[]
+): void {
 	if (!browser) return; // No logging during SSR
-	
+
 	// Check if level is enabled
 	if (level === 'debug' && !config.enableDebug) return;
 	if (level === 'info' && !config.enableInfo) return;
-	
+
 	const formattedMessage = formatMessage(level, context, message);
-	
+
 	switch (level) {
 		case 'debug':
 			console.log(`%c${formattedMessage}`, LEVEL_COLORS.debug, ...args);
@@ -187,4 +192,3 @@ export function createLogger(moduleName: string) {
 }
 
 export default logger;
-

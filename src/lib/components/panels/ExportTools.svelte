@@ -2,18 +2,14 @@
 	import { sculptureStore, setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { toastStore } from '$lib/stores/toastStore.svelte';
-	import { pushHistory } from '$lib/stores/historyStore.svelte';
 	import { exportProfileSVG, downloadBlueprint } from '$lib/export/blueprint';
 	import { exportMeshToSTL, lathePointsToSTL, downloadSTL } from '$lib/export/stl';
 	import { exportSculptureToGLB } from '$lib/export/gltf';
 	import { exportSculptureToPLY, downloadPLY } from '$lib/export/ply';
 	import type { ExportOptions } from '$lib/export/exportUtils';
 	import type { SculptureDefinition } from '$lib/types';
-	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 
 	// Loading states
-	let isExporting = $state(false);
-	let exportingFormat = $state<string | null>(null);
 
 	// Slicer optimization state
 	let slicerOptimizeEnabled = $state(true);
@@ -32,21 +28,26 @@
 	// Estimate triangle count based on current settings
 	function estimateTriangleCount() {
 		// Current settings: facetStyle x profile points
-		const facetSegments = uiStore.facetStyle === 'smooth' ? 96 : 
-		                       uiStore.facetStyle === 'crystalline' ? 32 :
-		                       uiStore.facetStyle === 'angular' ? 16 : 8;
-		
+		const facetSegments =
+			uiStore.facetStyle === 'smooth'
+				? 96
+				: uiStore.facetStyle === 'crystalline'
+					? 32
+					: uiStore.facetStyle === 'angular'
+						? 16
+						: 8;
+
 		const profilePoints = sculptureStore.currentSculpture?.layers?.[0]?.data?.length ?? 128;
-		
+
 		// Each quad (2 triangles) between points and segments
 		let triangles = facetSegments * (profilePoints - 1) * 2;
-		
+
 		// Apply simplification reduction if in 3D print mode and optimization enabled
 		if (uiStore.constraintMode === '3d_print' && slicerOptimizeEnabled) {
 			// SimplifyModifier targets 50K triangles, typically achieves 50-75% reduction
 			triangles = Math.ceil(triangles * 0.4); // Conservative estimate
 		}
-		
+
 		estimatedTriangleCount = triangles;
 	}
 
@@ -57,6 +58,12 @@
 
 	// Local state for editing
 	let editingWallThickness = $state(0);
+	let physicalHeight = $derived(sculptureStore.currentSculpture?.physical.height ?? 0);
+	let physicalUnits = $derived(sculptureStore.currentSculpture?.physical.units ?? 'mm');
+	let wallThicknessLabel = $derived.by(() => {
+		const wallThickness = sculptureStore.currentSculpture?.physical.wallThickness;
+		return wallThickness && wallThickness > 0 ? `${wallThickness}${physicalUnits}` : 'Solid';
+	});
 
 	// Sync with sculpture changes
 	$effect(() => {
@@ -111,11 +118,11 @@
 
 		try {
 			toastStore.info('Exporting STL', 'Exporting rendered mesh...');
-			
+
 			// CRITICAL: Use direct mesh export to guarantee match with app view
 			// This exports the ACTUAL Three.js geometry being displayed
 			const stlContent = exportMeshToSTL(sculpture);
-			
+
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.stl`;
 			downloadSTL(stlContent, filename);
 			toastStore.success('Export Complete', `${filename} saved to Downloads`);
@@ -130,7 +137,10 @@
 				downloadSTL(stlContent, filename);
 				toastStore.success('Export Complete (Fallback)', `${filename} saved to Downloads`);
 			} catch (fallbackError) {
-				toastStore.error('Export Failed', fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
+				toastStore.error(
+					'Export Failed',
+					fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+				);
 			}
 		}
 	}
@@ -145,8 +155,6 @@
 			return;
 		}
 
-		isExporting = true;
-		exportingFormat = 'GLB';
 		try {
 			toastStore.info('Exporting GLB', 'Generating 3D model...');
 			const filename = `sculpture-${sculpture.name.replace(/\s+/g, '-')}-${Date.now()}.glb`;
@@ -156,9 +164,6 @@
 		} catch (error) {
 			console.error('GLB export failed:', error);
 			toastStore.error('Export Failed', error instanceof Error ? error.message : String(error));
-		} finally {
-			isExporting = false;
-			exportingFormat = null;
 		}
 	}
 
@@ -195,6 +200,23 @@
 		</div>
 	{:else}
 		<div class="p-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+			<div class="surface-panel-alt p-3 rounded" aria-label="Physical scale">
+				<div class="grid grid-cols-3 gap-3 text-xs">
+					<div>
+						<p class="text-secondary mb-1">Height</p>
+						<p class="text-primary font-semibold">{physicalHeight}{physicalUnits}</p>
+					</div>
+					<div>
+						<p class="text-secondary mb-1">Wall</p>
+						<p class="text-primary font-semibold">{wallThicknessLabel}</p>
+					</div>
+					<div>
+						<p class="text-secondary mb-1">Volume</p>
+						<p class="text-primary font-semibold">{uiStore.printVolumeMm}mm</p>
+					</div>
+				</div>
+			</div>
+
 			<!-- Export Options -->
 			<div>
 				<h3 class="text-sm font-semibold text-secondary mb-3">Export Options</h3>
@@ -210,7 +232,10 @@
 								onchange={estimateTriangleCount}
 								class="w-4 h-4 cursor-pointer"
 							/>
-							<label for="slicer-optimize" class="text-sm text-primary cursor-pointer font-semibold">
+							<label
+								for="slicer-optimize"
+								class="text-sm text-primary cursor-pointer font-semibold"
+							>
 								Optimize for Slicer
 							</label>
 						</div>

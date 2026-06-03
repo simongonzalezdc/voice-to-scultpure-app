@@ -57,11 +57,13 @@ export async function loadAudioBlob(blob: Blob): Promise<void> {
 	try {
 		const arrayBuffer = await blob.arrayBuffer();
 		const audioBuffer = await playbackStore.audioContext.decodeAudioData(arrayBuffer);
-		
+
 		playbackStore.audioBuffer = audioBuffer;
 		playbackStore.duration = audioBuffer.duration;
-		
-		console.log(`🎵 [PLAYBACK] Audio loaded: ${audioBuffer.duration.toFixed(2)}s @ ${audioBuffer.sampleRate}Hz`);
+
+		console.log(
+			`🎵 [PLAYBACK] Audio loaded: ${audioBuffer.duration.toFixed(2)}s @ ${audioBuffer.sampleRate}Hz`
+		);
 	} catch (err) {
 		console.error(`❌ [PLAYBACK] Failed to load audio:`, err);
 		throw err;
@@ -102,7 +104,9 @@ export function play(): void {
 		playbackStore.sourceNode = source;
 		playbackStore.state = 'playing';
 
-		console.log(`▶️ [PLAYBACK] Playing from ${playbackStore.currentTime.toFixed(2)}s (audioContext.currentTime: ${playbackStore.playStartTime.toFixed(3)}s)`);
+		console.log(
+			`▶️ [PLAYBACK] Playing from ${playbackStore.currentTime.toFixed(2)}s (audioContext.currentTime: ${playbackStore.playStartTime.toFixed(3)}s)`
+		);
 	} catch (err) {
 		console.error(`❌ [PLAYBACK] Failed to play:`, err);
 	}
@@ -125,11 +129,16 @@ export function pause(): void {
 		if (playbackStore.audioContext) {
 			const elapsedTime = playbackStore.audioContext.currentTime - playbackStore.playStartTime;
 			playbackStore.currentTime = playbackStore.audioOffsetAtPlay + elapsedTime;
-			
+
 			// Clamp to duration
-			playbackStore.currentTime = Math.max(0, Math.min(playbackStore.currentTime, playbackStore.duration));
-			
-			console.log(`⏸️ [PLAYBACK] Paused at ${playbackStore.currentTime.toFixed(2)}s (elapsed: ${elapsedTime.toFixed(3)}s)`);
+			playbackStore.currentTime = Math.max(
+				0,
+				Math.min(playbackStore.currentTime, playbackStore.duration)
+			);
+
+			console.log(
+				`⏸️ [PLAYBACK] Paused at ${playbackStore.currentTime.toFixed(2)}s (elapsed: ${elapsedTime.toFixed(3)}s)`
+			);
 		}
 
 		playbackStore.state = 'paused';
@@ -161,7 +170,7 @@ export function stop(): void {
  */
 export function seek(normalizedPosition: number): void {
 	const newTime = normalizedPosition * playbackStore.duration;
-	
+
 	const isPlaying = playbackStore.state === 'playing';
 
 	// Stop current playback
@@ -177,7 +186,9 @@ export function seek(normalizedPosition: number): void {
 		play();
 	}
 
-	console.log(`🔍 [PLAYBACK] Seek to ${playbackStore.currentTime.toFixed(2)}s (${(normalizedPosition * 100).toFixed(1)}%)`);
+	console.log(
+		`🔍 [PLAYBACK] Seek to ${playbackStore.currentTime.toFixed(2)}s (${(normalizedPosition * 100).toFixed(1)}%)`
+	);
 }
 
 /**
@@ -214,4 +225,3 @@ export function cleanup(): void {
 	playbackStore.audioContext = null;
 	console.log(`🧹 [PLAYBACK] Cleaned up audio resources`);
 }
-

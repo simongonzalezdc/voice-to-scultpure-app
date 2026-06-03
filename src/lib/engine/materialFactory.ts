@@ -9,10 +9,9 @@
  * - Type-safe material configurations
  */
 
-import { DEFAULT_MATERIAL_CERAMIC, DEFAULT_MATERIAL_PLASTIC } from '$lib/types';
+import { DEFAULT_MATERIAL_CERAMIC } from '$lib/types';
 import {
 	PLASTIC_COLOR_LIGHTEN_FACTOR,
-	ERROR_COLOR,
 	GHOST_OPACITY,
 	GHOST_ROUGHNESS,
 	CERAMIC_DEFAULT_ROUGHNESS,
@@ -154,7 +153,7 @@ export function createCeramicMaterialProps(
 ): MaterialProps {
 	// Adjust clearcoat based on roughness - glossy glazes have more clearcoat
 	const clearcoatAmount = Math.max(0, CERAMIC_CLEARCOAT - glazeRoughness * 0.8);
-	
+
 	return {
 		color: baseColor,
 		roughness: glazeRoughness,
@@ -299,7 +298,9 @@ export function updateMaterialForGlazeMode(
 	// 3. Has vertex colors (colors exist on geometry)
 	if (isRecording && isInGlazeMode && hasVertexColors) {
 		updated.vertexColors = true;
-		console.log(`🎨 [MATERIAL] vertexColors=${updated.vertexColors} (isRecording=${isRecording}, isInGlazeMode=${isInGlazeMode}, hasVertexColors=${hasVertexColors})`);
+		console.log(
+			`🎨 [MATERIAL] vertexColors=${updated.vertexColors} (isRecording=${isRecording}, isInGlazeMode=${isInGlazeMode}, hasVertexColors=${hasVertexColors})`
+		);
 	}
 
 	return updated;

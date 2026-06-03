@@ -71,7 +71,7 @@
 	aria-atomic="false"
 >
 	{#each toasts as toast (toast.id)}
-		{@const { bgColor, borderColor, iconColor, icon } = getTypeStyles(toast.type)}
+		{@const { iconColor, icon } = getTypeStyles(toast.type)}
 		<div
 			class="toast animate-in fade-in slide-in-from-top-4 duration-300"
 			class:bg-green-900={toast.type === 'success'}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { AnalysisFrame, SculptureLayer } from '$lib/types';
+import type { AnalysisFrame } from '$lib/types';
 import {
 	sculptureStore,
 	addLayer,

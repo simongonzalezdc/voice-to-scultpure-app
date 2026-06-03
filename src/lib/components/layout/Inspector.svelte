@@ -43,13 +43,13 @@
 			<div class="space-y-2">
 				<button
 					class="w-full py-2 px-3 text-sm rounded bg-brand-primary text-white hover:bg-brand-primary/80 transition-colors"
-					onclick={() => uiStore.workspace = 'export'}
+					onclick={() => (uiStore.workspace = 'export')}
 				>
 					📦 Export / 3D Print
 				</button>
 				<button
 					class="w-full py-2 px-3 text-sm rounded bg-surface-alt text-secondary hover:bg-surface-panel-alt transition-colors"
-					onclick={() => recordingStore.state = 'recording'}
+					onclick={() => (recordingStore.state = 'recording')}
 				>
 					🎤 Record Another Layer
 				</button>
@@ -66,7 +66,7 @@
 		<div class="p-4 border-t border-subtle">
 			<button
 				class="w-full py-2 px-3 text-sm rounded border border-subtle text-secondary hover:bg-surface-alt transition-colors"
-				onclick={() => uiStore.workspace = 'export'}
+				onclick={() => (uiStore.workspace = 'export')}
 			>
 				📦 Export Options
 			</button>
@@ -88,10 +88,6 @@
 
 	.bg-surface-alt {
 		background-color: var(--surface-alt, rgba(255, 255, 255, 0.05));
-	}
-
-	.bg-surface-panel-alt {
-		background-color: var(--surface-panel-alt, rgba(255, 255, 255, 0.08));
 	}
 
 	/* Custom scrollbar */
