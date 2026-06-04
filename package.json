@@ -28,7 +28,7 @@
 		"eslint": "^8.57.0",
 		"eslint-config-prettier": "^9.1.0",
 		"eslint-plugin-svelte": "^2.35.0",
-		"jsdom": "^27.2.0",
+		"jsdom": "^29.1.1",
 		"lucide-svelte": "^0.554.0",
 		"postcss": "^8.5.13",
 		"prettier": "^3.2.5",
@@ -50,7 +50,7 @@
 		"jszip": "^3.10.1",
 		"meyda": "^5.6.3",
 		"opfs-tools": "^0.2.1",
-		"postprocessing": "^6.38.0",
+		"postprocessing": "^6.39.1",
 		"runed": "^0.36.0",
 		"three": "^0.184.0"
 	},
