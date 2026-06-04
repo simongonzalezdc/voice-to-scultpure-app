@@ -10,20 +10,20 @@ updates:
     groups:
       svelte-stack:
         patterns:
-          - "@sveltejs/*"
+          - '@sveltejs/*'
           - svelte
           - svelte-check
           - vite
       three-stack:
         patterns:
           - three
-          - "@threlte/*"
+          - '@threlte/*'
       test-tooling:
         patterns:
           - vitest
-          - "@vitest/*"
+          - '@vitest/*'
           - playwright
-          - "@playwright/*"
+          - '@playwright/*'
 
   - package-ecosystem: github-actions
     directory: /
@@ -31,4 +31,3 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
-
