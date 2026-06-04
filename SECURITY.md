@@ -32,4 +32,3 @@ npm run build
 npm run test:integration
 gitleaks dir . --no-banner --redact
 ```
-
