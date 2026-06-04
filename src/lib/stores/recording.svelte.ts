@@ -10,7 +10,6 @@ import { resetAnalysis, analysisStore } from './analysisStore.svelte';
 import { createSculptureFromFrames, generateLathe } from '$lib/engine/physicsMapping';
 import { appSettings } from './appSettingsStore.svelte';
 import { uiStore } from './uiStore.svelte';
-import { quantizePitch } from '$lib/audio/audioTheory';
 import { getAudioContext, startAudioCapture, stopAudioCapture } from '$lib/audio/audioContext';
 import { playResonance } from '$lib/audio/sonification';
 import { loadAudioBlob } from '$lib/stores/playbackStore.svelte';
@@ -119,10 +118,10 @@ export function startRecording(): void {
 	recordingStateSetTimings(Date.now(), 0);
 	setRecordingState('recording');
 	recordingStore.historyPosition = 1;
-	
+
 	// CRITICAL FIX: Set plain boolean flag for non-reactive callback contexts
 	_isCapturing = true;
-	
+
 	// Start audio capture for playback (only in sculpt mode)
 	if (!isGlazeMode) {
 		startAudioCapture();
@@ -131,7 +130,9 @@ export function startRecording(): void {
 	if (isGlazeMode) {
 		console.log('🎨 [RECORDING] Started painting - frames reset, sculpture preserved');
 	} else {
-		console.log('🎙️ [RECORDING] Started - frames reset to 0, audio capture started, _isCapturing = true');
+		console.log(
+			'🎙️ [RECORDING] Started - frames reset to 0, audio capture started, _isCapturing = true'
+		);
 	}
 }
 
@@ -140,11 +141,16 @@ export function startRecording(): void {
  * CRITICAL FIX: Capture vertex colors before setting state to 'complete' or 'idle'
  */
 export async function stopRecording(): Promise<void> {
-	console.log('🔴🔴🔴 [RECORDING] stopRecording() CALLED, state:', recordingStore.state, 'frames:', capturedFrames.length);
-	
+	console.log(
+		'🔴🔴🔴 [RECORDING] stopRecording() CALLED, state:',
+		recordingStore.state,
+		'frames:',
+		capturedFrames.length
+	);
+
 	// CRITICAL FIX: Immediately stop frame capture via plain boolean
 	_isCapturing = false;
-	
+
 	if (recordingStore.state !== 'recording') {
 		console.warn('⚠️ [RECORDING] Stop called but not in recording state');
 		return;
@@ -155,7 +161,9 @@ export async function stopRecording(): Promise<void> {
 	recordingStateSetTimings(null, duration);
 	setRecordingState('processing');
 	console.log('🔴🔴🔴 [RECORDING] Processing... duration:', duration, 'ms');
-	console.log(`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}, _isCapturing = false`);
+	console.log(
+		`🛑 [RECORDING] Stopped - Total frames captured: ${capturedFrames.length}, _isCapturing = false`
+	);
 
 	// RESCUE PATH: Worker failed or frames empty -> generate minimal fallback
 	if (capturedFrames.length === 0) {
@@ -232,7 +240,8 @@ export async function stopRecording(): Promise<void> {
 			// KEY INSIGHT: If the only layer is the default "Base Layer", we should REPLACE it
 			// This ensures preview matches final result
 			const existingLayers = sculptureStore.currentSculpture?.layers ?? [];
-			const hasOnlyDefaultBase = existingLayers.length === 1 && existingLayers[0]?.name === 'Base Layer';
+			const hasOnlyDefaultBase =
+				existingLayers.length === 1 && existingLayers[0]?.name === 'Base Layer';
 			const shouldCreateNew = !sculptureStore.currentSculpture || hasOnlyDefaultBase;
 
 			if (shouldCreateNew) {
@@ -246,7 +255,9 @@ export async function stopRecording(): Promise<void> {
 
 				// NON-DESTRUCTIVE CONSTRAINTS: Store RAW data, apply constraints at RENDER time
 				// This allows users to toggle between Digital/Ceramic/3D Print without re-recording
-				console.log(`📦 [RECORDING] Creating sculpture from recording (${resolution} pts) - replacing default template`);
+				console.log(
+					`📦 [RECORDING] Creating sculpture from recording (${resolution} pts) - replacing default template`
+				);
 
 				const sculpture = createSculptureFromFrames(
 					capturedFrames,
@@ -264,17 +275,19 @@ export async function stopRecording(): Promise<void> {
 				// Must match: MIN_HEIGHT_RATIO + (seconds * growthRate)
 				const seconds = capturedFrames.length / 30; // ~30 fps
 				const isSongMode = uiStore.recordingMode === 'song';
-				
+
 				// MUST MATCH Sculpture.svelte constants exactly:
 				const MIN_HEIGHT_RATIO = 0.3; // Start at 30% height
-				const growthRate = isSongMode ? 0.25 : 0.50; // 25%/sec song, 50%/sec standard
+				const growthRate = isSongMode ? 0.25 : 0.5; // 25%/sec song, 50%/sec standard
 				const maxRatio = isSongMode ? 10.0 : 6.0; // 10x song, 6x standard
-				
+
 				// Same formula as Sculpture.svelte heightScale derived
-				const heightRatio = Math.min(maxRatio, MIN_HEIGHT_RATIO + (seconds * growthRate));
+				const heightRatio = Math.min(maxRatio, MIN_HEIGHT_RATIO + seconds * growthRate);
 				sculpture.physical.height = DEFAULT_HEIGHT_MM * heightRatio;
-				
-				console.log(`📐 [RECORDING] Final height: ${seconds.toFixed(1)}s → ${heightRatio.toFixed(2)}x (${DEFAULT_HEIGHT_MM * heightRatio}mm)`);
+
+				console.log(
+					`📐 [RECORDING] Final height: ${seconds.toFixed(1)}s → ${heightRatio.toFixed(2)}x (${DEFAULT_HEIGHT_MM * heightRatio}mm)`
+				);
 
 				// Stop audio capture and attach blob to sculpture for playback
 				const audioBlob = await stopAudioCapture();
@@ -282,12 +295,16 @@ export async function stopRecording(): Promise<void> {
 					sculpture.audioBlob = audioBlob;
 					// Load audio into playback store for immediate availability
 					await loadAudioBlob(audioBlob);
-					console.log(`🎵 [RECORDING] Audio blob attached (${(audioBlob.size / 1024).toFixed(1)} KB)`);
+					console.log(
+						`🎵 [RECORDING] Audio blob attached (${(audioBlob.size / 1024).toFixed(1)} KB)`
+					);
 				}
 
 				setCurrentSculpture(sculpture);
 				const pointCount = sculpture.radiusCurve?.length || sculpture?.layers?.length || 0;
-				console.log(`🗿 [RECORDING] Sculpture created with ${pointCount} points (resolution: ${resolution})`);
+				console.log(
+					`🗿 [RECORDING] Sculpture created with ${pointCount} points (resolution: ${resolution})`
+				);
 			} else {
 				// Subsequent recordings - add as new layer ON TOP of user's base
 				const mode = sculptureStore.currentSculpture?.physical.sculptMode ?? 'additive';
@@ -312,26 +329,27 @@ export async function stopRecording(): Promise<void> {
 				const resolution = getResolutionForMode();
 				const layerData = new Float32Array(resolution);
 				const curveLen = radiusCurve?.length ?? 1;
-				
+
 				const layerIndex = existingLayers.length;
-				
+
 				// First USER layer (after replacing default) should be base with full radius
 				// Subsequent layers are distortions with delta values
-				const isFirstUserLayer = layerIndex === 0 || (layerIndex === 1 && existingLayers[0]?.name === 'Base Layer');
+				const isFirstUserLayer =
+					layerIndex === 0 || (layerIndex === 1 && existingLayers[0]?.name === 'Base Layer');
 				const isFirstLayer = isFirstUserLayer;
-				
+
 				// For subsequent layers: compute delta relative to existing profile
 				// This ensures additive blending produces expected results
 				// Delta = newRadius - existingBaselineRadius
 				const BASELINE_RADIUS = 0.5; // Used as fallback
-				
+
 				for (let i = 0; i < resolution; i++) {
 					const normalizedY = i / (resolution - 1);
 					const targetIndex = Math.round(normalizedY * (curveLen - 1));
 					const clampedIndex = Math.min(targetIndex, curveLen - 1);
 					const point = radiusCurve?.[clampedIndex];
 					const fullRadius = point?.x ?? 0.5;
-					
+
 					if (isFirstLayer) {
 						// Base layer: Store full radius (used with 'overwrite' blend mode)
 						layerData[i] = fullRadius;
@@ -341,12 +359,14 @@ export async function stopRecording(): Promise<void> {
 						layerData[i] = fullRadius - BASELINE_RADIUS;
 					}
 				}
-				
-				const avgData = layerData.reduce((a, b) => a + b, 0) / layerData.length;
-				console.log(`📊 [LAYER DATA] ${isFirstLayer ? 'Base' : 'Distortion'}: ${resolution} pts, avg=${avgData.toFixed(3)}`);
 
-				let layerMask = new Float32Array(resolution).fill(1.0);
-				let layerName = `Recording ${layerIndex + 1}`;
+				const avgData = layerData.reduce((a, b) => a + b, 0) / layerData.length;
+				console.log(
+					`📊 [LAYER DATA] ${isFirstLayer ? 'Base' : 'Distortion'}: ${resolution} pts, avg=${avgData.toFixed(3)}`
+				);
+
+				const layerMask = new Float32Array(resolution).fill(1.0);
+				const layerName = `Recording ${layerIndex + 1}`;
 
 				const newLayer: SculptureLayer = {
 					id: crypto.randomUUID(),
@@ -368,16 +388,10 @@ export async function stopRecording(): Promise<void> {
 				// P1: Add to session history for undo/redo
 				const sculptureId = sculptureStore.currentSculpture?.id ?? 'unknown';
 				const durationSec = capturedFrames.length / 30;
-				addHistoryEntry(
-					'recording',
-					newLayer.name,
-					newLayer,
-					sculptureId,
-					{
-						duration: durationSec,
-						frameCount: capturedFrames.length
-					}
-				);
+				addHistoryEntry('recording', newLayer.name, newLayer, sculptureId, {
+					duration: durationSec,
+					frameCount: capturedFrames.length
+				});
 
 				console.log(
 					`🎨 [RECORDING] Added layer "${newLayer.name}" (${mode} mode, ${capturedFrames.length} frames)`
@@ -395,7 +409,7 @@ export async function stopRecording(): Promise<void> {
 				undefined, // Auto-generate name
 				durationSec
 			);
-			
+
 			// P1: Track active sculpture for history
 			setActiveSculpture(sculptureStore.currentSculpture.id);
 		}
@@ -447,7 +461,9 @@ export function resetRecording(): void {
 	recordingStore.historyPosition = 1;
 	resetAnalysis();
 	// Don't nullify sculpture, just reset recording state
-	console.log(`✅ [RECORDING] Reset complete, new state: ${recordingStore.state}, _isCapturing = false`);
+	console.log(
+		`✅ [RECORDING] Reset complete, new state: ${recordingStore.state}, _isCapturing = false`
+	);
 }
 
 function triggerResonanceFeedback(): void {

@@ -40,10 +40,6 @@ interface SpeechRecognitionResultList {
 	[index: number]: SpeechRecognitionResult;
 }
 
-interface SpeechRecognitionEventInit extends EventInit {
-	results?: SpeechRecognitionResultList;
-}
-
 interface WebSpeechRecognitionEvent extends Event {
 	readonly results: SpeechRecognitionResultList;
 }

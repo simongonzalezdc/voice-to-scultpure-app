@@ -11,7 +11,6 @@ import {
 	updateMaterialForViewMode,
 	updateMaterialForGlazeMode,
 	calculateSmoothedEmission,
-	deriveEmissiveIntensity,
 	createGhostMaterialProps,
 	validateMaterialProps
 } from '$lib/engine/materialFactory';

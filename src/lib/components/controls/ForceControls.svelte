@@ -1,7 +1,23 @@
 <script lang="ts">
-	import { uiStore, setSculptMode, setForceToolType, type ForceToolType } from '$lib/stores/uiStore.svelte';
+	import {
+		uiStore,
+		setSculptMode,
+		setForceToolType,
+		type ForceToolType
+	} from '$lib/stores/uiStore.svelte';
 	import { analysisStore } from '$lib/stores/analysisStore.svelte';
-	import { Activity, Zap, Crosshair, Feather, Target, Plus, Minus, Volume2, Paintbrush, Sword, Pencil } from 'lucide-svelte';
+	import {
+		Activity,
+		Zap,
+		Feather,
+		Target,
+		Plus,
+		Minus,
+		Volume2,
+		Paintbrush,
+		Sword,
+		Pencil
+	} from 'lucide-svelte';
 
 	// Parameters
 	// Radius (Focus)
@@ -64,7 +80,8 @@
 				<span class="text-[10px] font-bold">BRUSH</span>
 			</button>
 			<button
-				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType === 'lance-carve'
+				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType ===
+				'lance-carve'
 					? 'bg-orange-500 text-white'
 					: 'surface-panel-alt text-secondary hover:bg-orange-500/20'}"
 				onclick={() => handleToolTypeChange('lance-carve')}
@@ -74,7 +91,8 @@
 				<span class="text-[10px] font-bold">CARVE</span>
 			</button>
 			<button
-				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType === 'lance-engrave'
+				class="p-2 rounded flex flex-col items-center gap-1 transition-colors {toolType ===
+				'lance-engrave'
 					? 'bg-purple-500 text-white'
 					: 'surface-panel-alt text-secondary hover:bg-purple-500/20'}"
 				onclick={() => handleToolTypeChange('lance-engrave')}
@@ -85,7 +103,9 @@
 			</button>
 		</div>
 		{#if isLanceMode}
-			<div class="surface-panel-alt p-2 rounded text-[10px] text-cyan-300 border border-cyan-500/30">
+			<div
+				class="surface-panel-alt p-2 rounded text-[10px] text-cyan-300 border border-cyan-500/30"
+			>
 				🗡️ <strong>LANCE MODE:</strong> Precision tool active. Pitch controls cut depth, volume triggers.
 			</div>
 		{/if}
@@ -180,7 +200,9 @@
 			step="0.01"
 			bind:value={radius}
 			disabled={isLanceMode}
-			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode ? 'cursor-not-allowed' : ''}"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode
+				? 'cursor-not-allowed'
+				: ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Pinpoint</span>
@@ -224,7 +246,9 @@
 			step="0.01"
 			bind:value={hardness}
 			disabled={isLanceMode}
-			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode ? 'cursor-not-allowed' : ''}"
+			class="w-full accent-brand-primary h-1 rounded-lg appearance-none cursor-pointer bg-surface-panel-alt {isLanceMode
+				? 'cursor-not-allowed'
+				: ''}"
 		/>
 		<div class="flex justify-between text-[10px] text-subtle">
 			<span>Soft</span>

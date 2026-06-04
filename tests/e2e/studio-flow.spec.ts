@@ -51,10 +51,16 @@ test.describe.skip('Voice-to-Sculpture Studio - Main Flow', () => {
 		// Modal may be auto-dismissed; consider pass if either modal shown or canvas visible
 		const modal = page.locator('text=/New Sculpture Project|Create Project/i');
 		const isVisible = await modal.isVisible().catch(() => false);
-		const canvasVisible = await page.locator('canvas').first().isVisible().catch(() => false);
+		const canvasVisible = await page
+			.locator('canvas')
+			.first()
+			.isVisible()
+			.catch(() => false);
 
 		expect(isVisible || canvasVisible).toBe(true);
-		console.log(isVisible ? '✅ New Project Modal visible' : '✅ Canvas visible (project initialized)');
+		console.log(
+			isVisible ? '✅ New Project Modal visible' : '✅ Canvas visible (project initialized)'
+		);
 	});
 
 	test('should create a new project with ceramic constraints', async ({ page }) => {

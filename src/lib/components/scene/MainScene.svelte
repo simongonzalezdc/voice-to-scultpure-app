@@ -52,11 +52,7 @@
 
 <!-- AUDIT FIX: Professional 3-Point Lighting Setup -->
 <!-- Hemisphere Light: Sky/Ground ambient for natural fill -->
-<T.HemisphereLight 
-	skyColor="#FDFBF7"
-	groundColor="#5A5A7A" 
-	intensity={0.6} 
-/>
+<T.HemisphereLight skyColor="#FDFBF7" groundColor="#5A5A7A" intensity={0.6} />
 
 <!-- Key Light - Main directional, rotatable -->
 <T.Group rotation.y={lightAngle}>
@@ -72,18 +68,10 @@
 </T.Group>
 
 <!-- Fill Light - Softer, opposite side -->
-<T.DirectionalLight 
-	position={[-3, 4, -2]} 
-	intensity={0.6}
-	color="#E8E4E0"
-/>
+<T.DirectionalLight position={[-3, 4, -2]} intensity={0.6} color="#E8E4E0" />
 
 <!-- Rim/Back Light - Creates edge definition -->
-<T.DirectionalLight 
-	position={[0, 2, -5]} 
-	intensity={0.4}
-	color="#D4E5F7"
-/>
+<T.DirectionalLight position={[0, 2, -5]} intensity={0.4} color="#D4E5F7" />
 
 <!-- Ambient for shadow fill - increased for visibility -->
 <T.AmbientLight intensity={0.25} />

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { 
-		galleryStore, 
-		loadGallery, 
-		removeFromGallery, 
+	import {
+		galleryStore,
+		loadGallery,
+		removeFromGallery,
 		renameSculpture,
 		formatDuration,
-		type GallerySculpture 
+		type GallerySculpture
 	} from '$lib/stores/galleryStore.svelte';
 	import { setCurrentSculpture } from '$lib/stores/sculptureStore.svelte';
 	import { Trash2, Edit2, Check, X, Image } from 'lucide-svelte';
@@ -66,7 +66,7 @@
 
 <div class="gallery-panel">
 	<h3 class="panel-title">Gallery ({galleryStore.count})</h3>
-	
+
 	{#if galleryStore.count === 0}
 		<div class="empty-state">
 			<Image size={32} strokeWidth={1} />
@@ -77,7 +77,7 @@
 		<div class="sculpture-list">
 			{#each galleryStore.sculptures as item (item.id)}
 				<div class="sculpture-item">
-					<button 
+					<button
 						class="sculpture-preview"
 						onclick={() => loadSculpture(item)}
 						title="Click to load"
@@ -86,12 +86,12 @@
 							<Image size={24} strokeWidth={1.5} />
 						</div>
 					</button>
-					
+
 					<div class="sculpture-info">
 						{#if editingId === item.id}
 							<div class="edit-row">
-								<input 
-									type="text" 
+								<input
+									type="text"
 									bind:value={editName}
 									onkeydown={(e) => e.key === 'Enter' && saveEdit()}
 									class="edit-input"
@@ -104,10 +104,7 @@
 								</button>
 							</div>
 						{:else}
-							<button 
-								class="sculpture-name"
-								onclick={() => loadSculpture(item)}
-							>
+							<button class="sculpture-name" onclick={() => loadSculpture(item)}>
 								{item.name}
 							</button>
 						{/if}
@@ -118,20 +115,12 @@
 							{/if}
 						</div>
 					</div>
-					
+
 					<div class="sculpture-actions">
-						<button 
-							onclick={() => startEdit(item)} 
-							class="icon-btn"
-							title="Rename"
-						>
+						<button onclick={() => startEdit(item)} class="icon-btn" title="Rename">
 							<Edit2 size={14} />
 						</button>
-						<button 
-							onclick={() => confirmDelete(item)} 
-							class="icon-btn delete"
-							title="Delete"
-						>
+						<button onclick={() => confirmDelete(item)} class="icon-btn delete" title="Delete">
 							<Trash2 size={14} />
 						</button>
 					</div>

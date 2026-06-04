@@ -5,11 +5,11 @@
 	 * Offers: Add Layer, Color, Export buttons
 	 */
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-	import { recordingStore } from '$lib/stores/recording.svelte';
-	import { uiStore, setWorkspace } from '$lib/stores/uiStore.svelte';
-	import { analysisStore } from '$lib/stores/analysisStore.svelte';
+	import { getCapturedFrames, recordingStore, resetRecording } from '$lib/stores/recording.svelte';
+	import { setWorkspace } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 	import { ChevronRight, X } from 'lucide-svelte';
+	import type { AnalysisFrame } from '$lib/types';
 
 	interface SummaryStats {
 		height: number;
@@ -25,9 +25,9 @@
 		}
 
 		const height = sculpture.physical?.height ?? DEFAULT_HEIGHT_MM;
-		const frames = recordingStore.capturedFrames || [];
+		const frames: AnalysisFrame[] = getCapturedFrames();
 		const duration = frames.length > 0 ? Math.round((frames.length / 30) * 10) / 10 : 0; // ~30 fps
-		
+
 		// Count beats and phrases from analysis
 		const beats = frames.filter((f) => f.beat).length;
 		const phrases = frames.filter((f) => f.phraseStart).length;
@@ -43,7 +43,7 @@
 	function handleAddLayer() {
 		dismissSummary();
 		// Reset for next layer
-		recordingStore.resetRecording?.();
+		resetRecording();
 	}
 
 	function handleColor() {
@@ -63,13 +63,17 @@
 {#if isVisible}
 	<!-- Post-Recording Summary Overlay -->
 	<div class="fixed inset-0 z-50 flex items-end justify-center p-4 pointer-events-none">
-		<div class="pointer-events-auto max-w-md w-full bg-gradient-to-b from-surface-panel to-surface-panel/95 border border-brand-primary/30 rounded-t-2xl shadow-2xl overflow-hidden">
+		<div
+			class="pointer-events-auto max-w-md w-full bg-gradient-to-b from-surface-panel to-surface-panel/95 border border-brand-primary/30 rounded-t-2xl shadow-2xl overflow-hidden"
+		>
 			<!-- Header -->
-			<div class="bg-gradient-to-r from-brand-primary/20 to-brand-primary/10 border-b border-brand-primary/30 px-6 py-4 flex justify-between items-center">
+			<div
+				class="bg-gradient-to-r from-brand-primary/20 to-brand-primary/10 border-b border-brand-primary/30 px-6 py-4 flex justify-between items-center"
+			>
 				<h3 class="text-lg font-semibold text-brand-primary flex items-center gap-2">
 					✨ Sculpture Created
 				</h3>
-				<button 
+				<button
 					class="p-1 rounded hover:bg-white/10 text-secondary hover:text-primary transition-colors"
 					onclick={dismissSummary}
 					title="Dismiss"
@@ -140,4 +144,3 @@
 		animation: slide-up 0.3s ease-out;
 	}
 </style>
-

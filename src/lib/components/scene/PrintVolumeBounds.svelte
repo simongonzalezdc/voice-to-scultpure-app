@@ -2,7 +2,7 @@
 	import { T } from '@threlte/core';
 	import { uiStore } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
-	import { BoxGeometry, EdgesGeometry, GridHelper, LineBasicMaterial } from 'three';
+	import { BoxGeometry, EdgesGeometry, LineBasicMaterial } from 'three';
 
 	// Convert mm to scene units
 	// Scene uses normalized coordinates where base height = 1.0 = DEFAULT_HEIGHT_MM
@@ -72,4 +72,3 @@
 		{/each}
 	</T.Group>
 {/if}
-

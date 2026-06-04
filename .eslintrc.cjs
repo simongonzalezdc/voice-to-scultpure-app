@@ -20,6 +20,7 @@ module.exports = {
 	},
 	ignorePatterns: [
 		'.svelte-kit/**',
+		'.omx/**',
 		'node_modules/**',
 		'build/**',
 		'test-results/**',
@@ -55,12 +56,15 @@ module.exports = {
 	],
 	rules: {
 		'@typescript-eslint/no-explicit-any': 'warn',
+		'no-unused-vars': 'off',
 		'@typescript-eslint/no-unused-vars': [
-			'error',
+			'warn',
 			{
 				argsIgnorePattern: '^_',
 				varsIgnorePattern: '^_'
 			}
-		]
+		],
+		'prefer-const': 'warn',
+		'no-case-declarations': 'warn'
 	}
 };

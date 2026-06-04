@@ -47,7 +47,9 @@ export function generateFinalProfile(
 	if (sculpture?.layers && sculpture.layers.length > 0) {
 		// PRIMARY: Use computeProfile - SAME as the app's Sculpture.svelte
 		// This ensures the export matches what the user sees on screen
-		console.log(`📦 [EXPORT] Using computeProfile (${sculpture.layers.length} layers) - matches app view`);
+		console.log(
+			`📦 [EXPORT] Using computeProfile (${sculpture.layers.length} layers) - matches app view`
+		);
 		profile = computeProfile(sculpture.layers);
 	} else if (sculpture?.radiusCurve && sculpture.radiusCurve.length > 0) {
 		// Fallback: Use stored radiusCurve for legacy sculptures
@@ -85,18 +87,18 @@ export function generateFinalProfile(
 	// AUDIT FIX: Step 5: Scale to real-world millimeters for 3D printing
 	// Profile points are in normalized units (Y: 0-1, X: radius ratio)
 	// For STL export, we need actual millimeters
-	// 
+	//
 	// CRITICAL: In the live render:
 	//   - Y is scaled by heightScale (sculpture.height / DEFAULT_HEIGHT_MM)
 	//   - X (radius) is NOT scaled - stays at normalized values
-	// 
+	//
 	// To preserve the same aspect ratio in the export:
 	//   - Both X and Y scale to the physical sculpture height (mm) so exports
 	//     match the real-world dimensions shown in the UI ruler
 	if (options.scaleToMillimeters) {
 		const heightMM = sculpture.physical.height || DEFAULT_HEIGHT_MM;
-		
-		profile = profile.map(point => ({
+
+		profile = profile.map((point) => ({
 			// Scale radius and height into millimeters using the requested height
 			x: point.x * heightMM,
 			y: point.y * heightMM

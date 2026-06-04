@@ -26,7 +26,7 @@ When the orchestrator notices a repeated pattern (a task done 3+ times) or a rec
 
 The success-state UX is one line, surfaced back in chat:
 
-> *"I noticed X, found a better way. The system just got an upgrade."*
+> _"I noticed X, found a better way. The system just got an upgrade."_
 
 That line is the slogan and the user-facing payload of every successful audition.
 
@@ -55,12 +55,12 @@ Both prevent future friction. Tools attack work-volume. Guardrails attack agent-
 
 Before invoking `/empower`, run this OUT LOUD in chat. Each question gets a green / yellow / red verdict.
 
-| # | Question | Green | Yellow | Red |
-|---|---|---|---|---|
-| 1 | **Scale.** How many things does this touch when wrong? | One file, one workspace | Multi-file, single workspace | Cross-workspace, all sessions, or core config |
-| 2 | **Severity.** What breaks if it ships wrong? | Minor friction (typo, awkward phrasing) | Broken workflow until reverted | Data loss, broken pipeline, system-wide harm, leaked content |
-| 3 | **Reversibility.** How clean is the undo? | Single revert plus trash move | Revert plus manual cleanup | Surgery (external service call already fired) |
-| 4 | **Predictability.** Can you articulate the failure mode in one sentence? | Yes, and it's bounded | Yes, but you're guessing | No, can't predict |
+| #   | Question                                                                 | Green                                   | Yellow                         | Red                                                          |
+| --- | ------------------------------------------------------------------------ | --------------------------------------- | ------------------------------ | ------------------------------------------------------------ |
+| 1   | **Scale.** How many things does this touch when wrong?                   | One file, one workspace                 | Multi-file, single workspace   | Cross-workspace, all sessions, or core config                |
+| 2   | **Severity.** What breaks if it ships wrong?                             | Minor friction (typo, awkward phrasing) | Broken workflow until reverted | Data loss, broken pipeline, system-wide harm, leaked content |
+| 3   | **Reversibility.** How clean is the undo?                                | Single revert plus trash move           | Revert plus manual cleanup     | Surgery (external service call already fired)                |
+| 4   | **Predictability.** Can you articulate the failure mode in one sentence? | Yes, and it's bounded                   | Yes, but you're guessing       | No, can't predict                                            |
 
 ### Mode rules
 
@@ -72,16 +72,16 @@ Before invoking `/empower`, run this OUT LOUD in chat. Each question gets a gree
 
 ### What gets shipped
 
-| Artifact | Where it lands | Discovery |
-|---|---|---|
-| Tool (executable) | `tools/<name>` (or your equivalent) | A `tools/CATALOG.md` listing |
-| Skill | Your harness's auto-discovered skills dir | Auto-discovered |
-| Slash command | Your harness's commands dir | Autocomplete |
-| Sub-agent | Your harness's agents dir | Auto-discovered |
-| Hook | Your harness's settings file | Fires automatically per event |
-| Memory entry | Your project memory dir | Always loaded |
-| Doctrine doc | A long-form `docs/` location | Pointer from a memory entry |
-| Per-model guardrail | A loadable warning file (per executor) | Dispatcher appends to outgoing brief |
+| Artifact            | Where it lands                            | Discovery                            |
+| ------------------- | ----------------------------------------- | ------------------------------------ |
+| Tool (executable)   | `tools/<name>` (or your equivalent)       | A `tools/CATALOG.md` listing         |
+| Skill               | Your harness's auto-discovered skills dir | Auto-discovered                      |
+| Slash command       | Your harness's commands dir               | Autocomplete                         |
+| Sub-agent           | Your harness's agents dir                 | Auto-discovered                      |
+| Hook                | Your harness's settings file              | Fires automatically per event        |
+| Memory entry        | Your project memory dir                   | Always loaded                        |
+| Doctrine doc        | A long-form `docs/` location              | Pointer from a memory entry          |
+| Per-model guardrail | A loadable warning file (per executor)    | Dispatcher appends to outgoing brief |
 
 The principle: each artifact type uses its native discovery surface in your stack. Don't invent one shared catalog for everything.
 

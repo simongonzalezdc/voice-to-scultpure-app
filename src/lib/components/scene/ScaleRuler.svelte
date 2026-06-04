@@ -9,9 +9,7 @@
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 
 	// Get current sculpture height in mm
-	let heightMM = $derived(
-		sculptureStore.currentSculpture?.physical?.height ?? DEFAULT_HEIGHT_MM
-	);
+	let heightMM = $derived(sculptureStore.currentSculpture?.physical?.height ?? DEFAULT_HEIGHT_MM);
 
 	// Convert mm to 3D units (150mm = 1.0 unit)
 	let heightUnits = $derived(heightMM / DEFAULT_HEIGHT_MM);
@@ -21,7 +19,7 @@
 	let ticks = $derived.by(() => {
 		const result: { mm: number; y: number; major: boolean }[] = [];
 		for (let mm = 0; mm <= heightMM; mm += tickInterval) {
-			const y = (mm / DEFAULT_HEIGHT_MM); // Convert to 3D units
+			const y = mm / DEFAULT_HEIGHT_MM; // Convert to 3D units
 			const major = mm % 100 === 0; // Major tick every 100mm
 			result.push({ mm, y, major });
 		}
@@ -116,4 +114,3 @@
 		anchorY="top"
 	/>
 </T.Group>
-

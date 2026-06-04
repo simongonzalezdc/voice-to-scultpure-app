@@ -10,7 +10,7 @@
 	} from '$lib/stores/uiStore.svelte';
 	import { appSettings, updateSettings } from '$lib/stores/appSettingsStore.svelte';
 	import { undo, redo, historyStore } from '$lib/stores/historyStore.svelte';
-	import { Eye, RotateCcw, Undo2, Redo2, Home } from 'lucide-svelte';
+	import { Eye, Undo2, Redo2, Home } from 'lucide-svelte';
 
 	let showMenu = $state(false);
 

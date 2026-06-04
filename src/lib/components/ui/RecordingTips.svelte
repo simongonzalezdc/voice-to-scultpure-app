@@ -48,7 +48,9 @@
 {#if isRecording}
 	<!-- Floating Recording Tips -->
 	<div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
-		<div class="animate-fade-in-out bg-surface-panel/95 backdrop-blur border border-brand-primary/50 rounded-lg px-4 py-2 shadow-lg">
+		<div
+			class="animate-fade-in-out bg-surface-panel/95 backdrop-blur border border-brand-primary/50 rounded-lg px-4 py-2 shadow-lg"
+		>
 			<p class="text-sm text-center font-medium text-brand-primary">
 				{currentTips.during[currentTip]}
 			</p>
@@ -58,7 +60,7 @@
 						class="w-1.5 h-1.5 rounded-full transition-all {i === currentTip
 							? 'bg-brand-primary scale-125'
 							: 'bg-brand-primary/30'}"
-					/>
+					></div>
 				{/each}
 			</div>
 		</div>
@@ -66,7 +68,9 @@
 {:else if recordingStore.state === 'idle'}
 	<!-- Pre-Recording Info -->
 	<div class="bg-surface-panel-alt border border-brand-primary/30 rounded-lg p-3 mb-3">
-		<p class="text-sm text-brand-primary font-medium mb-2">✨ {uiStore.recordingMode === 'standard' ? 'Quick' : 'Full'} Recording</p>
+		<p class="text-sm text-brand-primary font-medium mb-2">
+			✨ {uiStore.recordingMode === 'standard' ? 'Quick' : 'Full'} Recording
+		</p>
 		<p class="text-xs text-secondary leading-relaxed">
 			{currentTips.pre}
 		</p>
@@ -75,10 +79,12 @@
 
 <style>
 	@keyframes fade-in-out {
-		0%, 100% {
+		0%,
+		100% {
 			opacity: 0;
 		}
-		10%, 90% {
+		10%,
+		90% {
 			opacity: 1;
 		}
 	}
@@ -87,4 +93,3 @@
 		animation: fade-in-out 4s ease-in-out infinite;
 	}
 </style>
-

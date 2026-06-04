@@ -1,18 +1,22 @@
 /**
  * Song Mode AI Service
- * 
+ *
  * Lightweight AI analysis for Song Mode features:
  * - #2 Narrative Strata: Sentiment analysis (valence/energy) → colors
  * - #5 Atmospheric Resonance: Mood classification → environment (BETA)
  * - #1 Material Metaphor: Material extraction → PBR properties (BETA)
- * 
+ *
  * Uses the unified MultiProviderAdapter for all AI calls, supporting:
  * - OpenAI, Anthropic, Google, Groq, OpenRouter (cloud)
  * - Ollama (local network)
  * - Together.ai, DeepSeek (budget-friendly)
  */
 
-import type { SentimentScore, MoodClassification, MaterialSuggestion } from '$lib/stores/songModeStore.svelte';
+import type {
+	SentimentScore,
+	MoodClassification,
+	MaterialSuggestion
+} from '$lib/stores/songModeStore.svelte';
 import { appSettings } from '$lib/stores/appSettingsStore.svelte';
 import { PROVIDER_CONFIGS, type CloudProvider } from './providers';
 
@@ -64,7 +68,8 @@ function getDefaultModelForProvider(provider: CloudProvider): string {
 		openrouter: 'meta-llama/llama-3.3-70b-instruct',
 		ollama: 'llama3.2:3b',
 		together: 'meta-llama/Llama-3.2-3B-Instruct-Turbo', // Free tier
-		deepseek: 'deepseek-chat'
+		deepseek: 'deepseek-chat',
+		zhipu: 'glm-4.6'
 	};
 	return defaults[provider] || 'gpt-4o-mini';
 }
@@ -146,22 +151,19 @@ async function callAI(prompt: string, lyrics: string): Promise<AIResponse> {
 			content = data.content?.[0]?.text || '';
 		} else if (provider === 'google') {
 			// Google Gemini uses different format
-			response = await fetch(
-				`${config.baseUrl}/models/${model}:generateContent?key=${apiKey}`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						systemInstruction: { parts: [{ text: prompt }] },
-						contents: [{ role: 'user', parts: [{ text: `Lyrics: "${lyrics}"` }] }],
-						generationConfig: {
-							temperature: 0.3,
-							maxOutputTokens: 150,
-							responseMimeType: 'application/json'
-						}
-					})
-				}
-			);
+			response = await fetch(`${config.baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					systemInstruction: { parts: [{ text: prompt }] },
+					contents: [{ role: 'user', parts: [{ text: `Lyrics: "${lyrics}"` }] }],
+					generationConfig: {
+						temperature: 0.3,
+						maxOutputTokens: 150,
+						responseMimeType: 'application/json'
+					}
+				})
+			});
 			const data = await response.json();
 			content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 		} else {
@@ -173,9 +175,8 @@ async function callAI(prompt: string, lyrics: string): Promise<AIResponse> {
 
 			// OpenRouter requires additional headers
 			if (provider === 'openrouter') {
-				headers['HTTP-Referer'] = typeof window !== 'undefined'
-					? window.location.origin
-					: 'https://voice-to-sculpture.app';
+				headers['HTTP-Referer'] =
+					typeof window !== 'undefined' ? window.location.origin : 'https://voice-to-sculpture.app';
 				headers['X-Title'] = 'Voice-to-Sculpture Studio';
 			}
 
@@ -191,7 +192,7 @@ async function callAI(prompt: string, lyrics: string): Promise<AIResponse> {
 					max_tokens: 150,
 					temperature: 0.3,
 					// Request JSON mode if supported
-					...(config.models.find(m => m.id === model)?.supportsJson
+					...(config.models.find((m) => m.id === model)?.supportsJson
 						? { response_format: { type: 'json_object' } }
 						: {})
 				})
@@ -277,8 +278,8 @@ export async function classifyMood(lyrics: string): Promise<MoodClassification |
 
 	// Validate mood
 	const validMoods = ['intimate', 'triumphant', 'ethereal', 'melancholic', 'energetic'] as const;
-	const mood = validMoods.includes(data.mood as typeof validMoods[number])
-		? (data.mood as typeof validMoods[number])
+	const mood = validMoods.includes(data.mood as (typeof validMoods)[number])
+		? (data.mood as (typeof validMoods)[number])
 		: 'intimate';
 
 	return {
@@ -335,10 +336,54 @@ export function analyzeSentimentOffline(lyrics: string): SentimentScore {
 	const text = lyrics.toLowerCase();
 
 	// Simple keyword analysis
-	const positiveWords = ['love', 'happy', 'joy', 'hope', 'light', 'sun', 'dance', 'smile', 'free', 'dream'];
-	const negativeWords = ['sad', 'pain', 'dark', 'lost', 'cry', 'broken', 'fear', 'alone', 'cold', 'hate'];
-	const energeticWords = ['run', 'jump', 'fire', 'loud', 'fast', 'wild', 'burn', 'explode', 'rush', 'power'];
-	const calmWords = ['soft', 'quiet', 'peace', 'gentle', 'slow', 'calm', 'sleep', 'rest', 'still', 'whisper'];
+	const positiveWords = [
+		'love',
+		'happy',
+		'joy',
+		'hope',
+		'light',
+		'sun',
+		'dance',
+		'smile',
+		'free',
+		'dream'
+	];
+	const negativeWords = [
+		'sad',
+		'pain',
+		'dark',
+		'lost',
+		'cry',
+		'broken',
+		'fear',
+		'alone',
+		'cold',
+		'hate'
+	];
+	const energeticWords = [
+		'run',
+		'jump',
+		'fire',
+		'loud',
+		'fast',
+		'wild',
+		'burn',
+		'explode',
+		'rush',
+		'power'
+	];
+	const calmWords = [
+		'soft',
+		'quiet',
+		'peace',
+		'gentle',
+		'slow',
+		'calm',
+		'sleep',
+		'rest',
+		'still',
+		'whisper'
+	];
 
 	let valence = 0;
 	let energy = 0;
@@ -385,4 +430,3 @@ export function classifyMoodOffline(lyrics: string): MoodClassification {
 		timestamp: Date.now()
 	};
 }
-

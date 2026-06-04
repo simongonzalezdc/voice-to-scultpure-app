@@ -26,13 +26,13 @@ let isLoaded = $state(false);
  */
 export function loadGallery(): void {
 	if (typeof window === 'undefined') return;
-	
+
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored) {
 			const parsed = JSON.parse(stored) as GallerySculpture[];
 			// Restore Float32Arrays from regular arrays
-			sculptures = parsed.map(item => ({
+			sculptures = parsed.map((item) => ({
 				...item,
 				sculpture: restoreSculpture(item.sculpture)
 			}));
@@ -50,10 +50,10 @@ export function loadGallery(): void {
  */
 function saveGallery(): void {
 	if (typeof window === 'undefined') return;
-	
+
 	try {
 		// Convert Float32Arrays to regular arrays for JSON serialization
-		const serializable = sculptures.map(item => ({
+		const serializable = sculptures.map((item) => ({
 			...item,
 			sculpture: serializeSculpture(item.sculpture)
 		}));
@@ -69,7 +69,7 @@ function saveGallery(): void {
 function serializeSculpture(sculpture: SculptureDefinition): SculptureDefinition {
 	return {
 		...sculpture,
-		layers: sculpture.layers.map(layer => ({
+		layers: sculpture.layers.map((layer) => ({
 			...layer,
 			data: Array.from(layer.data) as unknown as Float32Array,
 			mask: Array.from(layer.mask) as unknown as Float32Array
@@ -85,7 +85,7 @@ function serializeSculpture(sculpture: SculptureDefinition): SculptureDefinition
 function restoreSculpture(sculpture: SculptureDefinition): SculptureDefinition {
 	return {
 		...sculpture,
-		layers: sculpture.layers.map(layer => ({
+		layers: sculpture.layers.map((layer) => ({
 			...layer,
 			data: new Float32Array(layer.data as unknown as number[]),
 			mask: new Float32Array(layer.mask as unknown as number[])
@@ -108,14 +108,14 @@ export function addToGallery(
 		createdAt: Date.now(),
 		duration: duration || 0
 	};
-	
+
 	// Restore Float32Arrays after deep clone
 	entry.sculpture = restoreSculpture(entry.sculpture);
-	
+
 	// Add to front, limit size
 	sculptures = [entry, ...sculptures].slice(0, MAX_GALLERY_SIZE);
 	saveGallery();
-	
+
 	console.log(`🖼️ [GALLERY] Added "${entry.name}" (${sculptures.length} total)`);
 	return entry;
 }
@@ -124,13 +124,13 @@ export function addToGallery(
  * Remove a sculpture from the gallery
  */
 export function removeFromGallery(id: string): boolean {
-	const index = sculptures.findIndex(s => s.id === id);
+	const index = sculptures.findIndex((s) => s.id === id);
 	if (index === -1) return false;
-	
+
 	const removed = sculptures[index];
-	sculptures = sculptures.filter(s => s.id !== id);
+	sculptures = sculptures.filter((s) => s.id !== id);
 	saveGallery();
-	
+
 	console.log(`🗑️ [GALLERY] Removed "${removed?.name}"`);
 	return true;
 }
@@ -139,9 +139,9 @@ export function removeFromGallery(id: string): boolean {
  * Rename a sculpture in the gallery
  */
 export function renameSculpture(id: string, newName: string): boolean {
-	const item = sculptures.find(s => s.id === id);
+	const item = sculptures.find((s) => s.id === id);
 	if (!item) return false;
-	
+
 	item.name = newName;
 	sculptures = [...sculptures]; // Trigger reactivity
 	saveGallery();
@@ -152,7 +152,7 @@ export function renameSculpture(id: string, newName: string): boolean {
  * Get a sculpture by ID
  */
 export function getSculptureById(id: string): GallerySculpture | undefined {
-	return sculptures.find(s => s.id === id);
+	return sculptures.find((s) => s.id === id);
 }
 
 /**
@@ -176,7 +176,13 @@ export function formatDuration(seconds: number): string {
 
 // Export reactive store
 export const galleryStore = {
-	get sculptures() { return sculptures; },
-	get count() { return sculptures.length; },
-	get isLoaded() { return isLoaded; }
+	get sculptures() {
+		return sculptures;
+	},
+	get count() {
+		return sculptures.length;
+	},
+	get isLoaded() {
+		return isLoaded;
+	}
 };

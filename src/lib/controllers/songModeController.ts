@@ -1,6 +1,6 @@
 /**
  * Song Mode Controller
- * 
+ *
  * Wires together all Song Mode components:
  * - Speech-to-Text → Lyrics Buffer
  * - Lyrics → AI Sentiment → Glaze Colors
@@ -27,10 +27,7 @@ import {
 } from '$lib/stores/songModeStore.svelte';
 import { uiStore, setEnvironment, setLightingAngle } from '$lib/stores/uiStore.svelte';
 import { analysisStore } from '$lib/stores/analysisStore.svelte';
-import {
-	createBrowserSpeechToText,
-	type SpeechToTextService
-} from '$lib/ai/speechToText';
+import { createBrowserSpeechToText, type SpeechToTextService } from '$lib/ai/speechToText';
 import {
 	analyzeSentiment,
 	classifyMood,
@@ -312,7 +309,9 @@ function processFormant(): void {
 		toolSwitchCooldown = now;
 
 		if (targetToolType === 'lance-carve') {
-			console.log(`🗡️ [SONG CTRL] Phonetic Lance triggered (${isFricative ? 'fricative' : 'plosive'} detected)`);
+			console.log(
+				`🗡️ [SONG CTRL] Phonetic Lance triggered (${isFricative ? 'fricative' : 'plosive'} detected)`
+			);
 		} else {
 			console.log(`🖌️ [SONG CTRL] Phonetic Brush restored (vowel detected)`);
 		}
@@ -449,4 +448,3 @@ export function forceProcessSentiment(): void {
 		processSentiment();
 	}
 }
-

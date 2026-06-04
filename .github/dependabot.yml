@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      svelte-stack:
+        patterns:
+          - '@sveltejs/*'
+          - svelte
+          - svelte-check
+          - vite
+      three-stack:
+        patterns:
+          - three
+          - '@threlte/*'
+      test-tooling:
+        patterns:
+          - vitest
+          - '@vitest/*'
+          - playwright
+          - '@playwright/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
