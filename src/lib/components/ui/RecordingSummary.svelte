@@ -5,11 +5,7 @@
 	 * Offers: Add Layer, Color, Export buttons
 	 */
 	import { sculptureStore } from '$lib/stores/sculptureStore.svelte';
-	import {
-		getCapturedFrames,
-		recordingStore,
-		resetRecording
-	} from '$lib/stores/recording.svelte';
+	import { getCapturedFrames, recordingStore, resetRecording } from '$lib/stores/recording.svelte';
 	import { setWorkspace } from '$lib/stores/uiStore.svelte';
 	import { DEFAULT_HEIGHT_MM } from '$lib/config/constants';
 	import { ChevronRight, X } from 'lucide-svelte';
