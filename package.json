@@ -31,7 +31,7 @@
 		"jsdom": "^29.1.1",
 		"lucide-svelte": "^0.554.0",
 		"postcss": "^8.5.13",
-		"prettier": "^3.2.5",
+		"prettier": "^3.8.3",
 		"prettier-plugin-svelte": "^3.2.0",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.5.0",
