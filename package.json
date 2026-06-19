@@ -42,7 +42,7 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
-		"@mlc-ai/web-llm": "^0.2.79",
+		"@mlc-ai/web-llm": "^0.2.84",
 		"@threlte/core": "8.5.16",
 		"@threlte/extras": "^9.21.0",
 		"audiobuffer-to-wav": "^1.0.0",
