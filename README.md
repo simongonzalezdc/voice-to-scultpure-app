@@ -1,27 +1,20 @@
 # Voice-to-Sculpture Studio
 
-Turn your voice into 3D-printable ceramic sculptures in the browser — sing, hum, or speak and real-time audio analysis shapes the pottery. For makers, digital artists, and 3D-printing hobbyists.
+Turn voice into 3D-printable sculptures in the browser with real-time audio analysis, WebLLM, and STL/GLB export.
+
+**Who it is for:** makers and digital artists who want audio-driven pottery forms without a desktop DCC stack.
 
 ## Quick start
 
 ```bash
+git clone https://github.com/simongonzalezdc/voice-to-scultpure-app.git
+cd voice-to-scultpure-app
 npm install
-npm run dev      # Vite dev server
-```
-
-```bash
-npm run build
-npm run preview
+npm run dev      # Vite
+npm run build && npm run preview
 ```
 
 ## Docs
 
-- [Meyda](https://meyda.js.org/)
 - [TESTING_GUIDE.md](TESTING_GUIDE.md)
-- [kyanitelabs.tech](https://kyanitelabs.tech)
-- [Print-OS](https://github.com/simongonzalezdc/Print-OS)
-- [GameStory-Lab](https://github.com/simongonzalezdc/GameStory-Lab)
-
-## License
-
-See [LICENSE](LICENSE).
+- Related: [Print-OS](https://github.com/simongonzalezdc/Print-OS)
